@@ -227,15 +227,6 @@ export function clockMinutes(chapter: Chapter, timing: Timing = TIMED_PHASES): n
   return phase.startsAt + Math.floor(phase.minutes - chapter.minutesLeft);
 }
 
-/**
- * Heure pleine franchie entre deux instants (en minutes depuis minuit) : celle
- * que sonne la cloche. La dernière, s'il y en a plusieurs ; `null` s'il n'y en a pas.
- */
-export function hourStruck(before: number, after: number): number | null {
-  const hour = Math.floor(after / 60);
-  return hour > Math.floor(before / 60) ? hour : null;
-}
-
 /** Jour et heure de la partie, par exemple « Samedi, 15 h 20 ». `null` hors des phases où le temps est compté. */
 export function clockLabel(chapter: Chapter, timing: Timing = TIMED_PHASES): string | null {
   const now = clockMinutes(chapter, timing);

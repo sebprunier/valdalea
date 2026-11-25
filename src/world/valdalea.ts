@@ -171,19 +171,23 @@ export function buildValDAlea(): Commune {
   }
 
   // ---------------------------------------------------- Hameau des Brandes
-  for (const [x, y, w, h, door] of [
-    [3230, 930, 90, 70, 'S'],
-    [3440, 1090, 100, 70, 'S'],
-    [3620, 1190, 90, 70, 'S'],
-    [3820, 1330, 100, 80, 'W'],
-    [3480, 1370, 100, 70, 'N'],
-    [3260, 1290, 90, 70, 'N'],
-    [3780, 1520, 90, 70, 'W'],
-  ] as const) {
+  const hamlet = (
+    [
+      [3230, 930, 90, 70, 'S'],
+      [3440, 1090, 100, 70, 'S'],
+      [3620, 1190, 90, 70, 'S'],
+      [3820, 1330, 100, 80, 'W'],
+      [3480, 1370, 100, 70, 'N'],
+      [3260, 1290, 90, 70, 'N'],
+      [3780, 1520, 90, 70, 'W'],
+    ] as const
+  ).map(([x, y, w, h, door]) => {
     const house = rect(x, y, w, h);
     b.groundRect('jardin', inflate(house, 25));
-    b.building('pavillon', house, { roof: 'tuile', door });
-  }
+    return b.building('pavillon', house, { roof: 'tuile', door });
+  });
+  // La maison de Lucien : la dernière avant la forêt, qui commence au bout de son jardin.
+  const lucien = hamlet[1];
 
   // --------------------------------------------------------------- Camping
   const camping = rect(1450, 2470, 620, 380);
@@ -219,6 +223,12 @@ export function buildValDAlea(): Commune {
   ] as const) {
     b.tree(x, y, 13);
   }
+  // Le camping : une haie d'arbres sur trois côtés, et deux arbres d'ombrage entre les emplacements.
+  for (let y = 2552; y <= 2830; y += 46) b.tree(1463, y, 11);
+  for (let x = 1500; x <= 2050; x += 46) b.tree(x, 2837, 11);
+  for (let y = 2630; y <= 2800; y += 46) b.tree(2057, y, 11);
+  b.tree(1593, 2670, 13);
+  b.tree(1937, 2670, 13);
 
   // ------------------------------------------------------------ Toponymie
   b.label('secteur', 'Sous-la-Roche', 800, 1420);
@@ -261,6 +271,7 @@ export function buildValDAlea(): Commune {
   b.place('argilieres', 'Lotissement des Argilières', 'quartier', 'argilieres', vec(1650, 300));
   b.place('sous-la-roche', 'Sous-la-Roche', 'quartier', 'sous-la-roche', vec(640, 820));
   b.place('brandes', 'Hameau des Brandes', 'quartier', 'brandes', vec(3500, 1275));
+  b.place('lucien', 'Chez Lucien', 'domicile', 'brandes', doorPoint(lucien));
   b.place('cite', 'Cité des Vannes', 'quartier', 'cite', vec(3120, 1900));
   b.place('usine', 'Usine Engrais du Val', 'usine', 'zone-industrielle', vec(3400, 1772));
   b.place('camping', 'Camping des Berges', 'camping', 'camping', doorPoint(accueil));

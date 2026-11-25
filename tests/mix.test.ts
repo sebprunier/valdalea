@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mixOf, nearness, type Listening } from '../src/audio/mix';
-import { hourStruck } from '../src/core/chapter';
 import { SKIES } from '../src/render/weather';
 
 /** Sur les hauteurs, loin de tout : seul le temps qu'il fait s'entend. */
@@ -65,15 +64,5 @@ describe('ambiance sonore', () => {
     expect(nearness(0, 300)).toBe(1);
     expect(nearness(150, 300)).toBe(0.5);
     expect(nearness(900, 300)).toBe(0);
-  });
-});
-
-describe('cloches', () => {
-  it('sonne l’heure pleine qui vient de passer, et rien entre deux heures', () => {
-    expect(hourStruck(12 * 60, 12 * 60 + 40)).toBeNull();
-    expect(hourStruck(12 * 60 + 40, 13 * 60)).toBe(13);
-    expect(hourStruck(12 * 60 + 50, 13 * 60 + 20)).toBe(13);
-    // Un long trajet peut franchir deux heures : seule la dernière sonne.
-    expect(hourStruck(12 * 60 + 50, 14 * 60 + 5)).toBe(14);
   });
 });

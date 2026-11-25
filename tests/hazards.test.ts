@@ -28,6 +28,8 @@ describe('cartes de risques', () => {
     expect(exposuresAt(commune, elevation, at('vieux-bourg'))).toEqual(['cavites']);
     expect(exposuresAt(commune, elevation, at('argilieres'))).toEqual(['argiles']);
     expect(exposuresAt(commune, elevation, at('brandes'))).toContain('feu-foret');
+    // La maison de Lucien, la dernière avant la forêt, est dans la bande où l'on doit débroussailler.
+    expect(exposuresAt(commune, elevation, at('lucien'))).toEqual(['feu-foret']);
     expect(exposuresAt(commune, elevation, at('cite'))).toEqual(['industriel']);
     expect(exposuresAt(commune, elevation, at('usine'))).toEqual(['industriel']);
     expect(exposuresAt(commune, elevation, at('camping'))).toEqual(['inondation']);

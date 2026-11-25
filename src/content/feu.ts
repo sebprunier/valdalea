@@ -25,8 +25,8 @@ export const ACTIONS: ActionDef[] = [
     sources: ['georisques-old'],
   },
   {
-    id: 'brandes-debroussailler',
-    place: 'brandes',
+    id: 'lucien-debroussailler',
+    place: 'lucien',
     phase: 'preparation',
     minutes: 60,
     questions: ['debroussailler'],
@@ -68,7 +68,7 @@ export const ACTIONS: ActionDef[] = [
     title: "Vérifier l'aire de barbecue du camping",
     why: "Les barbecues s'organisent loin de la végétation, et les mégots se jettent dans un cendrier : attention aux cendres encore incandescentes.",
     who: 'Le gérant du camping, pour ses installations ; chaque campeur, pour ses gestes.',
-    done: "L'aire de barbecue est sur une dalle, à l'écart des haies, avec un point d'eau. Le gérant ajoute des cendriers et une affiche à l'accueil.",
+    done: "Le barbecue du camping était posé au pied de la haie, à quelques mètres du champ voisin. Le gérant l'installe sur la dalle, près de l'allée, à l'écart de toute végétation ; il ajoute un point d'eau, des cendriers et une affiche à l'accueil.",
     sources: ['georisques-feu'],
   },
   {
@@ -173,7 +173,7 @@ const OPENING: StoryCard = {
   title: "Avant l'été",
   paragraphs: [
     "« L'été dernier, le feu est passé à trois kilomètres des Brandes », vous a dit le maire. « Les maisons qui brûlent sont presque toujours celles dont le terrain n'était pas débroussaillé. C'est maintenant que ça se joue, pas en août. »",
-    "Votre mission : aider le hameau à se préparer. Aux Brandes d'abord, à la lisière de la forêt, puis au camping. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
+    "Votre mission : aider le hameau à se préparer. Aux Brandes d'abord, et chez Lucien, dont le jardin touche la forêt ; puis au camping. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
   ],
   next: 'Commencer',
   sky: 'sec',

@@ -260,19 +260,28 @@ function school(state: SceneState): Scene {
 
 function campsite(state: SceneState): Scene {
   const checked = state.did('camping-consignes');
+  const safeBarbecue = state.did('camping-barbecue');
   return renderIso({
     ground: { w: 24, d: 16 },
     water: state.water,
     label: describe(
-      'Le camping des Berges : le chalet de l’accueil, des tentes et des mobil-homes.',
+      'Le camping des Berges : le chalet de l’accueil, des tentes et des mobil-homes, entourés d’une haie.',
+      safeBarbecue ? 'Le barbecue est sur une dalle, près de l’allée, loin de la haie, avec un point d’eau.' : 'Le barbecue est posé dans l’herbe, au pied de la haie.',
       checked ? 'Les consignes sont affichées sur le panneau, près de l’accueil.' : '',
       state.water > 0 ? `L'eau recouvre les emplacements sur ${heightLabel(state.water)}.` : '',
     ),
     draw(c) {
       c.ground(0, 0, 24, 16, '#cbe3ae');
       c.ground(10.5, 0, 2.2, 16, '#dccba6');
-      c.tree(2, 2, 5);
+      // La haie, au fond et sur le côté : c'est elle qui rend le barbecue dangereux là où il est.
+      for (let x = 0.2; x < 23.5; x += 1.5) {
+        if (x > 9.8 && x < 13) continue;
+        c.box(x, 0.2, 0, 1.3, 0.8, 1.5, BUSH);
+      }
+      for (let y = 1.4; y < 15.4; y += 1.5) c.box(0.2, y, 0, 0.8, 1.3, 1.5, BUSH);
+      c.tree(2.4, 2.4, 5);
       c.tree(22, 2.5, 4.6);
+      c.tree(8.6, 8, 4.4);
       // Mobil-homes
       for (const x of [2.6, 14.2]) {
         c.box(x, 3.4, 0.3, 5.6, 2.4, 2.2, faces('#f1efe8', LINE));
@@ -298,8 +307,24 @@ function campsite(state: SceneState): Scene {
         c.panelLeft(15.4, 13.15, 1.05, 0.7, 0.75, '#f2dcc9', LINE);
         c.panelLeft(16.3, 13.15, 1.05, 0.7, 0.75, '#d9e6f2', LINE);
       }
+      // Le barbecue : dans l'herbe au pied de la haie, ou sur sa dalle, avec un point d'eau.
+      if (safeBarbecue) {
+        c.ground(12.9, 13.9, 2.2, 1.6, PAVING, 0, '#cfc4ad');
+        c.box(13.5, 14.4, 0, 0.7, 0.5, 0.85, faces('#3a3f45', '#1b2733'));
+        c.box(14.6, 14.2, 0, 0.25, 0.25, 0.9, faces('#4f8fc0', '#2c5f8a'));
+      } else {
+        for (const [x, y] of [
+          [1.3, 12.2],
+          [2.3, 13.6],
+          [1.5, 14.4],
+        ] as const) {
+          c.box(x, y, 0, 0.2, 0.2, 0.7, TALL_GRASS);
+        }
+        c.box(1.5, 13, 0, 0.7, 0.5, 0.85, faces('#3a3f45', '#1b2733'));
+      }
       if (state.water <= 0) c.person(18.3, 13.2, '#4f7a3a');
       c.spot('camping-consignes', 16.2, 13.2, 1.45);
+      c.spot('camping-barbecue', safeBarbecue ? 13.8 : 1.8, safeBarbecue ? 14.6 : 13.2, 1.3);
     },
   });
 }
@@ -478,21 +503,18 @@ export function buildBrushScene(work: BrushWork): Scene {
       c.spot('raser', 3.6, 11.4, 3.8);
       c.spot('bruler', 1.9, 5.3, 0.9);
 
-      c.spot('brandes-old', 10.9, 13.1, 1.9);
-      c.spot('brandes-debroussailler', 11.5, 4.2, 0.6);
-      c.spot('brandes-departs', 15.3, 13, 1.2);
-      c.spot('brandes-acces', 4, 15, 0.2);
+      c.spot('lucien-debroussailler', 11.5, 4.2, 0.6);
     },
   });
 }
 
-/** Le hameau des Brandes, vu chez Lucien : le terrain porte la trace du débroussaillement. */
+/** Chez Lucien : le terrain porte la trace du débroussaillement, une fois fait. */
 function edgeHouse(state: SceneState): Scene {
-  return buildBrushScene(state.did('brandes-debroussailler') ? BRUSH_DONE : new Set());
+  return buildBrushScene(state.did('lucien-debroussailler') ? BRUSH_DONE : new Set());
 }
 
 const SCENES: Record<string, (state: SceneState) => Scene> = {
-  brandes: edgeHouse,
+  lucien: edgeHouse,
   domicile: house,
   jeanne: neighbourHouse,
   mairie: townHall,

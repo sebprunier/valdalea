@@ -38,6 +38,6 @@ export const soundLab = {
       const random = mulberry32(7);
       SONGS.forEach((song, i) => void birdsong(ctx, out, 0.1 + i * 1.8, song, 1, random));
     }),
-  church: (strokes: number): Promise<Level> => measure(strokes * 1.5 + 2, (ctx, out) => void toll(ctx, out, 0.05, strokes, 1)),
+  bell: (strokes: number): Promise<Level> => measure(strokes * 1.5 + 2, (ctx, out) => void toll(ctx, out, 0.05, strokes, 1)),
   school: (): Promise<Level> => measure(2.2, (ctx, out) => void schoolBell(ctx, out, 0.05, 1)),
 };

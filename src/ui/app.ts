@@ -6,7 +6,6 @@ import {
   clockLabel,
   clockMinutes,
   formatDuration,
-  hourStruck,
   isTimed,
   isUnderway,
   leaveChapter,
@@ -16,6 +15,7 @@ import {
   spend,
   startChapter,
   timeAlert,
+  TIME_ALERTS,
   type Chapter,
   type Phase,
 } from '../core/chapter';
@@ -142,12 +142,14 @@ export function createUi(deps: UiDeps): Ui {
     }
 
     if (!isTimed(after.phase)) return;
-    ring(before, after);
+    ringSchool(before, after);
     const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
     if (threshold === null) return;
     const left = formatDuration(after.minutesLeft);
     const message = playbook().content?.alerts[after.phase];
     if (message) toast(message.replace('{reste}', left));
+    // Une cloche double le message : un coup à une heure de la fin, deux à la demi-heure, trois aux dix dernières minutes.
+    sound.toll(TIME_ALERTS.indexOf(threshold as (typeof TIME_ALERTS)[number]) + 1, 0.6);
   }
 
   /** Carte de risque réellement montrée sur le plan. Pendant la crue et les moments de récit, c'est le ciel et l'eau qui se voient : les zones théoriques s'effacent. */
@@ -180,21 +182,17 @@ export function createUi(deps: UiDeps): Ui {
   // Ce que l'on entend dépend d'où l'on est : la forêt, l'usine, l'église, l'école.
   const forest = commune.grounds.find((ground) => ground.kind === 'foret')?.poly ?? null;
   const plant = commune.grounds.find((ground) => ground.kind === 'industrie')?.poly ?? null;
-  const church = findPlace(commune, 'vieux-bourg')?.pos ?? null;
   const school = findPlace(commune, 'ecole')?.pos ?? null;
   /** L'école sonne à 8 h 30, le lundi : c'est le seul jour d'école du chapitre. */
   const SCHOOL_BELL = 8 * 60 + 30;
 
-  /** Fait sonner les cloches quand l'heure du jeu passe : l'église à chaque heure pleine, l'école à son heure. */
-  function ring(before: Chapter, after: Chapter): void {
+  /** Fait sonner l'école quand l'heure du jeu passe 8 h 30, le lundi de la crue, si le joueur est assez près pour l'entendre. */
+  function ringSchool(before: Chapter, after: Chapter): void {
+    if (playbook().content?.id !== 'automne' || after.phase !== 'vigilance' || !school) return;
     const was = clockMinutes(before, playbook().timing);
     const now = clockMinutes(after, playbook().timing);
     if (was === null || now === null) return;
-    const player = game.position;
-    const hour = hourStruck(was, now);
-    // La cloche de l'église porte loin : on l'entend de presque tout le bourg.
-    if (hour !== null && church) sound.toll(hour % 12 || 12, nearness(distance(player, church), 2200));
-    if (after.phase === 'vigilance' && was < SCHOOL_BELL && now >= SCHOOL_BELL && school) sound.ringSchool(nearness(distance(player, school), 900));
+    if (was < SCHOOL_BELL && now >= SCHOOL_BELL) sound.ringSchool(nearness(distance(game.position, school), 900));
   }
 
   /**
@@ -305,7 +303,6 @@ export function createUi(deps: UiDeps): Ui {
     getQuestions: () => playbook().questions,
     perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
     performed: (action) => {
-      sound.play('fait');
       // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur
       // au moment même du geste, et la zone inondable apparaît sur le plan.
       if (action.id !== 'mairie-dicrim') return;

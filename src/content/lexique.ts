@@ -41,7 +41,7 @@ export const LEXICON: LexiconEntry[] = [
     id: 'dicrim',
     term: 'DICRIM',
     definition:
-      "Document d'information communal sur les risques majeurs. Obligatoire dans toute commune exposée à au moins un risque majeur, il présente ces risques, les mesures prises pour s'en protéger et les consignes de sécurité. Le maire le fait connaître par tout moyen approprié.",
+      "Document d'information communal sur les risques majeurs. Obligatoire dans toute commune exposée à au moins un risque majeur, il présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Le maire le fait connaître par tout moyen approprié.",
     sources: ['georisques-dicrim'],
   },
   {

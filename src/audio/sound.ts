@@ -5,7 +5,7 @@ import { SILENCE, type Mix } from './mix';
  * Le son du jeu, fabriqué de toutes pièces avec l'API Web Audio : aucun fichier
  * à charger, rien à télécharger. Une ambiance suit la situation : le temps qu'il
  * fait (pluie, vent) et les lieux proches (rivière, forêt et ses oiseaux, usine).
- * Quelques signaux brefs ponctuent le récit, et les cloches marquent l'heure du jeu.
+ * Quelques signaux brefs ponctuent le récit, et une cloche prévient quand le temps presse.
  *
  * Le son est un décor : tout ce qu'il dit est aussi écrit à l'écran. Il se coupe
  * d'un bouton, et ne démarre jamais avant un premier geste du joueur.
@@ -14,8 +14,8 @@ import { SILENCE, type Mix } from './mix';
  * FR-Alert : entendu hors du jeu, il ne doit pas pouvoir être pris pour lui.
  */
 
-/** Signaux brefs : le téléphone qui vibre, l'alerte, un geste accompli. */
-export type Cue = 'message' | 'alerte' | 'fait';
+/** Signaux brefs du récit : le téléphone qui vibre, l'alerte. */
+export type Cue = 'message' | 'alerte';
 
 /** Volume général : une ambiance de fond, pas plus. */
 const MASTER = 0.9;
@@ -166,11 +166,6 @@ const SCORES: Record<Cue, Note[]> = {
   message: [0, 0.34].map((start) => ({ type: 'square' as const, hertz: 150, start, length: 0.24, peak: 0.22, soften: 420 })),
   // L'alerte : un motif de trois notes, répété trois fois. Insistant, mais inventé pour le jeu.
   alerte: [0, 0.78, 1.56].flatMap((bar) => [740, 988, 740].map((hertz, i) => ({ type: 'square' as const, hertz, start: bar + i * 0.2, length: 0.17, peak: 0.16, soften: 2400 }))),
-  // Un geste accompli : deux notes claires qui montent.
-  fait: [
-    { type: 'sine', hertz: 660, start: 0, length: 0.13, peak: 0.12 },
-    { type: 'sine', hertz: 990, start: 0.11, length: 0.22, peak: 0.1 },
-  ],
 };
 
 /** Joue un signal bref. Renvoie sa durée, en secondes. */
@@ -256,7 +251,7 @@ function strike(ctx: BaseAudioContext, out: AudioNode, at: number, hertz: number
   }
 }
 
-/** La cloche de l'église sonne l'heure : `strokes` coups espacés. Renvoie la durée totale. */
+/** La cloche : `strokes` coups espacés, d'autant plus nombreux que le temps presse. Renvoie la durée totale. */
 export function toll(ctx: BaseAudioContext, out: AudioNode, at: number, strokes: number, level: number): number {
   for (let i = 0; i < strokes; i++) strike(ctx, out, at + i * 1.5, 311, 0.2 * level, 2.6);
   return (strokes - 1) * 1.5 + 2.6;
@@ -343,7 +338,7 @@ export class Sound {
     if (live) playCue(live.ctx, live.out, cue);
   }
 
-  /** La cloche de l'église sonne l'heure. `level` : de 0 à 1, selon la distance. */
+  /** La cloche qui prévient que le temps presse. `level` : de 0 à 1. */
   toll(strokes: number, level: number): void {
     const live = this.live;
     if (live && level > 0.02) toll(live.ctx, live.out, live.ctx.currentTime + 0.05, strokes, level);
