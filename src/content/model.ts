@@ -18,7 +18,11 @@ export interface Source {
 
 export const SOURCES: Record<string, Source> = sourcesData;
 
-export type ActionPhase = 'accueil' | 'preparation' | 'vigilance';
+/**
+ * Phase où un geste est proposé. `libre` : hors chapitre, quand on veut — avant
+ * d'en choisir un, ou une fois son bilan établi.
+ */
+export type ActionPhase = 'accueil' | 'libre' | 'preparation' | 'vigilance';
 
 /**
  * Ce que le joueur garde d'un chapitre à l'autre. Le kit d'urgence sert pour

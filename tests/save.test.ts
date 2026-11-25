@@ -118,6 +118,9 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.assets).toEqual({ kit: 'automne' });
     write({ assets: { kit: 'disparu' } });
     expect(loadGame(storage, context)?.assets).toEqual({});
+    // Préparé hors chapitre : il vaut pour tous.
+    write({ assets: { kit: 'hors-chapitre' } });
+    expect(loadGame(storage, context)?.assets).toEqual({ kit: 'hors-chapitre' });
     write({ assets: ['kit'] });
     expect(loadGame(storage, context)?.assets).toEqual({});
     // Une partie d'avant les acquis, enregistrée en cours de chapitre : le kit déjà préparé est retenu.

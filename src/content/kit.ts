@@ -42,6 +42,28 @@ export function kitAction({ id, sources, risk = '' }: { id: string; sources: str
   };
 }
 
+/** Ce que contient le kit, d'après la liste officielle : le joueur la retrouve chez lui, une fois son sac prêt. */
+export const KIT_CONTENTS: string[] = [
+  'Une radio à piles, avec des piles de rechange, pour suivre les consignes des autorités',
+  'Des médicaments',
+  'Une trousse de premiers secours (alcool, pansements, compresses…)',
+  'Des outils de base (couteau multifonctions, ouvre-boîte…)',
+  'De la nourriture non périssable, qui ne demande pas de cuisson (conserves, petits pots pour bébé, nourriture pour animaux…)',
+  'Des vêtements chauds et une couverture de survie',
+  'Une lampe de poche, avec des piles de rechange, des bougies, un briquet ou des allumettes',
+  'Un chargeur de téléphone portable',
+  'Une paire de lunettes de secours',
+  "De l'argent liquide : les distributeurs peuvent ne pas fonctionner",
+  "De l'eau potable : 6 litres par personne, en bouteilles",
+  "Les photocopies des documents essentiels (carte d'identité, ordonnances…), dans une pochette étanche",
+  'Le double des clés de la maison et de la voiture',
+  'Des jeux pour occuper le temps',
+];
+
+/** Comment on en prend soin, d'après la même page. */
+export const KIT_CARE = "Le sac se range dans un endroit facile d'accès. Son contenu se vérifie une fois par an, en particulier la date de péremption des médicaments et des denrées ; les piles se remplacent. Après usage, on le réapprovisionne.";
+export const KIT_SOURCES = ['georisques-kit'];
+
 export const KIT_QUESTIONS: Question[] = [
   {
     id: 'kit-contenu',
@@ -85,3 +107,12 @@ export const KIT_QUESTIONS: Question[] = [
     sources: ['ecologie-kit'],
   },
 ];
+
+/**
+ * Hors chapitre : le kit se prépare aussi quand on veut, chez soi, sans que le
+ * temps soit compté. Une fois prêt, il vaut pour tous les chapitres.
+ */
+export const KIT_AT_HOME: ActionDef = (() => {
+  const { owned: _owned, ...action } = kitAction({ id: 'maison-kit-libre', sources: ['georisques-kit', 'ecologie-kit', 'georisques-acteurs'] });
+  return { ...action, phase: 'libre', minutes: 0 };
+})();

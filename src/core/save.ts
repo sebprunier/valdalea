@@ -1,6 +1,6 @@
 import { newChapter, PHASES, type Chapter, type Phase } from './chapter';
 import type { Vec } from './geometry';
-import { NEWS_IDS, SAVE_VERSION, type GameState, type NewsId } from './state';
+import { OFF_CHAPTER, NEWS_IDS, SAVE_VERSION, type GameState, type NewsId } from './state';
 
 const KEY = 'jcrm:partie';
 
@@ -124,7 +124,7 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
   const assets: Record<string, string> = {};
   if (isRecord(data.assets)) {
     for (const [asset, origin] of Object.entries(data.assets)) {
-      if (known.has(asset) && typeof origin === 'string' && context.chapterIds.has(origin)) assets[asset] = origin;
+      if (known.has(asset) && typeof origin === 'string' && (origin === OFF_CHAPTER || context.chapterIds.has(origin))) assets[asset] = origin;
     }
   }
   if (chapterId !== null) {

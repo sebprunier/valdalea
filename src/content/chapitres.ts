@@ -2,6 +2,7 @@ import type { Phase } from '../core/chapter';
 import { ETE } from './feu';
 import { AUTOMNE } from './inondation';
 import type { ActionDef, AssetId, BadgeDef, ChapterContent, ChapterPhase, ChapterTiming, Question, Situation } from './model';
+import { KIT_AT_HOME, KIT_QUESTIONS } from './kit';
 import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
 
 /**
@@ -57,9 +58,13 @@ export function findChapter(id: string | null): ChapterInfo | undefined {
 const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE };
 
 /** Tous les gestes et toutes les questions du jeu, prologue compris : de quoi vérifier une sauvegarde. */
-export const ALL_ACTIONS: ActionDef[] = [...PROLOGUE, ...Object.values(CONTENTS).flatMap((content) => content.actions)];
+/** Gestes proposés hors chapitre, quand on veut : préparer son kit d'urgence, chez soi. */
+const FREE_ACTIONS: ActionDef[] = [KIT_AT_HOME];
+
+export const ALL_ACTIONS: ActionDef[] = [...PROLOGUE, ...FREE_ACTIONS, ...Object.values(CONTENTS).flatMap((content) => content.actions)];
 /** Les questions du kit d'urgence, communes à tous les chapitres, n'y figurent qu'une fois. */
-export const ALL_QUESTIONS: Question[] = [...new Map(Object.values(CONTENTS).flatMap((content) => content.questions.map((question) => [question.id, question] as const))).values()];
+const unique = (questions: Question[]): Question[] => [...new Map(questions.map((question) => [question.id, question] as const)).values()];
+export const ALL_QUESTIONS: Question[] = unique([...KIT_QUESTIONS, ...Object.values(CONTENTS).flatMap((content) => content.questions)]);
 /** Ce que chaque geste laisse au joueur pour la suite de la partie : de quoi reprendre une sauvegarde. */
 export const GRANTS: ReadonlyMap<string, AssetId> = new Map(ALL_ACTIONS.flatMap((action) => (action.grants ? [[action.id, action.grants] as const] : [])));
 /** Toutes les situations de crise et tous les badges du jeu. */
@@ -99,15 +104,19 @@ export function ownedIn(assets: Readonly<Record<string, string>>, chapterId: str
 }
 
 /**
- * @param owned ce que le joueur possède déjà en abordant le chapitre (voir `ownedIn`) : les gestes qui le donnent prennent leur autre forme
+ * @param assets ce que le joueur a acquis jusqu'ici, avec le chapitre où il l'a obtenu : les gestes
+ *   qui le donnent prennent leur autre forme dans les autres chapitres, et disparaissent hors chapitre
  */
-export function playbookOf(chapterId: string | null, owned: readonly string[] = []): Playbook {
+export function playbookOf(chapterId: string | null, assets: Readonly<Record<string, string>> = {}): Playbook {
   const content = (chapterId && CONTENTS[chapterId]) || null;
+  const owned = ownedIn(assets, chapterId);
   const actions = (content?.actions ?? []).map((action) => (action.grants && action.owned && owned.includes(action.grants) ? { ...action, ...action.owned } : action));
+  // Hors chapitre, on ne propose de préparer que ce qui ne l'a jamais été.
+  const free = FREE_ACTIONS.filter((action) => !(action.grants && action.grants in assets));
   return {
     content,
-    actions: [...PROLOGUE, ...actions],
-    questions: content?.questions ?? [],
+    actions: [...PROLOGUE, ...free, ...actions],
+    questions: unique([...KIT_QUESTIONS, ...(content?.questions ?? [])]),
     // Hors chapitre, aucun temps n'est compté : ces horaires ne servent pas.
     timing: content?.timing ?? AUTOMNE.timing,
     objective: (phase) => (isChapterPhase(phase) ? (content?.objectives[phase] ?? PROLOGUE_OBJECTIVES.libre) : PROLOGUE_OBJECTIVES[phase]),

@@ -115,9 +115,17 @@ export type ActionStatus =
   | { state: 'trop-longue'; minutes: number }
   | { state: 'hors-phase' };
 
+/**
+ * Le geste est-il proposé en ce moment ? Les gestes « libres » le sont hors
+ * chapitre : avant d'en choisir un, et une fois le bilan établi.
+ */
+export function isOffered(action: ActionDef, chapter: Chapter): boolean {
+  return action.phase === chapter.phase || (action.phase === 'libre' && chapter.phase === 'bilan');
+}
+
 export function actionStatus(action: ActionDef, chapter: Chapter): ActionStatus {
   if (chapter.done.includes(action.id)) return { state: 'faite' };
-  if (action.phase !== chapter.phase) return { state: 'hors-phase' };
+  if (!isOffered(action, chapter)) return { state: 'hors-phase' };
   if (action.requires && !chapter.done.includes(action.requires)) return { state: 'verrouillee' };
   const minutes = actionMinutes(action, chapter);
   if (isTimed(chapter.phase) && minutes > chapter.minutesLeft) return { state: 'trop-longue', minutes };
@@ -139,7 +147,7 @@ export function remaining(actions: readonly ActionDef[], chapter: Chapter): Acti
 
 /** Actions à afficher dans un lieu : celles de la phase en cours, faites ou non. */
 export function actionsAt(actions: readonly ActionDef[], chapter: Chapter, placeId: string): ActionDef[] {
-  return actions.filter((action) => action.place === placeId && action.phase === chapter.phase);
+  return actions.filter((action) => action.place === placeId && isOffered(action, chapter));
 }
 
 /**
@@ -149,7 +157,8 @@ export function actionsAt(actions: readonly ActionDef[], chapter: Chapter, place
  */
 export function pendingAt(actions: readonly ActionDef[], chapter: Chapter, placeId: string): number {
   const open = remaining(actions, chapter).length > 0;
-  return actionsAt(actions, chapter, placeId).filter((action) => actionStatus(action, chapter).state === 'possible' && !(action.endsPhase && open)).length;
+  // Un geste libre se fait quand on veut : il ne fait pas signe au joueur depuis la carte.
+  return actionsAt(actions, chapter, placeId).filter((action) => action.phase !== 'libre' && actionStatus(action, chapter).state === 'possible' && !(action.endsPhase && open)).length;
 }
 
 /** Accomplit une action. Sans effet si elle n'est pas possible. */
