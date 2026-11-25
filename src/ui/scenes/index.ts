@@ -234,7 +234,7 @@ function school(state: SceneState): Scene {
   return renderIso({
     ground: { w: 24, d: 16 },
     water: state.water,
-    label: describe("L'école du Quai, à un étage, et sa cour, derrière une grille dont le portail est fermé.", state.water > 0 ? `L'eau a envahi la cour sur ${heightLabel(state.water)}. Les fenêtres de l'étage sont éclairées.` : ''),
+    label: describe("L'école du Quai, à un étage, et sa cour, derrière une grille dont le portail est fermé. Un préau à gauche, une marelle peinte au sol.", state.water > 0 ? `L'eau a envahi la cour sur ${heightLabel(state.water)}. Les fenêtres de l'étage sont éclairées.` : ''),
     draw(c) {
       c.ground(0, 0, 24, 13, PAVING);
       c.ground(0, 13, 24, 3, ROAD, 0, '#d8cfbe');
@@ -250,6 +250,8 @@ function school(state: SceneState): Scene {
       // Préau
       c.box(0.8, 9.6, 2.6, 4.4, 2.6, 0.2, faces('#b9684a', LINE));
       for (const [x, y] of [[0.9, 9.7], [5, 9.7], [0.9, 12], [5, 12]] as const) c.box(x, y, 0, 0.16, 0.16, 2.6, faces('#8a6a4a'));
+      // La marelle, peinte dans la cour.
+      ['#e9a23b', '#4f8fc0', '#d9604a', '#7a9e4d', '#e9a23b', '#4f8fc0'].forEach((color, i) => c.ground(16.4 + i * 0.66, 10.5, 0.62, 0.62, color, 0, '#fbf8f1'));
       if (state.water <= 0) c.person(13.6, 9.8, '#a04d3c');
       // La grille, le long du quai, et son portail fermé devant l'entrée.
       const RAIL = faces('#5f666d', '#3d4349');

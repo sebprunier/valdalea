@@ -158,7 +158,9 @@ describe("plan de Val-d'Aléa", () => {
     expect(grid.circleFree(door.x, door.y, PLAYER_RADIUS)).toBe(true);
     // La cour, elle, n'est plus accessible.
     const reachable = reachableFrom(commune.spawn);
-    const yard = { x: school.x + school.w / 2, y: school.y - 60 };
+    // La cour est devant le bâtiment, côté quai : la clôture passe au large de la façade.
+    expect(fence.rect.y + fence.rect.h - (school.y + school.h)).toBeGreaterThan(100);
+    const yard = { x: school.x + school.w / 2, y: school.y + school.h + 60 };
     expect(grid.circleFree(yard.x, yard.y, PLAYER_RADIUS)).toBe(true);
     expect(reachable.has(Math.floor(yard.y / grid.cell) * grid.cols + Math.floor(yard.x / grid.cell))).toBe(false);
     expect(reachable.has(Math.floor(door.y / grid.cell) * grid.cols + Math.floor(door.x / grid.cell))).toBe(true);

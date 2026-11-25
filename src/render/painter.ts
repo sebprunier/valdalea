@@ -628,6 +628,29 @@ function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  } else if (decor.kind === 'preau') {
+    // Préau : un toit sur quatre poteaux, ouvert de tous côtés.
+    const w = 70;
+    const h = 42;
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
+    ctx.fillRect(-w / 2 + 4, -h / 2 + 6, w, h);
+    ctx.fillStyle = '#b9684a';
+    ctx.strokeStyle = '#7d4330';
+    ctx.lineWidth = 1.4;
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+    // La pente du toit, et les poteaux aux angles.
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.fillRect(-w / 2, -h / 2, w, h / 2);
+    ctx.fillStyle = '#5b3a26';
+    for (const [px, py] of [
+      [-w / 2 + 3, -h / 2 + 3],
+      [w / 2 - 3, -h / 2 + 3],
+      [-w / 2 + 3, h / 2 - 3],
+      [w / 2 - 3, h / 2 - 3],
+    ]) {
+      ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
+    }
   } else if (decor.kind === 'banc') {
     ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
     ctx.fillRect(-9, -1.5, 20, 6);
