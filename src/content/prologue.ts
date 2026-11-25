@@ -3,7 +3,7 @@ import type { ActionDef } from './model';
 /**
  * Le prologue, commun à toute la partie : rencontrer le maire, puis lire le
  * DICRIM. C'est la seule étape obligatoire ; ensuite, le joueur choisit ses
- * chapitres dans le calendrier.
+ * chapitres dans le téléphone.
  */
 export const PROLOGUE: ActionDef[] = [
   {
@@ -38,7 +38,7 @@ export const PROLOGUE: ActionDef[] = [
 /** La mission, tant qu'aucun chapitre n'est en cours. */
 export const PROLOGUE_OBJECTIVES = {
   accueil: 'Présentez-vous à la mairie, puis lisez le DICRIM.',
-  libre: 'Choisissez un chapitre dans le téléphone, application Calendrier.',
+  libre: 'Choisissez un chapitre dans le téléphone, application Chapitres.',
 } as const;
 
 /** Ce que la barre d'état montre hors chapitre : rien à signaler. */

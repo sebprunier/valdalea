@@ -21,10 +21,10 @@ export interface MissionDeps {
   getPlayer(): Vec;
   /** Emmène le joueur dans un lieu et l'ouvre. */
   goTo(place: Place): void;
-  /** Ouvre le bilan de la crue, dans le téléphone. */
+  /** Ouvre le bilan du chapitre qui vient de s'achever, dans le téléphone. */
   openBilan(): void;
-  /** Ouvre le calendrier, où se choisissent les chapitres. */
-  openCalendar(): void;
+  /** Ouvre la liste des chapitres, dans le téléphone. */
+  openChapters(): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
 }
@@ -127,16 +127,16 @@ export function createMission(deps: MissionDeps): Mission {
       });
       hintBox.append(button);
     }
-    const calendar = (label: string, primary: boolean): HTMLElement => {
+    const chapters = (label: string, primary: boolean): HTMLElement => {
       const button = h('button', { type: 'button', class: primary ? 'button button--primary button--small' : 'button button--small' }, label);
       button.addEventListener('click', () => {
         dialog.close();
-        deps.openCalendar();
+        deps.openChapters();
       });
       return button;
     };
     if (chapter.phase === 'libre') {
-      hintBox.append(h('div', { class: 'hint__actions' }, calendar('Ouvrir le calendrier', true)));
+      hintBox.append(h('div', { class: 'hint__actions' }, chapters('Voir les chapitres', true)));
       parts.push(hintBox, h('p', { class: 'fine-print' }, "Vous choisissez vos chapitres dans l'ordre que vous voulez. En attendant, la commune se visite librement."));
     } else if (chapter.phase === 'bilan') {
       const bilan = h('button', { type: 'button', class: 'button button--primary button--small' }, 'Voir le bilan');
@@ -149,7 +149,7 @@ export function createMission(deps: MissionDeps): Mission {
         dialog.close();
         deps.replay();
       });
-      hintBox.append(h('div', { class: 'hint__actions' }, bilan, again, calendar('Autres chapitres', false)));
+      hintBox.append(h('div', { class: 'hint__actions' }, bilan, again, chapters('Autres chapitres', false)));
       parts.push(hintBox, h('p', { class: 'fine-print' }, 'Rejouer reprend le chapitre à son début. Vos badges sont conservés.'));
     } else {
       parts.push(hintBox);

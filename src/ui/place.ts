@@ -1,3 +1,4 @@
+import { KIT_CARE, KIT_CONTENTS, KIT_SOURCES } from '../content/kit';
 import type { ActionDef, Question } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import { actionsAt, actionStatus, formatDuration, isTimed, remaining, type ActionStatus, type Chapter } from '../core/chapter';
@@ -26,6 +27,8 @@ export interface PlaceUiDeps {
   getReferenceDepth(place: Place): number;
   /** Risques auxquels le lieu est exposé, par leur nom ; `null` tant que le DICRIM n'a pas été consulté. */
   getExposures(place: Place): string[] | null;
+  /** Le kit d'urgence du joueur est-il prêt ? `null` ailleurs que chez lui, où il ne se range pas. */
+  hasKit(place: Place): boolean | null;
   /** Accomplit l'action. */
   perform(action: ActionDef): void;
   /** L'action vient d'être accomplie et son résultat est affiché : c'est le moment d'ouvrir ce qu'elle donne à voir. */
@@ -52,6 +55,17 @@ function statusLabel(status: ActionStatus): string {
     default:
       return '';
   }
+}
+
+/** Le kit d'urgence, une fois prêt : chez soi, on peut voir ce qu'il contient et comment en prendre soin. */
+function kitBox(): HTMLElement {
+  return h(
+    'section',
+    { class: 'kit-box' },
+    h('h3', null, "Votre kit d'urgence"),
+    h('p', null, "Votre sac est prêt, à portée de main en haut de l'escalier. Il sert pour tous les risques."),
+    h('details', null, h('summary', null, "Voir ce qu'il contient"), h('ul', { class: 'bullets' }, ...KIT_CONTENTS.map((item) => h('li', null, item))), h('p', null, KIT_CARE), sourceList(KIT_SOURCES)),
+  );
 }
 
 export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
@@ -115,10 +129,10 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
         chapter.phase === 'accueil'
           ? "Rien à faire ici pour l'instant : le maire vous attend à la mairie."
           : chapter.phase === 'libre'
-            ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans le calendrier : il vous confiera une mission."
+            ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans votre téléphone : il vous confiera une mission."
             : chapter.phase === 'bilan'
-            ? 'La crue est passée. Le bilan est dans votre téléphone.'
-            : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
+              ? 'Le chapitre est terminé : son bilan est dans votre téléphone.'
+              : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
       todo = h('p', { class: 'fine-print' }, message);
     } else {
       todo = h(
@@ -151,6 +165,7 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       actions.length > 0 ? h('h3', null, 'À faire ici') : null,
       actions.length > 0 ? timeNote(chapter) : null,
       todo,
+      deps.hasKit(current) ? kitBox() : null,
     );
     // Sur grand écran, l'illustration et la liste des gestes se font face.
     const layout = figure ? h('div', { class: 'place-layout' }, figure, text) : text;

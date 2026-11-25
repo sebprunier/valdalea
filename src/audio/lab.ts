@@ -1,6 +1,6 @@
 import type { Mix } from './mix';
 import { mulberry32 } from '../core/rng';
-import { birdsong, buildAmbience, buildOutput, playCue, schoolBell, SONGS, toll, type Cue } from './sound';
+import { birdsong, buildAmbience, buildOutput, playCue, SONGS, toll, type Cue } from './sound';
 
 /**
  * Banc de mesure, pour le développement uniquement : rend un son hors ligne et
@@ -39,5 +39,4 @@ export const soundLab = {
       SONGS.forEach((song, i) => void birdsong(ctx, out, 0.1 + i * 1.8, song, 1, random));
     }),
   bell: (strokes: number): Promise<Level> => measure(strokes * 1.5 + 2, (ctx, out) => void toll(ctx, out, 0.05, strokes, 1)),
-  school: (): Promise<Level> => measure(2.2, (ctx, out) => void schoolBell(ctx, out, 0.05, 1)),
 };

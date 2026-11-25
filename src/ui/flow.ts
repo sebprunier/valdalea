@@ -1,7 +1,7 @@
 import type { ActionDef, Beat, Bulletin, ChapterContent, CrisisScript, SkyId, StoryCard, VigilanceLevel } from '../content/model';
 import { answer, assess, currentSituation, isTimeUp, nextPhase, type Assessment, type Chapter, type Phase } from '../core/chapter';
 import { createDialog, type DialogHandle } from './dialog';
-import { bilanContent, bulletinContent, mountQuestion } from './documents';
+import { bilanContent, mountQuestion } from './documents';
 import { h } from './dom';
 
 /**
@@ -12,7 +12,8 @@ import { h } from './dom';
  *
  * Aucune alerte n'arrive sans prévenir : un moment de récit la précède, pendant
  * lequel le joueur voit le ciel changer, l'eau monter ou le feu avancer sur la
- * carte. Rien n'avance tout seul : c'est lui qui passe à la suite.
+ * carte. Messages et alertes se lisent dans le téléphone, là où ils resteront.
+ * Rien n'avance tout seul : c'est le joueur qui passe à la suite.
  */
 
 /** Ce que la barre d'état et la carte montrent pendant un moment de récit, à la place de l'état de la phase. */
@@ -34,8 +35,8 @@ export interface FlowDeps {
   addBadges(ids: readonly string[]): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
-  /** Ouvre le calendrier, où se choisissent les chapitres. */
-  openCalendar(): void;
+  /** Ouvre la liste des chapitres, dans le téléphone. */
+  openChapters(): void;
   /** Ferme la fiche de lieu si elle est ouverte. */
   closePlace(): void;
   /** Amène le joueur dans un lieu, sans trajet. */
@@ -46,6 +47,11 @@ export interface FlowDeps {
   setFocus(placeId: string | null, south?: number): void;
   /** Met en scène un moment de récit ; `null` revient à l'état normal de la phase. */
   stage(scene: Scene | null): void;
+  /**
+   * Fait lire un message ou une alerte au joueur, dans son téléphone : la messagerie
+   * pour l'un, l'application Alertes pour l'autre. Rendu quand il a refermé.
+   */
+  readBulletin(bulletin: Bulletin): Promise<void>;
   /** Fait entendre le signal d'un moment de récit. */
   play(cue: 'message' | 'alerte'): void;
   /** Élément qui reprend le focus à la fin d'une séquence. */
@@ -54,7 +60,7 @@ export interface FlowDeps {
 }
 
 /** Ce que le joueur choisit en refermant le bilan. */
-type AfterBilan = 'rejouer' | 'calendrier' | null;
+type AfterBilan = 'rejouer' | 'chapitres' | null;
 
 export interface Flow {
   /** Le joueur vient de choisir un chapitre : le récit l'ouvre. */
@@ -88,19 +94,6 @@ export function createFlow(deps: FlowDeps): Flow {
   const script = (): CrisisScript | null => deps.getContent()?.crisis ?? null;
 
   // ------------------------------------------------------------- Fenêtres
-  const bulletinDialog = createDialog({ id: 'bulletin', title: '', className: 'dialog--alert' });
-  const bulletinBody = h('div');
-  const bulletinOk = h('button', { type: 'button', class: 'button button--primary' }, 'Compris');
-  bulletinOk.addEventListener('click', () => bulletinDialog.close());
-  bulletinDialog.body.append(bulletinBody, h('div', { class: 'dialog__actions' }, bulletinOk));
-
-  async function showBulletin(bulletin: Bulletin): Promise<void> {
-    bulletinDialog.setTitle(bulletin.title);
-    bulletinBody.replaceChildren(bulletinContent(bulletin));
-    bulletinDialog.open(deps.focusTarget);
-    await closed(bulletinDialog);
-  }
-
   // Certains navigateurs ferment une fenêtre modale au second appui sur Échap, quoi qu'on demande.
   // Tant que le joueur doit y répondre, les fenêtres du récit et de la crise sont donc rouvertes.
   const storyDialog = createDialog({ id: 'recit', title: '', className: 'dialog--docked dialog--story', closable: false });
@@ -175,7 +168,7 @@ export function createFlow(deps: FlowDeps): Flow {
       } else {
         storyDialog.close();
         deps.stage(beat.vigilance && last ? { ...last, vigilance: beat.vigilance } : null);
-        await showBulletin(beat.bulletin);
+        await deps.readBulletin(beat.bulletin);
       }
     }
     storyDialog.close();
@@ -202,7 +195,7 @@ export function createFlow(deps: FlowDeps): Flow {
         if (content?.toBeContinued) await tell(content.toBeContinued);
         storyDialog.close();
         deps.leaveChapter();
-        then = 'calendrier';
+        then = 'chapitres';
       } else if (phase === 'vigilance') {
         deps.goTo(crisis.places.vigilance);
         deps.setFocus(crisis.places.vigilance, crisis.lookSouth);
@@ -222,7 +215,7 @@ export function createFlow(deps: FlowDeps): Flow {
     }
     // Une fois la séquence refermée seulement : rejouer en ouvre une autre.
     if (then === 'rejouer') deps.replay();
-    else if (then === 'calendrier') deps.openCalendar();
+    else if (then === 'chapitres') deps.openChapters();
   }
 
   async function runCrisis(crisis: CrisisScript, late: boolean): Promise<AfterBilan> {
@@ -241,6 +234,11 @@ export function createFlow(deps: FlowDeps): Flow {
       const situation = currentSituation(deps.getChapter(), situations);
       if (!situation) break;
       const index = situations.indexOf(situation);
+      // Une évacuation fait changer de lieu d'une décision à l'autre : le joueur et la caméra suivent.
+      if (situation.at) {
+        deps.goTo(situation.at);
+        deps.setFocus(situation.at, crisis.lookSouth);
+      }
       deps.setHazard(situation.hazard);
       crisisDialog.setTitle(`${crisis.name} — décision ${index + 1} sur ${situations.length}`);
       await new Promise<void>((resolve) => {
@@ -270,7 +268,8 @@ export function createFlow(deps: FlowDeps): Flow {
     const fresh = earned.filter((id) => !deps.getBadges().includes(id));
     if (firstTime) deps.addBadges(earned);
     deps.setHazard(crisis.levels.after);
-    deps.setFocus(firstTime ? crisis.places.crise : null, crisis.lookSouth);
+    // Là où la crise s'est achevée : le lieu de la dernière décision, si elle a fait se déplacer le joueur.
+    deps.setFocus(firstTime ? (crisis.situations[crisis.situations.length - 1]?.at ?? crisis.places.crise) : null, crisis.lookSouth);
 
     const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
     const others = h('button', { type: 'button', class: 'button' }, 'Autres chapitres');
@@ -281,7 +280,7 @@ export function createFlow(deps: FlowDeps): Flow {
       bilanDialog.close();
     });
     others.addEventListener('click', () => {
-      choice = 'calendrier';
+      choice = 'chapitres';
       bilanDialog.close();
     });
     explore.addEventListener('click', () => bilanDialog.close());

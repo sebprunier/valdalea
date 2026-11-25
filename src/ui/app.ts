@@ -1,10 +1,9 @@
-import { ALL_BADGES, findChapter, ownedIn, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
-import { mixOf, nearness } from '../audio/mix';
+import { assessChapter, BADGE_GROUPS, badgesOf, findChapter, globalBadges, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
+import { mixOf } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
 import {
   clockLabel,
-  clockMinutes,
   formatDuration,
   isTimed,
   isUnderway,
@@ -19,8 +18,8 @@ import {
   type Chapter,
   type Phase,
 } from '../core/chapter';
-import { DEFAULT_SETTINGS, markVisited, newGame, withAsset, withBadges, withChapter, withNews, withoutNews, withRecord, type GameState, type NewsId } from '../core/state';
-import { distance, distToPolygon, type Vec } from '../core/geometry';
+import { DEFAULT_SETTINGS, markVisited, newGame, OFF_CHAPTER, withAsset, withBadges, withChapter, withNews, withoutNews, withRecord, withResult, type GameState, type NewsId } from '../core/state';
+import { distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
 import type { Game } from '../game/game';
@@ -113,19 +112,26 @@ export function createUi(deps: UiDeps): Ui {
   let book: Playbook = playbookOf(null);
   function playbook(): Playbook {
     const { chapterId, assets } = store.get();
-    // Ce que le joueur a acquis dans un autre chapitre change les gestes de celui-ci : son kit se vérifie au lieu de se préparer.
-    const owned = ownedIn(assets, chapterId);
-    const key = `${chapterId ?? ''}|${owned.join(',')}`;
+    // Ce que le joueur a acquis change les gestes proposés : son kit se vérifie au lieu de se préparer.
+    const key = `${chapterId ?? ''}|${JSON.stringify(assets)}`;
     if (key !== bookKey) {
       bookKey = key;
-      book = playbookOf(chapterId, owned);
+      book = playbookOf(chapterId, assets);
     }
     return book;
   }
   const dicrimRead = (): boolean => chapter().done.includes('mairie-dicrim');
 
-  /** Nouveauté à signaler sur le téléphone quand le chapitre arrive dans une phase. */
-  const NEWS_AT: Partial<Record<Phase, NewsId>> = { vigilance: 'alertes', crise: 'alertes', bilan: 'bilan' };
+  /**
+   * Nouveautés à signaler sur le téléphone quand le chapitre arrive dans une phase :
+   * les messages et les alertes que le récit va y faire arriver, puis le bilan.
+   */
+  function newsAt(phase: Phase): NewsId[] {
+    if (phase === 'bilan') return ['chapitres'];
+    const crisis = playbook().content?.crisis;
+    const beats = phase === 'vigilance' ? crisis?.vigilance : phase === 'crise' ? crisis?.onset : undefined;
+    return (beats ?? []).flatMap((beat) => ('bulletin' in beat ? [beat.bulletin.kind === 'alerte' ? ('alertes' as const) : ('messages' as const)] : []));
+  }
 
   /**
    * Modifie le chapitre. Au passage : prévient le joueur si le temps commence à
@@ -138,14 +144,12 @@ export function createUi(deps: UiDeps): Ui {
 
     if (after.done.includes('mairie-dicrim') && !before.done.includes('mairie-dicrim')) store.update((state) => withNews(state, 'dicrim'));
     if (after.phase !== before.phase) {
-      const news = NEWS_AT[after.phase];
-      if (news) store.update((state) => withNews(state, news));
+      for (const news of newsAt(after.phase)) store.update((state) => withNews(state, news));
       if (after.phase === 'bilan') keepRecord();
       return;
     }
 
     if (!isTimed(after.phase)) return;
-    ringSchool(before, after);
     const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
     if (threshold === null) return;
     const left = formatDuration(after.minutesLeft);
@@ -161,11 +165,22 @@ export function createUi(deps: UiDeps): Ui {
     return layer && dicrimRead() && chapter().phase !== 'crise' && !scene ? layer : null;
   }
 
-  /** Retient l'indice de préparation du chapitre qui vient de s'achever, s'il est meilleur que le précédent. */
+  /**
+   * Garde le chapitre qui vient de s'achever : la partie jouée, d'où son bilan se retrouvera
+   * dans le téléphone, et son indice de préparation s'il est meilleur que le précédent.
+   */
   function keepRecord(): void {
     const result = flow.assessment();
     const id = store.get().chapterId;
-    if (result && id) store.update((state) => withRecord(state, id, result.score));
+    if (result && id) store.update((state) => withRecord(withResult(state, id, state.chapter), id, result.score));
+  }
+
+  /** Décerne les badges qui ne tiennent pas à un chapitre, dès qu'ils sont mérités, et le signale sur le téléphone. */
+  function awardGlobalBadges(): void {
+    const state = store.get();
+    const earned = globalBadges({ assets: state.assets, visited: state.visited, places: commune.places.length, finished: Object.keys(state.record) });
+    const fresh = earned.filter((id) => !state.badges.includes(id));
+    if (fresh.length > 0) store.update((current) => withNews(withBadges(current, fresh), 'badges'));
   }
 
   let near: Place | null = null;
@@ -185,7 +200,6 @@ export function createUi(deps: UiDeps): Ui {
   // Ce que l'on entend dépend d'où l'on est : la forêt, l'usine, l'église, l'école.
   const forest = commune.grounds.find((ground) => ground.kind === 'foret')?.poly ?? null;
   const plant = commune.grounds.find((ground) => ground.kind === 'industrie')?.poly ?? null;
-  const school = findPlace(commune, 'ecole')?.pos ?? null;
 
   // Le feu de forêt : ce qui brûle dépend de ce qui a été débroussaillé. Les maisons, elles, ne font pas partie du combustible.
   const fireFields = new Map<boolean, FireField>();
@@ -232,17 +246,6 @@ export function createUi(deps: UiDeps): Ui {
     if (hazardNow > FIRE_SPENT) return Math.max(0, (FIRE_OUT - hazardNow) / (FIRE_OUT - FIRE_SPENT));
     return 0.35 + 0.65 * hazardNow;
   }
-  /** L'école sonne à 8 h 30, le lundi : c'est le seul jour d'école du chapitre. */
-  const SCHOOL_BELL = 8 * 60 + 30;
-
-  /** Fait sonner l'école quand l'heure du jeu passe 8 h 30, le lundi de la crue, si le joueur est assez près pour l'entendre. */
-  function ringSchool(before: Chapter, after: Chapter): void {
-    if (playbook().content?.id !== 'automne' || after.phase !== 'vigilance' || !school) return;
-    const was = clockMinutes(before, playbook().timing);
-    const now = clockMinutes(after, playbook().timing);
-    if (was === null || now === null) return;
-    if (was < SCHOOL_BELL && now >= SCHOOL_BELL) sound.ringSchool(nearness(distance(game.position, school), 900));
-  }
 
   /**
    * Hauteur du joueur au-dessus de la rivière, pour le son. On regarde aussi de
@@ -280,9 +283,10 @@ export function createUi(deps: UiDeps): Ui {
     leaveChapter: () => store.update((state) => ({ ...withChapter(state, leaveChapter(state.chapter, playbook().actions)), news: state.news.filter((id) => id === 'dicrim') })),
     setChapter,
     getBadges: () => store.get().badges,
-    addBadges: (ids) => store.update((state) => withBadges(state, ids)),
+    // Un badge de plus : l'application Badges le signale.
+    addBadges: (ids) => store.update((state) => (ids.some((id) => !state.badges.includes(id)) ? withNews(withBadges(state, ids), 'badges') : state)),
     replay,
-    openCalendar,
+    openChapters,
     closePlace: () => placeUi.close(),
     goTo: (placeId) => {
       const place = findPlace(commune, placeId);
@@ -292,6 +296,7 @@ export function createUi(deps: UiDeps): Ui {
       scene = next;
       sync();
     },
+    readBulletin: (bulletin) => phone.read(bulletin, map),
     play: (cue) => sound.play(cue),
     setHazard: showHazard,
     setFocus: (placeId, south = 0) => {
@@ -307,7 +312,7 @@ export function createUi(deps: UiDeps): Ui {
    * les lieux visités et les réglages sont conservés ; le récit ouvre le chapitre.
    */
   function begin(chapterId: string): void {
-    const next = playbookOf(chapterId, ownedIn(store.get().assets, chapterId));
+    const next = playbookOf(chapterId, store.get().assets);
     store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
     showHazard(0, true);
     game.setFocus(null);
@@ -320,7 +325,7 @@ export function createUi(deps: UiDeps): Ui {
     if (id) begin(id);
   }
 
-  /** Le joueur choisit un chapitre dans le calendrier. Renvoie vrai s'il a bien commencé. */
+  /** Le joueur choisit un chapitre dans le téléphone. Renvoie vrai s'il a bien commencé. */
   async function chooseChapter(info: ChapterInfo): Promise<boolean> {
     const { phase } = chapter();
     if (!info.playable || phase === 'accueil') return false;
@@ -337,9 +342,9 @@ export function createUi(deps: UiDeps): Ui {
     return true;
   }
 
-  /** Le calendrier est une application du téléphone : c'est là que se choisissent les chapitres. */
-  function openCalendar(): void {
-    openPhone(map, 'calendrier');
+  /** Les chapitres se choisissent dans le téléphone, application Chapitres. */
+  function openChapters(): void {
+    openPhone(map, 'chapitres');
   }
 
   // -------------------------------------------------------------- Fenêtres
@@ -352,6 +357,7 @@ export function createUi(deps: UiDeps): Ui {
     getWater: (place) => ({ depth: elevation.depthAt(place.pos, floodNow()), flood: floodNow() }),
     getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
+    hasKit: (place) => (place.id === 'domicile' ? 'kit' in store.get().assets : null),
     getActions: () => playbook().actions,
     getQuestions: () => playbook().questions,
     perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
@@ -359,16 +365,16 @@ export function createUi(deps: UiDeps): Ui {
       // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur au moment
       // même du geste. Aucune carte de risque n'est posée d'office sur le plan : c'est lui qui choisit.
       if (action.id === 'mairie-dicrim') dicrim.open(null);
-      // Le kit d'urgence, une fois préparé, suit le joueur dans les autres chapitres.
+      // Le kit d'urgence, une fois préparé, suit le joueur dans les autres chapitres ; préparé hors chapitre, il vaut pour tous.
       const { grants } = action;
-      const chapterId = store.get().chapterId;
-      if (grants && chapterId) store.update((state) => withAsset(state, grants, chapterId));
+      const origin = action.phase === 'libre' ? OFF_CHAPTER : store.get().chapterId;
+      if (grants && origin) store.update((state) => withAsset(state, grants, origin));
     },
     afterAction: (action) => {
       // Le prologue s'achève avec la lecture du DICRIM : il reste à choisir une mission.
       if (action.endsPhase && chapter().phase === 'libre') {
         placeUi.close();
-        openCalendar();
+        openChapters();
         return;
       }
       void flow.afterAction(action);
@@ -389,8 +395,11 @@ export function createUi(deps: UiDeps): Ui {
     getPlaybook: playbook,
     getPlayer: () => game.position,
     goTo,
-    openBilan: () => openPhone(map, 'bilan'),
-    openCalendar,
+    openBilan: () => {
+      const id = store.get().chapterId;
+      if (id && !flow.isBusy()) phone.openBilan(map, id);
+    },
+    openChapters,
     replay,
   });
 
@@ -401,10 +410,10 @@ export function createUi(deps: UiDeps): Ui {
 
   /** Rejoue le chapitre en cours de route : la progression du chapitre est perdue, d'où la confirmation. */
   async function replayChapter(): Promise<boolean> {
-    // Aucun chapitre choisi : il n'y a rien à rejouer, c'est le calendrier qu'il faut.
+    // Aucun chapitre en cours : il n'y a rien à rejouer, c'est la liste des chapitres qu'il faut.
     if (!store.get().chapterId || !isUnderway(chapter().phase)) {
       if (chapter().phase === 'bilan') replay();
-      else openCalendar();
+      else openChapters();
       return true;
     }
     const confirmed = await confirm({
@@ -455,8 +464,12 @@ export function createUi(deps: UiDeps): Ui {
     }),
     travel: goTo,
     startChapter: chooseChapter,
-    getAssessment: () => flow.assessment(),
-    getBadgeDefs: () => (isUnderway(chapter().phase) ? playbook().content?.crisis?.badges : undefined) ?? ALL_BADGES,
+    getAssessmentOf: (chapterId) => {
+      const run = store.get().results[chapterId];
+      return run ? assessChapter(chapterId, run) : null;
+    },
+    getBadgesOf: badgesOf,
+    getBadgeGroups: () => BADGE_GROUPS,
     clearNews: (id) => store.update((state) => withoutNews(state, id)),
     isDicrimRead: dicrimRead,
     openDicrim: () => dicrim.open(null),
@@ -466,7 +479,6 @@ export function createUi(deps: UiDeps): Ui {
     setReducedMotion: deps.setReducedMotion,
     isSoundOn: () => store.get().settings.sound,
     setSound,
-    replay,
     replayChapter,
     restart,
   });
@@ -587,8 +599,7 @@ export function createUi(deps: UiDeps): Ui {
 
     // Le chapitre en cours : son nom, ou ce qui tient lieu de chapitre avant d'en avoir choisi un.
     const info = current.phase === 'accueil' || current.phase === 'libre' ? undefined : findChapter(state.chapterId);
-    // Sur petit écran, seul le titre du chapitre est affiché : la saison est dans le calendrier.
-    if (info) chapterText.replaceChildren(h('span', { class: 'hud__chapter-season' }, `${info.season} — `), info.title);
+    if (info) chapterText.textContent = info.title;
     else chapterText.textContent = current.phase === 'accueil' ? 'Prologue' : 'Aucun chapitre en cours';
 
     const situation = playbook().situation(current.phase);
@@ -666,7 +677,10 @@ export function createUi(deps: UiDeps): Ui {
     game.invalidate();
   }
   // Une partie terminée avant que les indices ne soient retenus : on rattrape le sien.
-  if (chapter().phase === 'bilan') keepRecord();
+  if (chapter().phase === 'bilan' && !(store.get().chapterId! in store.get().record)) keepRecord();
+  // Les badges de toute la partie se gagnent à tout moment : un lieu visité, un kit préparé, un chapitre achevé.
+  store.subscribe(awardGlobalBadges);
+  awardGlobalBadges();
   store.subscribe(sync);
   sync();
 

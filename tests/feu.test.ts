@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ACTIONS as FIRE_ACTIONS, BADGES, ETE, FIRE, SITUATIONS, STAKES } from '../src/content/feu';
 import { PROLOGUE } from '../src/content/prologue';
 import { actionMinutes, actionStatus, answer, assess, clockLabel, gestures, MINUTES_PER_UNIT, newChapter, pendingAt, perform, startChapter, type Chapter } from '../src/core/chapter';
-import { distToRect, type Vec } from '../src/core/geometry';
+import { distToPolygon, distToRect, pointInPolygon, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
+import { buildElevation } from '../src/world/elevation';
 import { arrivalAt, buildFireField, burntShare, FIRE_OUT, isBurnt } from '../src/world/fire';
+import { isExposed } from '../src/world/hazards';
 import { buildRoadMask, buildWalkGrid } from '../src/world/grid';
 import { findPlace } from '../src/world/model';
 import { Pathfinder } from '../src/world/pathfinding';
@@ -52,7 +54,7 @@ describe('le feu des Brandes : du printemps à l’été', () => {
     expect(pendingAt(ACTIONS, chapter, 'domicile')).toBe(1);
     expect(pendingAt(ACTIONS, chapter, 'brandes')).toBe(1);
     expect(pendingAt(ACTIONS, chapter, 'lucien')).toBe(2);
-    chapter = play(chapter, 'lucien-rester');
+    chapter = play(chapter, 'lucien-partir');
     expect(chapter.phase).toBe('crise');
   });
 
@@ -85,7 +87,7 @@ describe('bilan du feu', () => {
   const inCrisis = (...ids: string[]): Chapter => {
     const spring = ids.filter((id) => action(id).phase === 'preparation');
     const summer = ids.filter((id) => action(id).phase === 'vigilance');
-    return play(play(play(started(), ...spring), 'maison-soir'), ...summer, 'lucien-rester');
+    return play(play(play(started(), ...spring), 'maison-soir'), ...summer, 'lucien-partir');
   };
   const levels = (chapter: Chapter): Record<string, number> => Object.fromEntries(assess(chapter, content).stakes.map((s) => [s.stake.id, s.level]));
 
@@ -110,6 +112,19 @@ describe('bilan du feu', () => {
     expect(levels(inCrisis())['maison-lucien']).toBe(0);
   });
 
+  it('conduit le joueur de la clairière de Lucien au gymnase, hors du massif', () => {
+    const forest = commune.grounds.find((ground) => ground.kind === 'foret')!.poly;
+    const route = SITUATIONS.map((situation) => situation.at);
+    expect(route[0]).toBe('lucien');
+    expect(route[route.length - 1]).toBe('gymnase');
+    // Le centre d'accueil n'est ni dans le massif, ni dans la bande où le feu menace.
+    expect(isExposed(commune, buildElevation(commune), 'feu-foret', at('gymnase'))).toBe(false);
+    expect(pointInPolygon(at('gymnase'), forest)).toBe(false);
+    // On ne revient pas vers la forêt en cours de route : chaque étape en est au moins aussi loin que la précédente.
+    const away = route.map((id) => distToPolygon(at(id!), forest));
+    for (let i = 1; i < away.length; i++) expect(away[i], `${route[i]}`).toBeGreaterThanOrEqual(away[i - 1]);
+  });
+
   it('juge chaque enjeu séparément', () => {
     const result = levels(decide(inCrisis('camping-barbecue', 'maison-kit-verifier', 'maison-kit-emporter', 'brandes-acces'), true));
     expect(result.departs).toBe(1);
@@ -131,10 +146,12 @@ describe('propagation du feu sur la carte', () => {
   const garden = { x: lucien.x + lucien.w / 2, y: lucien.y + lucien.h + 60 };
 
   it('part du nord-est et gagne du terrain sans jamais reculer', () => {
-    const northEast = { x: 4150, y: 60 };
+    const northEast = { x: commune.width - 50, y: 60 };
     expect(arrivalAt(cleared, northEast)).toBeLessThan(FIRE.vigilance[1]);
-    let previous = 0;
-    for (const level of [...FIRE.vigilance, FIRE.onset, ...SITUATIONS.map((situation) => situation.hazard)]) {
+    // Au premier message, le feu est encore hors de la carte, ou tout juste à son bord ; ensuite, il ne cesse de gagner.
+    let previous = burntShare(cleared, FIRE.vigilance[0]);
+    expect(previous).toBeLessThan(0.02);
+    for (const level of [FIRE.vigilance[1], FIRE.onset, ...SITUATIONS.map((situation) => situation.hazard)]) {
       const share = burntShare(cleared, level);
       expect(share, String(level)).toBeGreaterThan(previous);
       previous = share;

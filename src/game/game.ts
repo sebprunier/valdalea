@@ -20,6 +20,11 @@ const OVERVIEW_SCALE = 0.25;
 const ROUTE_INTERVAL = 0.15;
 
 /** Vitesse de montée ou de descente de la crue à l'écran, en mètres par seconde. */
+/**
+ * Distance restante au-delà de laquelle le personnage court de lui-même vers le point désigné :
+ * au doigt, on ne peut pas maintenir Maj. Le temps du jeu, lui, ne dépend que de la distance.
+ */
+const HURRY_BEYOND = 380;
 const FLOOD_SPEED = 0.11;
 /** Vitesse à laquelle le feu gagne du terrain à l'écran, en avancée par seconde. */
 const FIRE_SPEED = 0.05;
@@ -55,6 +60,8 @@ export interface GameOptions {
   elevation: Elevation;
   start: Vec;
   hooks: GameHooks;
+  /** La manette de déplacement des écrans tactiles, si la page en a une. */
+  stick?: HTMLElement | null;
 }
 
 /**
@@ -130,7 +137,7 @@ export class Game {
     const { commune } = this;
 
     this.ctx = this.canvas.getContext('2d', { alpha: false })!;
-    this.input = new Input(this.surface, this.canvas, (action) => this.handleAction(action));
+    this.input = new Input(this.surface, this.canvas, (action) => this.handleAction(action), options.stick ?? null);
     this.player = { x: options.start.x, y: options.start.y, facing: Math.PI / 2, phase: 0, moving: false };
     this.camera = { x: options.start.x, y: options.start.y };
 
@@ -350,6 +357,7 @@ export class Game {
     const axis = this.input.axis();
     let direction: Vec | null = null;
     let reach = Infinity; // distance à ne pas dépasser pendant cette image
+    let hurry = false;
     if (axis.x !== 0 || axis.y !== 0) {
       // Le clavier reprend la main sur un itinéraire en cours.
       this.stop();
@@ -363,11 +371,14 @@ export class Game {
         const waypoint = this.route[0];
         reach = distance(waypoint, p);
         direction = { x: (waypoint.x - p.x) / reach, y: (waypoint.y - p.y) / reach };
+        let left = reach;
+        for (let i = 1; i < this.route.length && left <= HURRY_BEYOND; i++) left += distance(this.route[i - 1], this.route[i]);
+        hurry = left > HURRY_BEYOND;
       }
     }
 
     if (direction) {
-      const step = Math.min(reach, (this.input.running ? RUN_SPEED : WALK_SPEED) * dt);
+      const step = Math.min(reach, (this.input.running || hurry ? RUN_SPEED : WALK_SPEED) * dt);
       const next = this.grid.moveCircle(p.x, p.y, PLAYER_RADIUS, direction.x * step, direction.y * step);
       const moved = Math.hypot(next.x - p.x, next.y - p.y);
       p.x = next.x;

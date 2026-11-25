@@ -1,5 +1,6 @@
 import { findEntry, type LexiconEntry } from '../content/lexique';
-import { SOURCES, type BadgeDef, type Bulletin, type Question } from '../content/model';
+import type { BadgeInfo } from '../content/chapitres';
+import { SOURCES, type Bulletin, type Question } from '../content/model';
 import type { Assessment } from '../core/chapter';
 import { h, icon } from './dom';
 import { lexiconFigure } from './figures';
@@ -199,7 +200,7 @@ export function lexiconBox(ids: readonly string[]): HTMLElement | null {
 
 const LEVEL_LABELS = ['Touché', 'En partie protégé', 'Protégé'] as const;
 
-export function badgeList(badges: readonly BadgeDef[], earned: readonly string[], fresh: readonly string[] = []): HTMLElement {
+export function badgeList(badges: readonly BadgeInfo[], earned: readonly string[], fresh: readonly string[] = []): HTMLElement {
   return h(
     'ul',
     { class: 'badges' },
@@ -221,7 +222,7 @@ export function badgeList(badges: readonly BadgeDef[], earned: readonly string[]
   );
 }
 
-export function bilanContent(assessment: Assessment, allBadges: readonly BadgeDef[], earned: readonly string[], fresh: readonly string[]): HTMLElement {
+export function bilanContent(assessment: Assessment, allBadges: readonly BadgeInfo[], earned: readonly string[], fresh: readonly string[]): HTMLElement {
   const meter = h('meter', { min: '0', max: '100', value: String(assessment.score), 'aria-label': 'Indice de préparation' });
   return h(
     'div',

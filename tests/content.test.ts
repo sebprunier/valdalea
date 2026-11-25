@@ -133,22 +133,35 @@ describe('cohérence des contenus', () => {
       const shelter = playbookOf(id).content!.actions.find((a) => a.phase === 'vigilance' && a.endsPhase);
       expect(shelter?.place, `${id} : abri`).toBe(crisis.places.crise);
       if (crisis.firebreak) expect(actionIds.has(crisis.firebreak), `${id} : coupe-feu`).toBe(true);
-      // Chaque récit commence par un moment raconté, et chaque message est précédé du moment qui l'annonce, avec son signal.
+      // Une crise qui fait se déplacer le joueur (une évacuation) part du lieu de la crise, et ne passe que par des lieux qui existent.
+      for (const situation of crisis.situations) if (situation.at) expect(placeIds.has(situation.at), `${situation.id} : lieu`).toBe(true);
+      if (crisis.situations[0].at) expect(crisis.situations[0].at, id).toBe(crisis.places.crise);
+      // Chaque récit commence par un moment raconté, et chaque message est précédé du moment qui l'annonce,
+      // avec son signal, ou du message précédent quand deux arrivent coup sur coup.
       for (const beats of [crisis.vigilance, crisis.onset]) {
         expect('tell' in beats[0], id).toBe(true);
         beats.forEach((beat, index) => {
           if (!('bulletin' in beat)) return;
           const before = beats[index - 1];
-          expect(before && 'tell' in before && before.tell.sound, `${id} : signal avant « ${beat.bulletin.title} »`).toBeTruthy();
+          expect(before && ('bulletin' in before || before.tell.sound), `${id} : signal avant « ${beat.bulletin.title} »`).toBeTruthy();
           expect(beat.bulletin.paragraphs.length, beat.bulletin.id).toBeGreaterThan(0);
+          // Le téléphone sait où le ranger : la messagerie, ou les alertes.
+          expect(['message', 'alerte'], beat.bulletin.id).toContain(beat.bulletin.kind);
+          // Une consigne a sa source ; un message de pur récit n'en donne pas.
+          if (beat.bulletin.advice) expect(beat.bulletin.sources.length, beat.bulletin.id).toBeGreaterThan(0);
         });
+        // Les identifiants des messages sont uniques : le téléphone les liste tous.
+        const ids = bulletinsOf(crisis).map((bulletin) => bulletin.id);
+        expect(new Set(ids).size, id).toBe(ids.length);
         // Une phase peut s'achever faute de temps : le moment qui suit a sa variante.
         const first = beats[0];
         expect('tell' in first && first.tell.late, `${id} : variante « trop tard »`).toBeTruthy();
       }
-      // L'alerte, elle, sonne.
+      // L'alerte, elle, sonne ; et chaque chapitre reçoit un message de la mairie avant elle.
       const alert = crisis.onset.find((beat) => 'tell' in beat);
       expect(alert && 'tell' in alert && alert.tell.sound, id).toBe('alerte');
+      expect(bulletinsOf(crisis).filter((bulletin) => bulletin.kind === 'alerte').length, id).toBeGreaterThan(0);
+      expect(crisis.vigilance.some((beat) => 'bulletin' in beat && beat.bulletin.kind === 'message'), id).toBe(true);
       expect(crisis.ready.length, id).toBeGreaterThan(10);
       expect(crisis.bilan.title.length, id).toBeGreaterThan(5);
       expect(crisis.bilan.lead.length, id).toBeGreaterThan(20);

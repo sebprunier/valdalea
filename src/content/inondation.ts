@@ -244,7 +244,7 @@ export const SITUATIONS: Situation[] = [
       { id: 'deplacer', label: "Je vais la déplacer tant qu'il est temps", correct: false, outcome: "La voiture démarre, avance de quelques mètres, puis se met à flotter et dérive contre un mur. Vous en sortez par la fenêtre, trempé et choqué." },
     ],
     lesson: "Pendant toute la durée de l'inondation, on ne prend pas sa voiture : 30 cm d'eau suffisent à l'emporter.",
-    sources: ['georisques-inondation'],
+    sources: ['georisques-inondation', 'georisques-risque-inondation'],
   },
   {
     id: 'cave',
@@ -392,7 +392,6 @@ export const BADGES: BadgeDef[] = [
     description: "Compléter la lecture du DICRIM par deux visites au moins : le repère de crue, l'école, le diagnostic de la maison.",
     earned: (v) => count(v, ['pont-repere', 'ecole-plan', 'maison-diagnostic']) >= 2,
   },
-  { id: 'kit', title: 'Kit prêt', description: "Avoir son kit d'urgence 72 h prêt avant la crue : préparé, ou vérifié s'il l'était déjà.", earned: (v) => v.did('maison-kit') },
   { id: 'memoire', title: 'Mémoire de crue', description: 'Retrouver le repère de crue de la commune.', earned: (v) => v.did('pont-repere') },
   {
     id: 'maison',
@@ -419,6 +418,7 @@ export const BADGES: BadgeDef[] = [
 
 export const BULLETIN_JAUNE: Bulletin = {
   id: 'jaune',
+  kind: 'alerte',
   from: 'Vigilance crues',
   title: 'La Follette en vigilance jaune',
   paragraphs: [
@@ -431,12 +431,11 @@ export const BULLETIN_JAUNE: Bulletin = {
 
 export const BULLETIN_ORANGE: Bulletin = {
   id: 'orange',
+  kind: 'alerte',
   from: 'Vigilance crues',
   title: 'La Follette en vigilance orange',
   paragraphs: [
     "Lundi, 7 h 30. Il a plu toute la nuit. Le tronçon de la Follette passe en vigilance orange : risque de crue génératrice de débordements importants, susceptibles d'avoir un impact significatif sur la vie collective et la sécurité des biens et des personnes.",
-    "Message de la mairie : par précaution, le maire fait évacuer le camping des Berges. La réserve communale est mobilisée pour ouvrir le centre d'hébergement au gymnase des Hauts.",
-    "Il vous reste peu de temps avant la montée des eaux. Faites ce qui peut encore l'être, puis rentrez vous mettre à l'abri.",
   ],
   advice: [
     'Je me tiens informé auprès des autorités.',
@@ -450,8 +449,22 @@ export const BULLETIN_ORANGE: Bulletin = {
   sources: ['vigicrues-guide'],
 };
 
+/** La mairie écrit à ses réservistes : pur récit, sans consigne. */
+export const MESSAGE_CAMPING: Bulletin = {
+  id: 'crue-mairie',
+  kind: 'message',
+  from: "Mairie de Val-d'Aléa",
+  title: 'Évacuation du camping des Berges',
+  paragraphs: [
+    "Lundi, 7 h 35. Par précaution, le maire fait évacuer le camping des Berges. La réserve communale est mobilisée pour ouvrir le centre d'hébergement, au gymnase des Hauts.",
+    "Il vous reste peu de temps avant la montée des eaux. Faites ce qui peut encore l'être, puis rentrez vous mettre à l'abri.",
+  ],
+  sources: [],
+};
+
 export const BULLETIN_ROUGE: Bulletin = {
   id: 'rouge',
+  kind: 'alerte',
   from: 'FR-Alert',
   title: 'Alerte : crue soudaine de la Follette',
   paragraphs: [
@@ -647,8 +660,15 @@ export const AUTOMNE: ChapterContent = {
     places: { vigilance: 'domicile', crise: 'domicile' },
     // On vise plus au sud que la maison : le quai et la rivière restent visibles au-dessus de la fenêtre du récit.
     lookSouth: 170,
-    // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
-    vigilance: [{ tell: STORY.soir }, { bulletin: BULLETIN_JAUNE, vigilance: 'jaune' }, { tell: STORY.nuit }, { tell: STORY.matin, hazard: FLOOD.rising }, { bulletin: BULLETIN_ORANGE }],
+    // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins de vigilance, puis un message de la mairie.
+    vigilance: [
+      { tell: STORY.soir },
+      { bulletin: BULLETIN_JAUNE, vigilance: 'jaune' },
+      { tell: STORY.nuit },
+      { tell: STORY.matin, hazard: FLOOD.rising },
+      { bulletin: BULLETIN_ORANGE },
+      { bulletin: MESSAGE_CAMPING },
+    ],
     ready: 'Vigilance orange. Vous êtes chez vous.',
     // L'eau franchit le quai pendant que le joueur lit : il la voit avant que l'alerte ne sonne.
     onset: [{ tell: STORY.abri, hazard: SITUATIONS[0].hazard }, { bulletin: BULLETIN_ROUGE }],

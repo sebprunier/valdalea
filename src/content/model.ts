@@ -14,11 +14,17 @@ export interface Source {
   url: string;
   /** Date de la dernière relecture de la page, au format AAAA-MM-JJ. */
   consulte: string;
+  /** La page refuse les lectures automatiques : elle se relit à la main, dans un navigateur. */
+  manuel?: boolean;
 }
 
 export const SOURCES: Record<string, Source> = sourcesData;
 
-export type ActionPhase = 'accueil' | 'preparation' | 'vigilance';
+/**
+ * Phase où un geste est proposé. `libre` : hors chapitre, quand on veut — avant
+ * d'en choisir un, ou une fois son bilan établi.
+ */
+export type ActionPhase = 'accueil' | 'libre' | 'preparation' | 'vigilance';
 
 /**
  * Ce que le joueur garde d'un chapitre à l'autre. Le kit d'urgence sert pour
@@ -93,6 +99,8 @@ export interface Question {
 
 /** Situation de crise : une question, et l'état du danger sur la carte à ce moment-là. */
 export interface Situation extends Question {
+  /** Lieu où la décision se prend, quand la crise fait se déplacer le joueur (une évacuation) ; sinon, le lieu de la crise. */
+  at?: string;
   /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière, ou avancée du feu, de 0 à 1. */
   hazard: number;
 }
@@ -155,6 +163,11 @@ export interface StoryCard {
 
 export interface Bulletin {
   id: string;
+  /**
+   * Où le téléphone le range : un message (la mairie écrit au réserviste) va dans
+   * la messagerie ; une alerte (bulletin de vigilance, FR-Alert) dans l'application Alertes.
+   */
+  kind: 'message' | 'alerte';
   /** Émetteur affiché en tête du message. */
   from: string;
   title: string;

@@ -56,6 +56,7 @@ let ui: Ui | undefined;
 const game = new Game({
   surface: requireElement('map'),
   canvas: requireElement<HTMLCanvasElement>('canvas'),
+  stick: document.getElementById('stick'),
   commune,
   grid,
   // Une petite marge sur le rayon : les itinéraires ne frôlent pas les murs.

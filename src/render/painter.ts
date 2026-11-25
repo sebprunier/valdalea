@@ -656,11 +656,16 @@ function placeRoadLabels(ctx: CanvasRenderingContext2D, commune: Commune): RoadL
   for (const road of commune.roads) {
     if (!road.name || road.kind === 'chemin') continue;
     const width = ctx.measureText(road.name).width;
-    const lengths = road.path.slice(1).map((b, i) => Math.hypot(b.x - road.path[i].x, b.y - road.path[i].y));
-    const longest = Math.max(...lengths);
-    lengths.forEach((length, i) => {
-      // Une route sinueuse n'est nommée que sur son plus long tronçon (et sur ses grandes lignes droites).
-      if (length < width + 50 || (length < longest && length < 480)) return;
+    const segments = road.path
+      .slice(1)
+      .map((b, i) => ({ i, length: Math.hypot(b.x - road.path[i].x, b.y - road.path[i].y) }))
+      .sort((s, t) => t.length - s.length);
+    // Une route sinueuse n'est nommée qu'une fois, sur son plus long tronçon où le nom tient sans gêner
+    // un repère ni un carrefour ; ses grandes lignes droites le sont toujours.
+    let named = false;
+    for (const { i, length } of segments) {
+      if (length < width + 50) break;
+      if (named && length < 480) continue;
       const a = road.path[i];
       const b = road.path[i + 1];
       const repeats = Math.max(1, Math.floor(length / 760));
@@ -673,11 +678,12 @@ function placeRoadLabels(ctx: CanvasRenderingContext2D, commune: Commune): RoadL
           const spot = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
           if (isLabelSpotFree(commune, road, spot, width / 2)) {
             labels.push({ text: road.name!, x: spot.x, y: spot.y, angle, width });
+            named = true;
             break;
           }
         }
       }
-    });
+    }
   }
   return labels;
 }

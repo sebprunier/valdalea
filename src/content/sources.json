@@ -142,5 +142,24 @@
     "editeur": "Géorisques",
     "url": "https://www.georisques.gouv.fr/",
     "consulte": "2026-11-25"
+  },
+  "ecologie-feux-foret": {
+    "titre": "Prévention des feux de forêt en France",
+    "editeur": "Ministère de la Transition écologique",
+    "url": "https://www.ecologie.gouv.fr/politiques-publiques/prevention-feux-foret",
+    "consulte": "2026-11-25"
+  },
+  "securite-civile-feu": {
+    "titre": "Conseils face au risque de feu de forêt",
+    "editeur": "Ministère de l'Intérieur, Sécurité civile",
+    "url": "https://www.securite-civile.interieur.gouv.fr/reagir/risques-majeurs/feu-de-foret",
+    "consulte": "2026-11-25",
+    "manuel": true
+  },
+  "interieur-feu-foret": {
+    "titre": "Feu de forêt en France : comment s'informer, se protéger et agir ?",
+    "editeur": "Ministère de l'Intérieur, Ma Sécurité",
+    "url": "https://www.masecurite.interieur.gouv.fr/fr/fiches-pratiques/famille-et-aides-aux-victimes/feu-foret-france-comment-s-informer-se-proteger-et-agir",
+    "consulte": "2026-11-25"
   }
 }
