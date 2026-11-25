@@ -1,25 +1,37 @@
+import { BADGES, DICRIM } from '../content/inondation';
+import type { Bulletin } from '../content/model';
+import { PLACE_TEXTS } from '../content/places';
+import type { Assessment } from '../core/chapter';
 import type { Vec } from '../core/geometry';
 import type { GameState } from '../core/state';
-import { PLACE_TEXTS } from '../content/places';
 import type { Commune } from '../world/model';
 import { createDialog } from './dialog';
+import { badgeList, bilanContent, bulletinContent, dicrimContent } from './documents';
 import { h, icon, type IconName } from './dom';
 
 /**
- * Le téléphone du joueur : c'est le tableau de bord du jeu. Il accueillera
- * ensuite les alertes, le DICRIM, le kit d'urgence et les badges.
+ * Le téléphone du joueur : c'est le tableau de bord du jeu. On y retrouve le
+ * plan, les alertes reçues, le DICRIM une fois consulté, le bilan et les badges.
  */
 
 export interface PhoneDeps {
   commune: Commune;
   /** Plan de la commune à petite échelle. */
   overview: HTMLCanvasElement;
+  /** Dessine la zone inondable et la crue par-dessus le plan (contexte en coordonnées monde). */
+  paintWater(ctx: CanvasRenderingContext2D): void;
   getPlayer(): Vec;
   getSectorName(): string;
   getState(): GameState;
+  getBulletins(): Bulletin[];
+  getAssessment(): Assessment | null;
+  isDicrimRead(): boolean;
+  setHazardShown(shown: boolean): void;
   isReducedMotion(): boolean;
   setReducedMotion(reduced: boolean): void;
-  /** Le joueur demande à recommencer ; renvoie vrai si la partie a bien été remise à zéro. */
+  /** Recommence le chapitre en gardant les badges. */
+  replay(): void;
+  /** Le joueur demande à tout recommencer ; renvoie vrai si la partie a bien été remise à zéro. */
   restart(): Promise<boolean>;
 }
 
@@ -27,11 +39,14 @@ export interface Phone {
   open(returnFocus: HTMLElement | null): void;
 }
 
-type View = 'accueil' | 'carte' | 'carnet' | 'reglages';
+type View = 'accueil' | 'carte' | 'carnet' | 'alertes' | 'dicrim' | 'bilan' | 'reglages';
 
 const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconName }> = [
   { view: 'carte', label: 'Carte', icon: 'carte' },
+  { view: 'alertes', label: 'Alertes', icon: 'alerte' },
+  { view: 'dicrim', label: 'DICRIM', icon: 'document' },
   { view: 'carnet', label: 'Carnet', icon: 'carnet' },
+  { view: 'bilan', label: 'Bilan', icon: 'medaille' },
   { view: 'reglages', label: 'Réglages', icon: 'reglages' },
 ];
 
@@ -39,6 +54,9 @@ const TITLES: Record<View, string> = {
   accueil: 'Téléphone',
   carte: 'Carte',
   carnet: 'Carnet',
+  alertes: 'Alertes',
+  dicrim: 'DICRIM',
+  bilan: 'Bilan et badges',
   reglages: 'Réglages',
 };
 
@@ -64,11 +82,18 @@ export function createPhone(deps: PhoneDeps): Phone {
   const mapCanvas = h('canvas', { class: 'minimap', role: 'img' });
   const mapWhere = h('p', { class: 'phone__where' });
   const mapLegend = h('ol', { class: 'legend' });
+  const mapZone = h('input', { type: 'checkbox', id: 'carte-zone' });
+  mapZone.addEventListener('change', () => {
+    deps.setHazardShown(mapZone.checked);
+    renderMap();
+  });
+  const mapZoneField = h('div', { class: 'field' }, mapZone, h('label', { for: 'carte-zone' }, 'Afficher la zone inondable'), h('p', { class: 'fine-print' }, 'En violet sur le plan.'));
   const mapView = h(
     'div',
     { class: 'stack' },
     mapWhere,
     mapCanvas,
+    mapZoneField,
     h('p', { class: 'fine-print' }, 'Votre position est le point orange. Les numéros renvoient à la liste ci-dessous.'),
     mapLegend,
   );
@@ -76,6 +101,8 @@ export function createPhone(deps: PhoneDeps): Phone {
   function renderMap(): void {
     const state = deps.getState();
     const player = deps.getPlayer();
+    mapZoneField.hidden = !deps.isDicrimRead();
+    mapZone.checked = state.settings.hazardLayer;
     mapWhere.textContent = `Vous êtes ici : ${deps.getSectorName()}.`;
     mapCanvas.setAttribute(
       'aria-label',
@@ -95,6 +122,10 @@ export function createPhone(deps: PhoneDeps): Phone {
     const ctx = mapCanvas.getContext('2d')!;
     const k = mapCanvas.width / commune.width;
     ctx.drawImage(deps.overview, 0, 0, mapCanvas.width, mapCanvas.height);
+    ctx.save();
+    ctx.scale(k, k);
+    deps.paintWater(ctx);
+    ctx.restore();
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -154,10 +185,53 @@ export function createPhone(deps: PhoneDeps): Phone {
     );
   }
 
+  // ---------------------------------------------------------------- Alertes
+  const alertsView = h('div', { class: 'stack' });
+
+  function renderAlerts(): void {
+    const bulletins = deps.getBulletins();
+    if (bulletins.length === 0) {
+      alertsView.replaceChildren(h('p', { class: 'lead' }, 'Aucune alerte.'), h('p', null, 'La Follette est en vigilance verte : pas de vigilance particulière.'));
+      return;
+    }
+    alertsView.replaceChildren(...bulletins.map((bulletin) => h('article', { class: 'bulletin' }, h('h3', null, bulletin.title), bulletinContent(bulletin))));
+  }
+
+  // ----------------------------------------------------------------- DICRIM
+  const dicrimView = h('div', { class: 'stack' });
+
+  function renderDicrim(): void {
+    if (deps.isDicrimRead()) dicrimView.replaceChildren(dicrimContent(DICRIM));
+    else {
+      dicrimView.replaceChildren(
+        h('p', { class: 'lead' }, "Vous n'avez pas encore consulté le DICRIM."),
+        h('p', null, "Le document d'information communal sur les risques majeurs se consulte à la mairie. Une fois lu, il reste disponible ici."),
+      );
+    }
+  }
+
+  // ------------------------------------------------------------------ Bilan
+  const bilanView = h('div', { class: 'stack' });
+
+  function renderBilan(): void {
+    const assessment = deps.getAssessment();
+    const earned = deps.getState().badges;
+    if (assessment) {
+      const again = h('button', { type: 'button', class: 'button' }, "Rejouer l'automne");
+      again.addEventListener('click', () => {
+        deps.replay();
+        dialog.close();
+      });
+      bilanView.replaceChildren(bilanContent(assessment, BADGES, earned, []), again);
+    } else {
+      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan sera établi après la crue.'), h('h3', null, 'Badges'), badgeList(BADGES, earned));
+    }
+  }
+
   // --------------------------------------------------------------- Réglages
   const motion = h('input', { type: 'checkbox', id: 'reglage-animations' });
   motion.addEventListener('change', () => deps.setReducedMotion(motion.checked));
-  const restart = h('button', { type: 'button', class: 'button' }, 'Recommencer la partie');
+  const restart = h('button', { type: 'button', class: 'button' }, 'Tout recommencer');
   restart.addEventListener('click', async () => {
     if (await deps.restart()) dialog.close();
   });
@@ -169,24 +243,40 @@ export function createPhone(deps: PhoneDeps): Phone {
       { class: 'field' },
       motion,
       h('label', { for: 'reglage-animations' }, 'Réduire les animations'),
-      h('p', { class: 'fine-print' }, 'La caméra suit le personnage sans glissement et les repères ne clignotent plus. Par défaut, le jeu reprend le réglage de votre système.'),
+      h('p', { class: 'fine-print' }, 'La caméra suit le personnage sans glissement, les repères ne clignotent plus et la crue change de niveau sans transition. Par défaut, le jeu reprend le réglage de votre système.'),
     ),
     h('h3', null, 'Partie'),
-    h('p', null, 'La partie est enregistrée automatiquement dans ce navigateur.'),
+    h('p', null, 'La partie est enregistrée automatiquement dans ce navigateur. Aucune limite de temps réel : le temps du jeu n’avance que lorsque vous agissez ou vous déplacez.'),
     restart,
   );
 
   // ------------------------------------------------------------ Navigation
-  const views: Record<View, HTMLElement> = { accueil: home, carte: mapView, carnet: notebookView, reglages: settingsView };
+  const views: Record<View, HTMLElement> = {
+    accueil: home,
+    carte: mapView,
+    carnet: notebookView,
+    alertes: alertsView,
+    dicrim: dicrimView,
+    bilan: bilanView,
+    reglages: settingsView,
+  };
+  const renderers: Partial<Record<View, () => void>> = {
+    carte: renderMap,
+    carnet: renderNotebook,
+    alertes: renderAlerts,
+    dicrim: renderDicrim,
+    bilan: renderBilan,
+    reglages: () => {
+      motion.checked = deps.isReducedMotion();
+    },
+  };
   dialog.body.append(back, ...Object.values(views));
 
   function show(view: View, moveFocus = true): void {
     for (const [name, element] of Object.entries(views)) element.hidden = name !== view;
     back.hidden = view === 'accueil';
     dialog.setTitle(TITLES[view]);
-    if (view === 'carte') renderMap();
-    if (view === 'carnet') renderNotebook();
-    if (view === 'reglages') motion.checked = deps.isReducedMotion();
+    renderers[view]?.();
     if (moveFocus) dialog.focusTitle();
   }
 

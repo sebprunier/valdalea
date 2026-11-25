@@ -1,0 +1,86 @@
+{
+  "georisques-inondation": {
+    "titre": "Que faire en cas d'inondation ?",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/que-faire-en-cas-d-inondation",
+    "consulte": "2026-11-25"
+  },
+  "georisques-risque-inondation": {
+    "titre": "Inondation, le premier risque naturel en France",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-un-risque/inondation",
+    "consulte": "2026-11-25"
+  },
+  "georisques-kit": {
+    "titre": "Mon kit d'urgence 72H",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/mon-kit-durgence-72h",
+    "consulte": "2026-11-25"
+  },
+  "ecologie-kit": {
+    "titre": "Préparer son kit d'urgence 72 h",
+    "editeur": "Ministère de la Transition écologique",
+    "url": "https://www.ecologie.gouv.fr/dossiers/comprendre-risques-naturels-sen-proteger/preparer-son-kit-durgence-72-h",
+    "consulte": "2026-11-25"
+  },
+  "ecologie-reflexes": {
+    "titre": "Ayons les bons réflexes face aux pluies intenses et inondations soudaines",
+    "editeur": "Ministère de la Transition écologique",
+    "url": "https://www.ecologie.gouv.fr/pluie-et-inondation",
+    "consulte": "2026-11-25"
+  },
+  "georisques-pims": {
+    "titre": "Le plan individuel de mise en sûreté (PIMS)",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/mon-plan-individuel-de-mise-en-surete",
+    "consulte": "2026-11-25"
+  },
+  "georisques-dicrim": {
+    "titre": "Le document d'information communal sur les risques majeurs (DICRIM)",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/communiquer-aupres-de-mes-administres/dicrim",
+    "consulte": "2026-11-25"
+  },
+  "georisques-information-preventive": {
+    "titre": "Les obligations réglementaires de l'information préventive",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/agir-sur-mon-territoire/les-obligations-reglementaires-de-linformation-preventive",
+    "consulte": "2026-11-25"
+  },
+  "georisques-acteurs": {
+    "titre": "Les acteurs publics de la prévention",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-la-prevention-des-risques/les-acteurs-publics-de-la-prevention",
+    "consulte": "2026-11-25"
+  },
+  "georisques-vigilance": {
+    "titre": "La vigilance",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-la-prevention-des-risques/la-vigilance",
+    "consulte": "2026-11-25"
+  },
+  "georisques-barnier": {
+    "titre": "Le soutien financier du fonds Barnier",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/etre-accompagne/le-soutien-financier-du-fonds-barnier-0",
+    "consulte": "2026-11-25"
+  },
+  "vigicrues-guide": {
+    "titre": "Guide de la vigilance crues",
+    "editeur": "Vigicrues",
+    "url": "https://www.vigicrues.gouv.fr/categorie/5",
+    "consulte": "2026-11-25"
+  },
+  "reperes-de-crues": {
+    "titre": "Repères de crues",
+    "editeur": "Plateforme nationale des repères de crues",
+    "url": "https://www.reperesdecrues.developpement-durable.gouv.fr/reperes-de-crues",
+    "consulte": "2026-11-25"
+  },
+  "fr-alert": {
+    "titre": "FR-Alert",
+    "editeur": "Ministère de l'Intérieur",
+    "url": "https://www.fr-alert.gouv.fr/",
+    "consulte": "2026-11-25"
+  }
+}

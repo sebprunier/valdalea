@@ -1,7 +1,7 @@
 {
-  "name": "jcrm",
+  "name": "valdalea",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Val-d'Aléa — un jeu web pour apprendre à prévenir les risques majeurs dans sa commune.",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "liens": "node scripts/verifier-liens.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

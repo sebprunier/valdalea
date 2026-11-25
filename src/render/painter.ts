@@ -544,7 +544,25 @@ function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
   ctx.save();
   ctx.translate(decor.x, decor.y);
   ctx.rotate(decor.angle);
-  if (decor.kind === 'tente') {
+  if (decor.kind === 'voiture') {
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
+    ctx.beginPath();
+    ctx.roundRect(-15, -5, 36, 16, 5);
+    ctx.fill();
+    ctx.fillStyle = '#3f6f9f';
+    ctx.strokeStyle = '#27496b';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(-18, -8, 36, 16, 5);
+    ctx.fill();
+    ctx.stroke();
+    // Pare-brise et lunette arrière
+    ctx.fillStyle = '#cfe1ee';
+    ctx.fillRect(3, -6, 6, 12);
+    ctx.fillRect(-11, -6, 4, 12);
+    ctx.fillStyle = '#35618c';
+    ctx.fillRect(-7, -6.5, 10, 13);
+  } else if (decor.kind === 'tente') {
     ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
     ctx.fillRect(-12, -8, 28, 22);
     ctx.fillStyle = DECOR_TONES[decor.tone % 4];
@@ -740,4 +758,29 @@ function paintLabel(ctx: CanvasRenderingContext2D, label: MapLabel): void {
       spacedText(ctx, text, label.x, label.y, 1.5, 'halo');
       break;
   }
+}
+
+/**
+ * Redessine ce qui dépasse d'une nappe d'eau (toits, cuves, cimes des arbres),
+ * par-dessus la crue. `isFlooded` limite le travail aux objets réellement touchés.
+ */
+export function paintAboveWater(
+  ctx: CanvasRenderingContext2D,
+  commune: Commune,
+  view: Rect,
+  isFlooded: (p: Vec) => boolean,
+): void {
+  const seen = (bounds: Rect): boolean => rectsIntersect(bounds, view);
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const b of commune.buildings) {
+    const center = { x: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2 };
+    if (seen(b.rect) && isFlooded(center)) paintBuilding(ctx, b);
+  }
+  const still: PaintOptions = { labels: false, details: false };
+  for (const tree of commune.trees) {
+    if (seen({ x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }) && isFlooded(tree)) paintTree(ctx, tree, still);
+  }
+  ctx.restore();
 }

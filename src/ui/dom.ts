@@ -33,6 +33,10 @@ const ICONS = {
   fermer: 'M6 6l12 12M18 6 6 18',
   retour: 'M15 5l-7 7 7 7',
   coche: 'M5 12.5l4.5 4.5L19 7.5',
+  alerte: 'M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Zm4 4a2 2 0 0 0 4 0',
+  document: 'M7 3h7l4 4v14H7V3Zm7 0v4h4M10 12h5m-5 4h5',
+  medaille: 'M12 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm-3-1.2L7.5 21l4.5-2.5 4.5 2.5-1.5-8.2',
+  horloge: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2',
 } as const;
 
 export type IconName = keyof typeof ICONS;

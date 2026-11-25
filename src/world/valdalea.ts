@@ -15,6 +15,10 @@ import type { Commune } from './model';
 export function buildValDAlea(): Commune {
   const b = new WorldBuilder("Val-d'Aléa", 4200, 3000, 2026);
 
+  // La rive nord monte vite vers le bourg ; la rive sud, plus plate, s'inonde largement.
+  // Le terrain remonte à l'est : la cité et la zone industrielle restent hors d'eau.
+  b.relief({ northRun: 130, southRun: 200, eastRise: { fromX: 2950, run: 400 }, bridgeDeck: 2.6 });
+
   // ---------------------------------------------------------------- Relief
   b.ground('eboulis', [vec(0, 0), vec(420, 0), vec(470, 300), vec(440, 700), vec(490, 1100), vec(460, 1470), vec(320, 1600), vec(0, 1600)]);
   b.ground('falaise', [vec(0, 0), vec(380, 0), vec(430, 300), vec(400, 700), vec(450, 1100), vec(420, 1450), vec(300, 1560), vec(0, 1560)]);
@@ -138,7 +142,7 @@ export function buildValDAlea(): Commune {
   b.townRow(rect(2140, 1700, 450, 75), 'N', 'commerce');
   b.groundRect('jardin', rect(2143, 1923, 164, 144));
   const home = b.building('pavillon', rect(2180, 1960, 100, 80), { id: 'domicile', roof: 'tuile', tone: 0, door: 'S' });
-  b.houseRow(rect(2320, 1920, 270, 150), 'S', { lot: 130 });
+  const [jeanne] = b.houseRow(rect(2320, 1920, 270, 150), 'S', { lot: 130 });
   b.houseRow(rect(2650, 1700, 290, 150), 'N', { lot: 140 });
   b.houseRow(rect(2650, 1920, 290, 150), 'S', { lot: 140 });
 
@@ -196,6 +200,9 @@ export function buildValDAlea(): Commune {
     }
   }
 
+  // Votre voiture, garée sur le quai devant la maison.
+  b.decor('voiture', 2292, 2093, 0);
+
   // ---------------------------------------------------------------- Arbres
   b.scatterTrees(forest, 58, 15, 24);
   b.scatterTrees(rectToPolygon(rect(2160, 1220, 400, 300)), 78, 14, 20);
@@ -247,6 +254,7 @@ export function buildValDAlea(): Commune {
   b.place('domicile', 'Chez vous', 'domicile', 'bas-bourg', doorPoint(home));
   b.place('mairie', 'Mairie', 'mairie', 'haut-bourg', doorPoint(mairie));
   b.place('gymnase', 'Gymnase des Hauts', 'gymnase', 'haut-bourg', doorPoint(gymnase));
+  b.place('jeanne', 'Chez Jeanne', 'domicile', 'bas-bourg', doorPoint(jeanne));
   b.place('ecole', 'École du Quai', 'ecole', 'bas-bourg', doorPoint(ecole));
   b.place('pont', 'Pont de la Follette', 'pont', 'bas-bourg', vec(2100, 2130));
   b.place('vieux-bourg', "Place de l'Église", 'quartier', 'vieux-bourg', doorPoint(eglise));

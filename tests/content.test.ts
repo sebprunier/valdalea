@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest';
+import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, DICRIM, QUESTIONS, SITUATIONS, STAKES } from '../src/content/inondation';
+import { SOURCES } from '../src/content/model';
+import { PLACE_TEXTS } from '../src/content/places';
+import { buildValDAlea } from '../src/world/valdalea';
+
+const commune = buildValDAlea();
+const placeIds = new Set(commune.places.map((p) => p.id));
+const actionIds = new Set(ACTIONS.map((a) => a.id));
+const questionIds = new Set(QUESTIONS.map((q) => q.id));
+
+describe('cohérence des contenus', () => {
+  it('donne un texte à chaque lieu', () => {
+    for (const place of commune.places) expect(PLACE_TEXTS[place.id]?.description, place.id).toBeTruthy();
+  });
+
+  it('rattache chaque action à un lieu, des sources et des questions qui existent', () => {
+    expect(actionIds.size).toBe(ACTIONS.length);
+    for (const action of ACTIONS) {
+      expect(placeIds.has(action.place), `${action.id} : lieu`).toBe(true);
+      // Toute consigne a sa source ; seules les actions de pur récit en sont dispensées.
+      if (!action.narrative) expect(action.sources.length, `${action.id} : au moins une source`).toBeGreaterThan(0);
+      if (action.requires) expect(actionIds.has(action.requires), `${action.id} : préalable`).toBe(true);
+      if (action.eased) expect(actionIds.has(action.eased.by), `${action.id} : préparation`).toBe(true);
+      for (const id of action.questions ?? []) expect(questionIds.has(id), `${action.id} : question ${id}`).toBe(true);
+      // Une action verrouillable explique pourquoi elle l'est.
+      if (action.requires) expect(action.locked, `${action.id} : message de verrouillage`).toBeTruthy();
+    }
+  });
+
+  it('ne cite que des sources connues, officielles et en https', () => {
+    const cited = [
+      ...ACTIONS.flatMap((a) => a.sources),
+      ...QUESTIONS.flatMap((q) => q.sources),
+      ...SITUATIONS.flatMap((s) => s.sources),
+      ...STAKES.flatMap((s) => s.sources),
+      ...[BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE].flatMap((b) => b.sources),
+      ...DICRIM.flatMap((section) => section.sources ?? []),
+    ];
+    for (const id of cited) expect(SOURCES[id], `source ${id}`).toBeDefined();
+    for (const [id, source] of Object.entries(SOURCES)) {
+      expect(source.url, id).toMatch(/^https:\/\/[a-z0-9.-]+\.gouv\.fr\//);
+      expect(source.consulte, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(source.titre.length, id).toBeGreaterThan(3);
+    }
+  });
+
+  it('donne à chaque question une bonne réponse et des identifiants uniques', () => {
+    for (const question of [...QUESTIONS, ...SITUATIONS]) {
+      const ids = question.choices.map((c) => c.id);
+      expect(new Set(ids).size, question.id).toBe(ids.length);
+      const correct = question.choices.filter((c) => c.correct).length;
+      if (question.multiple) expect(correct, question.id).toBeGreaterThan(1);
+      else expect(correct, question.id).toBe(1);
+      expect(question.lesson.length, question.id).toBeGreaterThan(10);
+    }
+  });
+
+  it('raconte chaque conséquence dans les situations de crise, et fait monter l’eau', () => {
+    let previous = 0;
+    for (const situation of SITUATIONS) {
+      for (const choice of situation.choices) expect(choice.outcome, `${situation.id}/${choice.id}`).toBeTruthy();
+      expect(situation.floodLevel, situation.id).toBeGreaterThan(previous);
+      previous = situation.floodLevel;
+    }
+  });
+
+  it('écrit un dénouement pour chaque niveau atteignable de chaque enjeu', () => {
+    for (const stake of STAKES) {
+      expect(stake.outcomes[0], stake.id).toBeTruthy();
+      expect(stake.outcomes[2], stake.id).toBeTruthy();
+    }
+    expect(new Set(BADGES.map((b) => b.id)).size).toBe(BADGES.length);
+  });
+});

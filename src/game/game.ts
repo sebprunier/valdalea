@@ -1,7 +1,9 @@
 import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
-import { MAP_BACKGROUND, paintMap } from '../render/painter';
+import { floodLayer, hazardLayer, type WaterLayer } from '../render/flood';
+import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
 import { TILE_SIZE, TileCache } from '../render/tiles';
+import type { Elevation } from '../world/elevation';
 import type { WalkGrid } from '../world/grid';
 import { sectorAt, type Commune, type Place, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
@@ -14,6 +16,9 @@ const OVERVIEW_SCALE = 0.25;
 /** Délai minimal entre deux calculs d'itinéraire quand le pointeur glisse sur la carte. */
 const ROUTE_INTERVAL = 0.15;
 
+/** Vitesse de montée ou de descente de la crue à l'écran, en mètres par seconde. */
+const FLOOD_SPEED = 0.11;
+
 export interface GameHooks {
   /** Le joueur entre à portée d'un lieu, ou s'en éloigne. */
   nearPlaceChanged(place: Place | null): void;
@@ -23,7 +28,11 @@ export interface GameHooks {
   shortcut(action: 'phone' | 'places' | 'help'): void;
   /** Position du joueur, signalée au plus une fois par seconde et à chaque pause. */
   moved(pos: Vec): void;
+  /** Distance que le joueur vient de parcourir, en unités monde : le temps de jeu en dépend. */
+  walked(units: number): void;
   isVisited(placeId: string): boolean;
+  /** Nombre d'actions possibles dans un lieu, affiché sur son repère. */
+  pendingAt(placeId: string): number;
 }
 
 export interface GameOptions {
@@ -33,6 +42,7 @@ export interface GameOptions {
   commune: Commune;
   grid: WalkGrid;
   pathfinder: Pathfinder;
+  elevation: Elevation;
   start: Vec;
   hooks: GameHooks;
 }
@@ -52,7 +62,10 @@ export class Game {
   private readonly commune: Commune;
   private readonly grid: WalkGrid;
   private readonly pathfinder: Pathfinder;
+  private readonly elevation: Elevation;
   private readonly hooks: GameHooks;
+  private readonly hazard: WaterLayer;
+  private readonly flood: WaterLayer;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly tiles: TileCache;
@@ -71,6 +84,14 @@ export class Game {
   private sinceRoute = ROUTE_INTERVAL;
   private stuckFor = 0;
 
+  /** Niveau de la zone inondable affichée (crue de référence), ou `null` si elle est masquée. */
+  private hazardLevel: number | null = null;
+  /** Niveau de la crue à l'écran, qui rejoint progressivement `floodTarget`. */
+  private floodLevel = 0;
+  private floodTarget = 0;
+  /** Point que la caméra regarde pendant une séquence (le joueur ne se déplace pas). */
+  private focus: Vec | null = null;
+
   private near: Place | null = null;
   private sector: Sector | null = null;
   private observed = false;
@@ -86,7 +107,10 @@ export class Game {
     this.commune = options.commune;
     this.grid = options.grid;
     this.pathfinder = options.pathfinder;
+    this.elevation = options.elevation;
     this.hooks = options.hooks;
+    this.hazard = hazardLayer(options.elevation);
+    this.flood = floodLayer(options.elevation);
     const { commune } = this;
 
     this.ctx = this.canvas.getContext('2d', { alpha: false })!;
@@ -132,9 +156,49 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Place le joueur devant un lieu (déplacement depuis la liste des lieux). */
+  /**
+   * Place le joueur devant un lieu (déplacement depuis la liste des lieux).
+   * Le trajet compte comme s'il avait été fait à pied.
+   */
   travelTo(place: Place): void {
+    const route = this.pathfinder.findPath(this.player, place.pos);
+    let length = 0;
+    let from: Vec = this.player;
+    for (const point of route) {
+      length += distance(from, point);
+      from = point;
+    }
+    this.hooks.walked(route.length > 0 ? length : distance(this.player, place.pos));
     this.moveTo(place.pos);
+  }
+
+  /** Affiche ou masque la zone inondable, pour une crue du niveau donné. */
+  setHazardZone(level: number | null): void {
+    this.hazardLevel = level;
+    if (level !== null) this.hazard.setLevel(level);
+    this.dirty = true;
+  }
+
+  /** Fait monter ou descendre la crue jusqu'au niveau indiqué (0 : la rivière est dans son lit). */
+  setFlood(level: number, immediate = false): void {
+    this.floodTarget = level;
+    if (immediate || this.reducedMotion) this.floodLevel = level;
+    this.dirty = true;
+  }
+
+  /** Dessine la zone inondable et la crue sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
+  paintWater(ctx: CanvasRenderingContext2D): void {
+    if (this.hazardLevel !== null) this.hazard.draw(ctx);
+    if (this.floodLevel > 0.02) {
+      this.flood.setLevel(this.floodLevel);
+      this.flood.draw(ctx);
+    }
+  }
+
+  /** Braque la caméra sur un point pendant une séquence ; `null` la rend au joueur. */
+  setFocus(point: Vec | null): void {
+    this.focus = point ? { ...point } : null;
+    this.dirty = true;
   }
 
   moveTo(pos: Vec): void {
@@ -179,11 +243,32 @@ export class Game {
       this.update(dt);
       this.dirty = true;
     }
+    this.animate(dt);
     if (this.dirty) {
       this.dirty = false;
       this.render();
     }
   };
+
+  /** Animations qui continuent pendant les séquences, quand le joueur ne bouge pas : la crue et la caméra. */
+  private animate(dt: number): void {
+    if (this.floodLevel !== this.floodTarget) {
+      const step = FLOOD_SPEED * dt;
+      const gap = this.floodTarget - this.floodLevel;
+      this.floodLevel = Math.abs(gap) <= step ? this.floodTarget : this.floodLevel + Math.sign(gap) * step;
+      this.dirty = true;
+    }
+    if (this.paused && this.focus) {
+      const gap = distance(this.focus, this.camera);
+      if (gap > 0.5) {
+        const follow = this.reducedMotion ? 1 : 1 - Math.exp(-dt * 3);
+        this.camera.x += (this.focus.x - this.camera.x) * follow;
+        this.camera.y += (this.focus.y - this.camera.y) * follow;
+        this.clampCamera();
+        this.dirty = true;
+      }
+    }
+  }
 
   private update(dt: number): void {
     this.clock += dt;
@@ -225,6 +310,7 @@ export class Game {
       const moved = Math.hypot(next.x - p.x, next.y - p.y);
       p.x = next.x;
       p.y = next.y;
+      if (moved > 0) this.hooks.walked(moved);
       p.facing = turnToward(p.facing, Math.atan2(direction.y, direction.x), dt * 14);
       p.phase += moved * 0.1;
       p.moving = moved > step * 0.15;
@@ -406,6 +492,13 @@ export class Game {
     if (missing) this.dirty = true;
 
     ctx.setTransform(scale, 0, 0, scale, -origin.x, -origin.y);
+    if (this.hazardLevel !== null) this.hazard.draw(ctx);
+    if (this.floodLevel > 0.02) {
+      this.flood.setLevel(this.floodLevel);
+      this.flood.draw(ctx);
+      const view = { x: origin.x / scale, y: origin.y / scale, w: width / scale, h: height / scale };
+      paintAboveWater(ctx, this.commune, view, (p) => this.elevation.isFlooded(p, this.floodLevel));
+    }
     if (this.route.length > 0) paintRoute(ctx, this.player, this.route, this.clock, this.reducedMotion);
     const reach = Math.hypot(width, height) / scale / 2 + 80;
     for (const place of this.commune.places) {
@@ -415,6 +508,7 @@ export class Game {
         active,
         visited: this.hooks.isVisited(place.id),
         named: active || distance(place.pos, this.player) < 320,
+        todo: this.hooks.pendingAt(place.id),
         size: this.markerSize,
         clock: this.clock,
         still: this.reducedMotion,

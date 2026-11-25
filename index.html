@@ -22,6 +22,17 @@
         <p class="hud__commune">Val-d'Aléa</p>
         <p class="hud__sector"><span class="sr-only">Secteur : </span><span id="hud-sector">Bas-Bourg</span></p>
       </div>
+      <div class="hud__status">
+        <p class="chip chip--vigilance" id="hud-vigilance" data-level="verte">
+          <span class="chip__swatch" aria-hidden="true"></span><span id="hud-vigilance-text">Vigilance crues : verte</span>
+        </p>
+        <p class="chip" id="hud-clock" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2" />
+          </svg>
+          <span id="hud-clock-text"></span>
+        </p>
+      </div>
       <nav class="hud__actions" aria-label="Menu du jeu">
         <button type="button" class="hud-button" id="button-places" aria-keyshortcuts="L">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -44,6 +55,7 @@
           <span>Aide</span> <kbd aria-hidden="true">H</kbd>
         </button>
       </nav>
+      <p class="hud__objective"><span class="hud__objective-label">Objectif</span> <span id="hud-objective"></span></p>
     </header>
 
     <main class="stage">

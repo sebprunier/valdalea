@@ -97,7 +97,7 @@ export interface Tree {
 }
 
 export interface Decor {
-  kind: 'tente' | 'caravane';
+  kind: 'tente' | 'caravane' | 'voiture';
   x: number;
   y: number;
   angle: number;
@@ -129,10 +129,23 @@ export interface Place {
   pos: Vec;
 }
 
+/** Pente du terrain de part et d'autre de la rivière : sert à calculer où l'eau monte. */
+export interface Relief {
+  /** Distance à parcourir depuis la berge pour s'élever d'un mètre, rive nord. */
+  northRun: number;
+  /** Idem rive sud, plus plate. */
+  southRun: number;
+  /** À l'est de `fromX`, le terrain remonte d'un mètre toutes les `run` unités. */
+  eastRise: { fromX: number; run: number };
+  /** Hauteur du tablier des ponts, en mètres au-dessus du niveau normal de la rivière. */
+  bridgeDeck: number;
+}
+
 export interface Commune {
   name: string;
   width: number;
   height: number;
+  relief: Relief;
   river: River;
   grounds: Ground[];
   roads: Road[];

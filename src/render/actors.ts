@@ -108,6 +108,8 @@ export interface MarkerState {
   visited: boolean;
   /** Afficher le nom du lieu sous le repère. */
   named: boolean;
+  /** Nombre d'actions possibles ici : affiché dans une pastille. */
+  todo: number;
   /** Facteur de taille : sur petit écran, le repère est agrandi pour rester lisible. */
   size: number;
   clock: number;
@@ -187,6 +189,25 @@ export function paintPlaceMarker(ctx: CanvasRenderingContext2D, place: Place, st
     ctx.lineTo(cx - 0.8, cy + 2.4);
     ctx.lineTo(cx + 3.2, cy - 2.4);
     ctx.stroke();
+  }
+
+  // Actions possibles : une pastille chiffrée, à gauche du repère.
+  if (state.todo > 0) {
+    const cx = -radius * 0.85;
+    const cy = py - radius * 0.8;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b93d0a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 10px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(Math.min(9, state.todo)), cx, cy + 0.5);
   }
 
   if (state.named) {

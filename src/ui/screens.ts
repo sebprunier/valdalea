@@ -1,7 +1,6 @@
 import { distance, type Vec } from '../core/geometry';
-import { PLACE_TEXTS } from '../content/places';
 import { UNITS_PER_METER } from '../game/constants';
-import { findSector, type Commune, type Place } from '../world/model';
+import type { Commune, Place } from '../world/model';
 import { createDialog, type DialogHandle } from './dialog';
 import { h, icon } from './dom';
 
@@ -77,7 +76,7 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     h(
       'p',
       null,
-      "Vous venez de rejoindre sa réserve communale de sécurité civile. Avant d'agir, prenez le temps de découvrir votre territoire.",
+      "Vous venez de rejoindre sa réserve communale de sécurité civile. L'automne arrive, et avec lui les crues de la Follette : le maire vous attend pour votre première mission.",
     ),
     actions,
     h('h3', null, 'Commandes'),
@@ -86,7 +85,7 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     h(
       'p',
       { class: 'fine-print' },
-      "Version de travail : pour l'instant, seule la découverte de la commune est jouable. ",
+      "Version de travail : un seul chapitre est jouable, l'automne et le risque d'inondation. ",
       "Jeu indépendant, sans lien avec les services de l'État. Aucune donnée personnelle n'est collectée. ",
       options.persistent
         ? 'La partie est enregistrée uniquement dans votre navigateur.'
@@ -106,38 +105,20 @@ export function createHelpDialog(): DialogHandle {
     h('p', null, 'Les raccourcis clavier fonctionnent lorsque la carte a le focus : cliquez dessus, ou atteignez-la avec la touche Tabulation.'),
     h('h3', null, 'Jouer sans la carte'),
     h('p', null, WITHOUT_MAP),
+    h('h3', null, 'Le temps du jeu'),
+    h(
+      'p',
+      null,
+      "Rien n'est chronométré. L'heure affichée en haut de l'écran n'avance que lorsque vous accomplissez un geste ou que vous vous déplacez : prenez tout le temps de lire.",
+    ),
     h('h3', null, 'Les repères sur la carte'),
     h(
       'p',
       null,
-      'Chaque lieu à découvrir est signalé par une pastille. Approchez-vous : son nom apparaît en bas de l’écran, et vous pouvez ouvrir sa fiche. Une coche marque les lieux déjà visités.',
+      'Chaque lieu est signalé par une pastille. Approchez-vous : son nom apparaît en bas de l’écran, et vous pouvez l’ouvrir. Un chiffre orange indique le nombre de gestes possibles sur place ; une coche marque les lieux déjà visités.',
     ),
   );
   return dialog;
-}
-
-// ------------------------------------------------------------ Fiche de lieu
-
-export interface PlaceDialog {
-  show(place: Place, returnFocus: HTMLElement | null): void;
-}
-
-export function createPlaceDialog(commune: Commune): PlaceDialog {
-  const dialog = createDialog({ id: 'fiche-lieu', title: '' });
-  const sector = h('p', { class: 'dialog__kicker' });
-  const description = h('p', { class: 'lead' });
-  const back = h('button', { type: 'button', class: 'button button--primary' }, 'Revenir à la carte');
-  back.addEventListener('click', () => dialog.close());
-  dialog.body.append(sector, description, h('div', { class: 'dialog__actions' }, back));
-
-  return {
-    show(place, returnFocus) {
-      dialog.setTitle(place.name);
-      sector.textContent = findSector(commune, place.sectorId)?.name ?? commune.name;
-      description.textContent = PLACE_TEXTS[place.id]?.description ?? '';
-      dialog.open(returnFocus);
-    },
-  };
 }
 
 // --------------------------------------------------------- Liste des lieux
@@ -153,14 +134,22 @@ export interface PlacesDialog {
   show(player: Vec, visited: readonly string[], returnFocus: HTMLElement | null): void;
 }
 
+/** Ce que la liste affiche de chaque lieu, en plus de son nom. */
+export interface PlaceInfo {
+  /** Nombre de gestes possibles sur place. */
+  pending: number;
+  /** En zone inondable ? `null` tant que le DICRIM n'a pas été consulté. */
+  exposed: boolean | null;
+}
+
 /**
  * Liste de tous les lieux, groupés par secteur. C'est l'alternative à la carte :
  * tout ce que la carte permet d'atteindre doit rester atteignable d'ici.
  */
-export function createPlacesDialog(commune: Commune, onTravel: (place: Place) => void): PlacesDialog {
+export function createPlacesDialog(commune: Commune, onTravel: (place: Place) => void, info: (place: Place) => PlaceInfo): PlacesDialog {
   const dialog = createDialog({ id: 'lieux', title: 'Lieux de la commune' });
   const list = h('div', { class: 'place-groups' });
-  dialog.body.append(h('p', null, 'Choisissez un lieu pour vous y rendre directement.'), list);
+  dialog.body.append(h('p', null, 'Choisissez un lieu pour vous y rendre. Le trajet prend le même temps qu’à pied.'), list);
 
   return {
     show(player, visited, returnFocus) {
@@ -170,10 +159,17 @@ export function createPlacesDialog(commune: Commune, onTravel: (place: Place) =>
         if (places.length === 0) continue;
         const items = places.map((place) => {
           const seen = visited.includes(place.id);
+          const { pending, exposed } = info(place);
           const button = h(
             'button',
             { type: 'button', class: 'place-row' },
-            h('span', { class: 'place-row__name' }, place.name),
+            h(
+              'span',
+              { class: 'place-row__name' },
+              place.name,
+              pending > 0 ? h('span', { class: 'tag tag--todo' }, pending > 1 ? `${pending} gestes possibles` : '1 geste possible') : null,
+              exposed ? h('span', { class: 'tag tag--alert' }, 'zone inondable') : null,
+            ),
             h(
               'span',
               { class: 'place-row__meta' },

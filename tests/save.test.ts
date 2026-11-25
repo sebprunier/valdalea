@@ -5,6 +5,9 @@ import { Store } from '../src/core/store';
 
 const context: LoadContext = {
   placeIds: new Set(['mairie', 'ecole']),
+  actionIds: new Set(['mairie-accueil', 'maison-kit']),
+  situationChoices: new Map([['enfants', new Set(['ecole', 'a-pied'])]]),
+  badgeIds: new Set(['kit']),
   isFree: (pos) => pos.x >= 0,
   spawn: { x: 100, y: 100 },
 };
@@ -29,7 +32,7 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)).toBeNull();
     storage.setItem('jcrm:partie', JSON.stringify({ version: 99, player: { x: 1, y: 1 } }));
     expect(loadGame(storage, context)).toBeNull();
-    storage.setItem('jcrm:partie', JSON.stringify({ version: 1, player: { x: 'a', y: 1 } }));
+    storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 'a', y: 1 } }));
     expect(loadGame(storage, context)).toBeNull();
     storage.setItem('jcrm:partie', JSON.stringify([1, 2, 3]));
     expect(loadGame(storage, context)).toBeNull();
@@ -39,15 +42,48 @@ describe('sauvegarde', () => {
     const storage = memoryStorage();
     storage.setItem(
       'jcrm:partie',
-      JSON.stringify({ version: 1, player: { x: 5, y: 5 }, visited: ['mairie', 'disparu', 'mairie', 12], settings: {} }),
+      JSON.stringify({ version: 2, player: { x: 5, y: 5 }, visited: ['mairie', 'disparu', 'mairie', 12], settings: {} }),
     );
     expect(loadGame(storage, context)?.visited).toEqual(['mairie']);
   });
 
   it('replace le joueur au départ si sa position n’est plus valable', () => {
     const storage = memoryStorage();
-    storage.setItem('jcrm:partie', JSON.stringify({ version: 1, player: { x: -50, y: 5 }, visited: [] }));
+    storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: -50, y: 5 }, visited: [] }));
     expect(loadGame(storage, context)?.player).toEqual(context.spawn);
+  });
+
+  it('reprend une partie de la version 1 avec un chapitre neuf', () => {
+    const storage = memoryStorage();
+    storage.setItem('jcrm:partie', JSON.stringify({ version: 1, player: { x: 5, y: 5 }, visited: ['mairie'], settings: { reducedMotion: true } }));
+    const state = loadGame(storage, context);
+    expect(state?.version).toBe(2);
+    expect(state?.visited).toEqual(['mairie']);
+    expect(state?.chapter.phase).toBe('accueil');
+    expect(state?.badges).toEqual([]);
+    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: false });
+  });
+
+  it('nettoie un chapitre sauvegardé : actions, réponses et badges inconnus sont écartés', () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      'jcrm:partie',
+      JSON.stringify({
+        version: 2,
+        player: { x: 5, y: 5 },
+        chapter: { phase: 'crise', minutesLeft: -4, done: ['maison-kit', 'inventee'], answers: { enfants: 'ecole', cave: 'descendre', autre: 3 } },
+        badges: ['kit', 'triche'],
+      }),
+    );
+    const state = loadGame(storage, context);
+    expect(state?.chapter).toEqual({ phase: 'crise', minutesLeft: 0, done: ['maison-kit'], answers: { enfants: 'ecole' } });
+    expect(state?.badges).toEqual(['kit']);
+  });
+
+  it('repart d’un chapitre neuf si la phase sauvegardée est inconnue', () => {
+    const storage = memoryStorage();
+    storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, chapter: { phase: 'hiver', done: ['maison-kit'] } }));
+    expect(loadGame(storage, context)?.chapter.phase).toBe('accueil');
   });
 
   it('efface la partie', () => {
