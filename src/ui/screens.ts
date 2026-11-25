@@ -147,7 +147,7 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "La partie commence par un prologue : rencontrer le maire, lire le DICRIM. Ensuite, l'application Calendrier du téléphone propose les chapitres, un risque par saison. Vous les jouez dans l'ordre que vous voulez ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est rappelé en haut de l'écran.",
+      "La partie commence par un prologue : rencontrer le maire, lire le DICRIM. Ensuite, l'application Chapitres du téléphone propose les chapitres, un par risque majeur. Vous les jouez dans l'ordre que vous voulez ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est rappelé en haut de l'écran.",
     ),
     h('h3', null, 'Savoir quoi faire'),
     h(
@@ -159,13 +159,13 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "Le téléphone est la télécommande du jeu : calendrier des chapitres, carte, lieux, météo, alertes, DICRIM, lexique, bilan, réglages. En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance ; ils ouvrent les applications Météo et Alertes. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : une alerte, le DICRIM, le bilan.",
+      "Le téléphone est la télécommande du jeu : chapitres (avec le bilan de chacun), carte, lieux, météo, messages, alertes, DICRIM, lexique, badges, réglages. En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance ; ils ouvrent les applications Météo et Alertes. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : un message, une alerte, le DICRIM, un bilan, un badge.",
     ),
     h('h3', null, 'Recommencer'),
     h(
       'p',
       null,
-      "Dans le téléphone : l'application Calendrier permet de rejouer un chapitre ou d'en changer ; dans l'application Réglages, « Rejouer le chapitre » reprend le chapitre en cours à son début en gardant vos badges, « Tout recommencer » efface la partie, prologue compris.",
+      "Dans le téléphone : l'application Chapitres permet de rejouer un chapitre ou d'en changer ; dans l'application Réglages, « Rejouer le chapitre » reprend le chapitre en cours à son début en gardant vos badges, « Tout recommencer » efface la partie, prologue compris.",
     ),
     h('h3', null, 'Le son'),
     h(

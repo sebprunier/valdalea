@@ -1,4 +1,5 @@
-import type { Phase } from '../core/chapter';
+import { assess, type Assessment, type Phase } from '../core/chapter';
+import { GLOBAL_BADGES, type Progress } from './badges';
 import { ETE } from './feu';
 import { AUTOMNE } from './inondation';
 import type { ActionDef, AssetId, BadgeDef, ChapterContent, ChapterPhase, ChapterTiming, Question, Situation } from './model';
@@ -10,7 +11,7 @@ import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
  * récit raconte ; ce n'est pas elle qui le désigne.)
  *
  * Après le prologue (la rencontre du maire, la lecture du DICRIM), le joueur
- * choisit ses chapitres dans l'ordre qu'il veut. Le calendrier en conseille un
+ * choisit ses chapitres dans l'ordre qu'il veut. Le téléphone en conseille un
  * pour commencer, sans l'imposer.
  */
 export interface ChapterInfo {
@@ -67,9 +68,35 @@ const unique = (questions: Question[]): Question[] => [...new Map(questions.map(
 export const ALL_QUESTIONS: Question[] = unique([...KIT_QUESTIONS, ...Object.values(CONTENTS).flatMap((content) => content.questions)]);
 /** Ce que chaque geste laisse au joueur pour la suite de la partie : de quoi reprendre une sauvegarde. */
 export const GRANTS: ReadonlyMap<string, AssetId> = new Map(ALL_ACTIONS.flatMap((action) => (action.grants ? [[action.id, action.grants] as const] : [])));
-/** Toutes les situations de crise et tous les badges du jeu. */
+/** Toutes les situations de crise du jeu. */
 export const ALL_SITUATIONS: Situation[] = Object.values(CONTENTS).flatMap((content) => content.crisis?.situations ?? []);
-export const ALL_BADGES: BadgeDef[] = Object.values(CONTENTS).flatMap((content) => content.crisis?.badges ?? []);
+
+/** Un badge, tel qu'on l'affiche : ceux d'un chapitre comme ceux de toute la partie. */
+export type BadgeInfo = Pick<BadgeDef, 'id' | 'title' | 'description'>;
+
+/** Les badges d'un chapitre, décernés avec son bilan. */
+export function badgesOf(chapterId: string | null): BadgeDef[] {
+  return (chapterId && CONTENTS[chapterId]?.crisis?.badges) || [];
+}
+
+/** Tous les badges du jeu, rangés comme le téléphone les montre : ceux de toute la partie, puis chapitre par chapitre. */
+export const BADGE_GROUPS: Array<{ title: string; chapterId: string | null; badges: BadgeInfo[] }> = [
+  { title: 'Toute la partie', chapterId: null, badges: GLOBAL_BADGES },
+  ...CHAPTERS.filter((chapter) => badgesOf(chapter.id).length > 0).map((chapter) => ({ title: chapter.title, chapterId: chapter.id, badges: badgesOf(chapter.id) as BadgeInfo[] })),
+];
+export const ALL_BADGES: BadgeInfo[] = BADGE_GROUPS.flatMap((group) => group.badges);
+
+/** Les badges de toute la partie que cette progression mérite. */
+export function globalBadges(progress: Omit<Progress, 'chapters'>): string[] {
+  const chapters = CHAPTERS.filter((chapter) => chapter.playable && CONTENTS[chapter.id]?.crisis).map((chapter) => chapter.id);
+  return GLOBAL_BADGES.filter((badge) => badge.earned({ ...progress, chapters })).map((badge) => badge.id);
+}
+
+/** Le bilan d'une partie menée au bout, recalculé à partir de ce qui en a été gardé. */
+export function assessChapter(chapterId: string, run: { done: readonly string[]; answers: Readonly<Record<string, string>> }): Assessment | null {
+  const crisis = CONTENTS[chapterId]?.crisis;
+  return crisis ? assess({ phase: 'bilan', minutesLeft: 0, done: [...run.done], answers: { ...run.answers } }, crisis) : null;
+}
 
 /**
  * Ce qui se joue en ce moment : le prologue, puis le chapitre choisi. C'est par

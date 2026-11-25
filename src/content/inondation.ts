@@ -392,7 +392,6 @@ export const BADGES: BadgeDef[] = [
     description: "Compléter la lecture du DICRIM par deux visites au moins : le repère de crue, l'école, le diagnostic de la maison.",
     earned: (v) => count(v, ['pont-repere', 'ecole-plan', 'maison-diagnostic']) >= 2,
   },
-  { id: 'kit', title: 'Kit prêt', description: "Avoir son kit d'urgence 72 h prêt avant la crue : préparé, ou vérifié s'il l'était déjà.", earned: (v) => v.did('maison-kit') },
   { id: 'memoire', title: 'Mémoire de crue', description: 'Retrouver le repère de crue de la commune.', earned: (v) => v.did('pont-repere') },
   {
     id: 'maison',

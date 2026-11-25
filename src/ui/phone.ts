@@ -1,15 +1,15 @@
-import type { ChapterInfo } from '../content/chapitres';
+import { findChapter, type BadgeInfo, type ChapterInfo } from '../content/chapitres';
 import { CREDITS } from '../content/credits';
 import { VIGILANCE_SCALE } from '../content/inondation';
 import { LEXICON } from '../content/lexique';
-import type { BadgeDef, Bulletin, VigilanceLevel } from '../content/model';
+import type { Bulletin, VigilanceLevel } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import type { Assessment } from '../core/chapter';
 import { distance, type Vec } from '../core/geometry';
 import { NEWS_IDS, type GameState, type NewsId } from '../core/state';
 import { RISK_NAMES } from '../render/riskmap';
 import { RISK_IDS, type Commune, type Place, type RiskId } from '../world/model';
-import { createCalendarView } from './calendar';
+import { createChaptersView } from './chapters';
 import { createDialog } from './dialog';
 import { badgeList, bilanContent, bulletinContent, lexiconEntry, sourceList } from './documents';
 import { h, icon, type IconName } from './dom';
@@ -47,9 +47,12 @@ export interface PhoneDeps {
   /** Niveau de la vigilance crues ; `null` quand le chapitre en cours ne la concerne pas. */
   getVigilance(): VigilanceLevel | null;
   getWeather(): WeatherNow;
-  getAssessment(): Assessment | null;
-  /** Les badges à montrer : ceux du chapitre en cours, ou tous ceux du jeu quand aucun ne l'est. */
-  getBadgeDefs(): readonly BadgeDef[];
+  /** Le bilan d'un chapitre mené au bout ; `null` s'il ne l'a pas été. */
+  getAssessmentOf(chapterId: string): Assessment | null;
+  /** Les badges d'un chapitre. */
+  getBadgesOf(chapterId: string): readonly BadgeInfo[];
+  /** Tous les badges du jeu, rangés par groupe : ceux de toute la partie, puis chapitre par chapitre. */
+  getBadgeGroups(): ReadonlyArray<{ title: string; badges: readonly BadgeInfo[] }>;
   /** Ce que la liste des lieux affiche de chacun. */
   getPlaceInfo(place: Place): PlaceInfo;
   /** Emmène le joueur dans un lieu et l'ouvre. */
@@ -69,15 +72,13 @@ export interface PhoneDeps {
   setReducedMotion(reduced: boolean): void;
   isSoundOn(): boolean;
   setSound(on: boolean): void;
-  /** Recommence le chapitre en gardant les badges. */
-  replay(): void;
   /** Le joueur demande à rejouer le chapitre en cours ; renvoie vrai s'il a confirmé. */
   replayChapter(): Promise<boolean>;
   /** Le joueur demande à tout recommencer ; renvoie vrai si la partie a bien été remise à zéro. */
   restart(): Promise<boolean>;
 }
 
-export type PhoneView = 'accueil' | 'calendrier' | 'carte' | 'carnet' | 'meteo' | 'messages' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages' | 'apropos';
+export type PhoneView = 'accueil' | 'chapitres' | 'bilan' | 'carte' | 'carnet' | 'meteo' | 'messages' | 'alertes' | 'dicrim' | 'lexique' | 'badges' | 'reglages' | 'apropos';
 
 export interface Phone {
   /** Ouvre le téléphone, sur l'écran des applications ou directement dans l'une d'elles. */
@@ -87,14 +88,17 @@ export interface Phone {
    * messagerie ou dans l'application Alertes. Rendu quand le joueur l'a refermé.
    */
   read(bulletin: Bulletin, returnFocus: HTMLElement | null): Promise<void>;
+  /** Ouvre le téléphone sur le bilan d'un chapitre mené au bout. */
+  openBilan(returnFocus: HTMLElement | null, chapterId: string): void;
 }
 
 type View = PhoneView;
 
 const isNews = (view: string): view is NewsId => (NEWS_IDS as readonly string[]).includes(view);
 
-const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconName }> = [
-  { view: 'calendrier', label: 'Calendrier', icon: 'calendrier' },
+/** Les applications. (Le bilan d'un chapitre n'en est pas une : on y arrive par son chapitre.) */
+const APPS: Array<{ view: Exclude<View, 'accueil' | 'bilan'>; label: string; icon: IconName }> = [
+  { view: 'chapitres', label: 'Chapitres', icon: 'carnet' },
   { view: 'carte', label: 'Carte', icon: 'carte' },
   { view: 'carnet', label: 'Lieux', icon: 'lieux' },
   { view: 'meteo', label: 'Météo', icon: 'eclaircie' },
@@ -102,14 +106,14 @@ const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconNam
   { view: 'alertes', label: 'Alertes', icon: 'alerte' },
   { view: 'dicrim', label: 'DICRIM', icon: 'document' },
   { view: 'lexique', label: 'Lexique', icon: 'aide' },
-  { view: 'bilan', label: 'Bilan', icon: 'medaille' },
+  { view: 'badges', label: 'Badges', icon: 'medaille' },
   { view: 'reglages', label: 'Réglages', icon: 'reglages' },
   { view: 'apropos', label: 'À propos', icon: 'info' },
 ];
 
 const TITLES: Record<View, string> = {
   accueil: 'Téléphone',
-  calendrier: 'Calendrier',
+  chapitres: 'Chapitres',
   carte: 'Carte',
   carnet: 'Lieux de la commune',
   meteo: 'Météo',
@@ -117,7 +121,8 @@ const TITLES: Record<View, string> = {
   alertes: 'Vigilance et alertes',
   dicrim: 'DICRIM',
   lexique: 'Lexique',
-  bilan: 'Bilan et badges',
+  bilan: 'Bilan',
+  badges: 'Badges',
   reglages: 'Réglages',
   apropos: 'À propos',
 };
@@ -126,8 +131,12 @@ export function createPhone(deps: PhoneDeps): Phone {
   const { commune } = deps;
   const dialog = createDialog({ id: 'telephone', title: TITLES.accueil, className: 'dialog--phone' });
 
-  const back = h('button', { type: 'button', class: 'button button--small phone__back' }, icon('retour'), 'Applications');
-  back.addEventListener('click', () => show('accueil'));
+  /** D'où l'on vient : le bilan d'un chapitre se referme sur la liste des chapitres, le reste sur les applications. */
+  const parentOf = (view: View): View => (view === 'bilan' ? 'chapitres' : 'accueil');
+  let shown: View = 'accueil';
+  const backLabel = h('span', null, 'Applications');
+  const back = h('button', { type: 'button', class: 'button button--small phone__back' }, icon('retour'), backLabel);
+  back.addEventListener('click', () => show(parentOf(shown)));
 
   // ----------------------------------------------------------- Applications
   const appDots = new Map<string, HTMLElement>();
@@ -144,12 +153,20 @@ export function createPhone(deps: PhoneDeps): Phone {
     }),
   );
 
-  // ------------------------------------------------------------- Calendrier
-  const calendar = createCalendarView({
+  // -------------------------------------------------------------- Chapitres
+  const badgeCount = (chapterId: string): { earned: number; total: number } => {
+    const badges = deps.getBadgesOf(chapterId);
+    const earned = deps.getState().badges;
+    return { earned: badges.filter((badge) => earned.includes(badge.id)).length, total: badges.length };
+  };
+  const chapters = createChaptersView({
     getProgress: () => {
       const state = deps.getState();
       return { phase: state.chapter.phase, chapterId: state.chapterId, record: state.record };
     },
+    getBadgeCount: badgeCount,
+    hasBilan: (chapterId) => deps.getAssessmentOf(chapterId) !== null,
+    openBilan: (chapter) => showBilan(chapter.id),
     start: (chapter) => deps.startChapter(chapter),
     leave: () => dialog.close(),
   });
@@ -417,22 +434,44 @@ export function createPhone(deps: PhoneDeps): Phone {
   // ---------------------------------------------------------------- Lexique
   const lexiconView = h('div', { class: 'stack' }, h('p', null, 'Les mots de la prévention, expliqués simplement.'), ...LEXICON.map((entry) => lexiconEntry(entry, 'h3')));
 
-  // ------------------------------------------------------------------ Bilan
+  // --------------------------------------------------------- Bilan et badges
+  /** Le chapitre dont le bilan est montré. */
+  let bilanOf: string | null = null;
   const bilanView = h('div', { class: 'stack' });
 
   function renderBilan(): void {
-    const assessment = deps.getAssessment();
-    const earned = deps.getState().badges;
-    if (assessment) {
-      const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
-      again.addEventListener('click', () => {
-        deps.replay();
-        dialog.close();
-      });
-      bilanView.replaceChildren(bilanContent(assessment, deps.getBadgeDefs(), earned, []), again);
-    } else {
-      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan d’un chapitre est établi à la fin de celui-ci.'), h('h3', null, 'Badges'), badgeList(deps.getBadgeDefs(), earned));
+    const info = findChapter(bilanOf);
+    const assessment = bilanOf ? deps.getAssessmentOf(bilanOf) : null;
+    if (!info || !assessment) {
+      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan d’un chapitre est établi à la fin de celui-ci.'));
+      return;
     }
+    dialog.setTitle(`Bilan — ${info.title}`);
+    const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
+    again.addEventListener('click', () => void deps.startChapter(info).then((started) => (started ? dialog.close() : undefined)));
+    bilanView.replaceChildren(
+      h('p', { class: 'fine-print' }, `C'est le bilan de votre dernière partie.${deps.getState().record[info.id] !== undefined ? ` Votre meilleur indice de préparation sur ce chapitre : ${deps.getState().record[info.id]} sur 100.` : ''}`),
+      bilanContent(assessment, deps.getBadgesOf(info.id), deps.getState().badges, []),
+      again,
+    );
+  }
+
+  function showBilan(chapterId: string): void {
+    bilanOf = chapterId;
+    show('bilan');
+  }
+
+  const badgesView = h('div', { class: 'stack' });
+
+  function renderBadges(): void {
+    const earned = deps.getState().badges;
+    const groups = deps.getBadgeGroups();
+    const total = groups.reduce((sum, group) => sum + group.badges.length, 0);
+    const got = groups.reduce((sum, group) => sum + group.badges.filter((badge) => earned.includes(badge.id)).length, 0);
+    badgesView.replaceChildren(
+      h('p', { class: 'lead' }, `${got} badge${got > 1 ? 's' : ''} sur ${total}.`),
+      ...groups.flatMap((group) => [h('h3', null, group.title), badgeList(group.badges, earned)]),
+    );
   }
 
   // --------------------------------------------------------------- Réglages
@@ -471,7 +510,7 @@ export function createPhone(deps: PhoneDeps): Phone {
       'dl',
       { class: 'restart' },
       h('dt', null, replayChapter),
-      h('dd', null, 'Reprend le chapitre en cours à son début. Vos badges et les lieux découverts sont conservés. L’application Calendrier permet de changer de chapitre.'),
+      h('dd', null, 'Reprend le chapitre en cours à son début. Vos badges et les lieux découverts sont conservés. L’application Chapitres permet de changer de chapitre.'),
       h('dt', null, restart),
       h('dd', null, 'Efface toute la partie : badges, lieux découverts et chapitre en cours.'),
     ),
@@ -509,7 +548,7 @@ export function createPhone(deps: PhoneDeps): Phone {
   // ------------------------------------------------------------ Navigation
   const views: Record<View, HTMLElement> = {
     accueil: home,
-    calendrier: calendar.element,
+    chapitres: chapters.element,
     carte: mapView,
     carnet: placesView,
     meteo: weatherView,
@@ -518,12 +557,13 @@ export function createPhone(deps: PhoneDeps): Phone {
     dicrim: dicrimView,
     lexique: lexiconView,
     bilan: bilanView,
+    badges: badgesView,
     reglages: settingsView,
     apropos: aboutView,
   };
   const renderers: Partial<Record<View, () => void>> = {
     accueil: renderHome,
-    calendrier: calendar.render,
+    chapitres: chapters.render,
     carte: renderMap,
     carnet: renderPlaces,
     meteo: renderWeather,
@@ -531,6 +571,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     alertes: renderAlerts,
     dicrim: renderDicrim,
     bilan: renderBilan,
+    badges: renderBadges,
     reglages: () => {
       motion.checked = deps.isReducedMotion();
       soundBox.checked = deps.isSoundOn();
@@ -539,9 +580,11 @@ export function createPhone(deps: PhoneDeps): Phone {
   dialog.body.append(back, ...Object.values(views));
 
   function show(view: View, moveFocus = true): void {
+    shown = view;
     for (const [name, element] of Object.entries(views)) element.hidden = name !== view;
     // Pendant la lecture d'un message qui vient d'arriver, le récit attend : on ne part pas dans une autre application.
     back.hidden = view === 'accueil' || reading !== null;
+    backLabel.textContent = TITLES[parentOf(view)] === TITLES.accueil ? 'Applications' : TITLES[parentOf(view)];
     dialog.setTitle(TITLES[view]);
     // Ouvrir une application, c'est en avoir vu la nouveauté.
     if (isNews(view)) deps.clearNews(view);
@@ -552,6 +595,12 @@ export function createPhone(deps: PhoneDeps): Phone {
   return {
     open(returnFocus, view = 'accueil') {
       show(view, false);
+      dialog.open(returnFocus);
+    },
+
+    openBilan(returnFocus, chapterId) {
+      bilanOf = chapterId;
+      show('bilan', false);
       dialog.open(returnFocus);
     },
 

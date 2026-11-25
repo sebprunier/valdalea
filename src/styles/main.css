@@ -1921,7 +1921,7 @@ meter {
   color: var(--ink-soft);
 }
 
-/* --------------------------------------------------------------- Calendrier */
+/* ---------------------------------------------------------------- Chapitres */
 
 .chapters {
   display: grid;
@@ -1969,6 +1969,13 @@ meter {
 .dialog__body .chapter h3 {
   margin: 0;
   font-size: 1.25rem;
+}
+
+.chapter__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink-soft);
 }
 
 .chapter__state {

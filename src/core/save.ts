@@ -134,6 +134,16 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     }
   }
 
+  // Les parties menées au bout, d'où se retrouvent les bilans. Une partie d'avant elles,
+  // enregistrée sur son bilan, garde le sien.
+  const results: GameState['results'] = {};
+  if (isRecord(data.results)) {
+    for (const [id, run] of Object.entries(data.results)) {
+      if (context.chapterIds.has(id) && isRecord(run)) results[id] = { done: knownIds(run.done, context.actionIds), answers: readAnswers(run.answers, context) };
+    }
+  }
+  if (chapterId !== null && chapter.phase === 'bilan' && !(chapterId in results)) results[chapterId] = { done: [...chapter.done], answers: { ...chapter.answers } };
+
   return {
     version: SAVE_VERSION,
     player: context.isFree(pos) ? pos : { ...context.spawn },
@@ -141,6 +151,7 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     chapter,
     chapterId,
     record,
+    results,
     badges: knownIds(data.badges, context.badgeIds),
     assets,
     news: knownIds(data.news, new Set<string>(NEWS_IDS)) as NewsId[],
@@ -161,19 +172,24 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
   };
 }
 
-function readChapter(data: unknown, context: LoadContext): Chapter {
-  if (!isRecord(data) || !PHASES.includes(data.phase as Phase)) return newChapter();
+/** Réponses aux situations de crise : seuls les choix qui existent sont gardés. */
+function readAnswers(data: unknown, context: LoadContext): Record<string, string> {
   const answers: Record<string, string> = {};
-  if (isRecord(data.answers)) {
-    for (const [situation, choice] of Object.entries(data.answers)) {
+  if (isRecord(data)) {
+    for (const [situation, choice] of Object.entries(data)) {
       if (typeof choice === 'string' && context.situationChoices.get(situation)?.has(choice)) answers[situation] = choice;
     }
   }
+  return answers;
+}
+
+function readChapter(data: unknown, context: LoadContext): Chapter {
+  if (!isRecord(data) || !PHASES.includes(data.phase as Phase)) return newChapter();
   return {
     phase: data.phase as Phase,
     minutesLeft: isFiniteNumber(data.minutesLeft) ? Math.max(0, data.minutesLeft) : 0,
     done: knownIds(data.done, context.actionIds),
-    answers,
+    answers: readAnswers(data.answers, context),
   };
 }
 

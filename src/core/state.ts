@@ -15,8 +15,14 @@ export interface Settings {
 }
 
 /** Applications du téléphone qui peuvent signaler une nouveauté. */
-export const NEWS_IDS = ['messages', 'alertes', 'dicrim', 'bilan'] as const;
+export const NEWS_IDS = ['messages', 'alertes', 'dicrim', 'chapitres', 'badges'] as const;
 export type NewsId = (typeof NEWS_IDS)[number];
+
+/** Ce qu'il faut garder d'un chapitre mené au bout pour en redonner le bilan : les gestes accomplis et les décisions prises. */
+export interface ChapterRun {
+  done: string[];
+  answers: Record<string, string>;
+}
 
 /** Tout ce qui est sauvegardé d'une partie. Aucune donnée personnelle. */
 export interface GameState {
@@ -30,6 +36,8 @@ export interface GameState {
   chapterId: string | null;
   /** Chapitres menés au bout : meilleur indice de préparation obtenu, de 0 à 100. */
   record: Record<string, number>;
+  /** Chapitres menés au bout : la dernière partie jouée de chacun, d'où son bilan se retrouve à tout moment. */
+  results: Record<string, ChapterRun>;
   /** Badges obtenus, conservés d'une partie à l'autre du chapitre. */
   badges: string[];
   /** Ce que le joueur garde d'un chapitre à l'autre (son kit d'urgence), avec le chapitre où il l'a obtenu, ou `hors-chapitre`. */
@@ -42,7 +50,7 @@ export interface GameState {
 export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null, sound: true };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, badges, assets: {}, news: [], settings };
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, results: {}, badges, assets: {}, news: [], settings };
 }
 
 /** Origine d'un acquis obtenu hors chapitre : il vaut alors pour tous les chapitres. */
@@ -57,6 +65,11 @@ export function withAsset(state: GameState, asset: string, chapterId: string): G
 export function withRecord(state: GameState, chapterId: string, score: number): GameState {
   if ((state.record[chapterId] ?? -1) >= score) return state;
   return { ...state, record: { ...state.record, [chapterId]: score } };
+}
+
+/** Garde la partie qui vient de s'achever : le bilan du chapitre se retrouvera dans le téléphone. */
+export function withResult(state: GameState, chapterId: string, chapter: Chapter): GameState {
+  return { ...state, results: { ...state.results, [chapterId]: { done: [...chapter.done], answers: { ...chapter.answers } } } };
 }
 
 /** Signale une nouveauté dans une application du téléphone. */

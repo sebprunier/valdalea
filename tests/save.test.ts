@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clearGame, loadGame, memoryStorage, saveGame, type LoadContext } from '../src/core/save';
-import { markVisited, movePlayer, newGame, withAsset, withNews, withoutNews, withRecord } from '../src/core/state';
+import { markVisited, movePlayer, newGame, withAsset, withNews, withoutNews, withRecord, withResult } from '../src/core/state';
 import { Store } from '../src/core/store';
 
 const context: LoadContext = {
@@ -130,6 +130,19 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.assets).toEqual({});
   });
 
+  it('garde la dernière partie de chaque chapitre mené au bout, pour en redonner le bilan', () => {
+    const storage = memoryStorage();
+    const write = (extra: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 3, player: { x: 5, y: 5 }, ...extra }));
+    write({ results: { automne: { done: ['maison-kit', 'inventee'], answers: { enfants: 'ecole', cave: 'descendre' } }, disparu: { done: [], answers: {} }, hiver: 3 } });
+    expect(loadGame(storage, context)?.results).toEqual({ automne: { done: ['maison-kit'], answers: { enfants: 'ecole' } } });
+    // Une partie d'avant, enregistrée sur son bilan : il est gardé.
+    write({ chapterId: 'automne', chapter: { phase: 'bilan', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim', 'maison-kit'], answers: { enfants: 'a-pied' } } });
+    expect(loadGame(storage, context)?.results).toEqual({ automne: { done: ['mairie-accueil', 'mairie-dicrim', 'maison-kit'], answers: { enfants: 'a-pied' } } });
+    // En cours de chapitre : rien à garder encore.
+    write({ chapterId: 'automne', chapter: { phase: 'crise', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} } });
+    expect(loadGame(storage, context)?.results).toEqual({});
+  });
+
   it('repart d’un chapitre neuf si la phase sauvegardée est inconnue', () => {
     const storage = memoryStorage();
     storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, chapter: { phase: 'hiver', done: ['maison-kit'] } }));
@@ -152,8 +165,8 @@ describe('sauvegarde', () => {
   it('reprend les nouveautés du téléphone et le niveau de zoom, en écartant ce qui est inconnu', () => {
     const storage = memoryStorage();
     const write = (extra: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, ...extra }));
-    write({ news: ['bilan', 'inconnue', 'bilan', 3], settings: { zoom: 1 } });
-    expect(loadGame(storage, context)?.news).toEqual(['bilan']);
+    write({ news: ['badges', 'inconnue', 'badges', 3], settings: { zoom: 1 } });
+    expect(loadGame(storage, context)?.news).toEqual(['badges']);
     expect(loadGame(storage, context)?.settings.zoom).toBe(1);
     // Une sauvegarde d'avant ces réglages, ou une valeur aberrante : valeurs par défaut.
     write({ settings: { zoom: 2.5 } });
@@ -203,7 +216,7 @@ describe('état', () => {
   it('signale une nouveauté une seule fois, et la retire quand elle a été vue', () => {
     const state = withNews(newGame({ x: 1, y: 1 }), 'alertes');
     expect(withNews(state, 'alertes')).toBe(state);
-    expect(withNews(state, 'bilan').news).toEqual(['alertes', 'bilan']);
+    expect(withNews(state, 'badges').news).toEqual(['alertes', 'badges']);
     expect(withoutNews(state, 'alertes').news).toEqual([]);
     expect(withoutNews(state, 'dicrim')).toBe(state);
   });
@@ -212,6 +225,13 @@ describe('état', () => {
     const state = withAsset(newGame({ x: 1, y: 1 }), 'kit', 'ete');
     expect(state.assets).toEqual({ kit: 'ete' });
     expect(withAsset(state, 'kit', 'automne')).toBe(state);
+  });
+
+  it('garde la partie achevée sans la lier à celle qui continue', () => {
+    const chapter = { phase: 'bilan' as const, minutesLeft: 0, done: ['maison-kit'], answers: { enfants: 'ecole' } };
+    const state = withResult(newGame({ x: 1, y: 1 }), 'automne', chapter);
+    expect(state.results.automne).toEqual({ done: ['maison-kit'], answers: { enfants: 'ecole' } });
+    expect(state.results.automne.done).not.toBe(chapter.done);
   });
 
   it('ne retient que le meilleur indice d’un chapitre', () => {

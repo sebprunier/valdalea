@@ -35,8 +35,8 @@ export interface FlowDeps {
   addBadges(ids: readonly string[]): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
-  /** Ouvre le calendrier, où se choisissent les chapitres. */
-  openCalendar(): void;
+  /** Ouvre la liste des chapitres, dans le téléphone. */
+  openChapters(): void;
   /** Ferme la fiche de lieu si elle est ouverte. */
   closePlace(): void;
   /** Amène le joueur dans un lieu, sans trajet. */
@@ -60,7 +60,7 @@ export interface FlowDeps {
 }
 
 /** Ce que le joueur choisit en refermant le bilan. */
-type AfterBilan = 'rejouer' | 'calendrier' | null;
+type AfterBilan = 'rejouer' | 'chapitres' | null;
 
 export interface Flow {
   /** Le joueur vient de choisir un chapitre : le récit l'ouvre. */
@@ -195,7 +195,7 @@ export function createFlow(deps: FlowDeps): Flow {
         if (content?.toBeContinued) await tell(content.toBeContinued);
         storyDialog.close();
         deps.leaveChapter();
-        then = 'calendrier';
+        then = 'chapitres';
       } else if (phase === 'vigilance') {
         deps.goTo(crisis.places.vigilance);
         deps.setFocus(crisis.places.vigilance, crisis.lookSouth);
@@ -215,7 +215,7 @@ export function createFlow(deps: FlowDeps): Flow {
     }
     // Une fois la séquence refermée seulement : rejouer en ouvre une autre.
     if (then === 'rejouer') deps.replay();
-    else if (then === 'calendrier') deps.openCalendar();
+    else if (then === 'chapitres') deps.openChapters();
   }
 
   async function runCrisis(crisis: CrisisScript, late: boolean): Promise<AfterBilan> {
@@ -274,7 +274,7 @@ export function createFlow(deps: FlowDeps): Flow {
       bilanDialog.close();
     });
     others.addEventListener('click', () => {
-      choice = 'calendrier';
+      choice = 'chapitres';
       bilanDialog.close();
     });
     explore.addEventListener('click', () => bilanDialog.close());
