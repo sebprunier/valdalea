@@ -15,6 +15,7 @@ import {
   nextPhase,
   pendingAt,
   perform,
+  remaining,
   spend,
   timeAlert,
   TIMED_PHASES,
@@ -26,14 +27,14 @@ const action = (id: string) => {
   if (!found) throw new Error(`action inconnue : ${id}`);
   return found;
 };
-const status = (id: string, chapter: Chapter) => actionStatus(action(id), chapter, ACTIONS);
+const status = (id: string, chapter: Chapter) => actionStatus(action(id), chapter);
 const content = { stakes: STAKES, badges: BADGES, situations: SITUATIONS };
 
 /** Joue une suite d'actions, en vérifiant que chacune est bien possible. */
 function play(chapter: Chapter, ...ids: string[]): Chapter {
   for (const id of ids) {
     expect(status(id, chapter).state, id).toBe('possible');
-    chapter = perform(chapter, action(id), ACTIONS);
+    chapter = perform(chapter, action(id));
   }
   return chapter;
 }
@@ -51,7 +52,7 @@ describe('phases du chapitre', () => {
 
   it('ne propose que la rencontre avec le maire avant le début de la préparation', () => {
     const chapter = newChapter();
-    expect(ACTIONS.filter((a) => actionStatus(a, chapter, ACTIONS).state === 'possible').map((a) => a.id)).toEqual(['mairie-accueil']);
+    expect(ACTIONS.filter((a) => actionStatus(a, chapter).state === 'possible').map((a) => a.id)).toEqual(['mairie-accueil']);
   });
 
   it('lance la préparation après la rencontre avec le maire', () => {
@@ -84,7 +85,7 @@ describe('temps et actions', () => {
 
   it('ne refait pas une action déjà faite', () => {
     const chapter = play(started(), 'mairie-dicrim');
-    expect(perform(chapter, action('mairie-dicrim'), ACTIONS)).toBe(chapter);
+    expect(perform(chapter, action('mairie-dicrim'))).toBe(chapter);
   });
 
   it('fait passer le temps des trajets, sans descendre sous zéro', () => {
@@ -103,7 +104,7 @@ describe('temps et actions', () => {
   it('refuse une action plus longue que le temps restant', () => {
     const chapter = spend(started(), TIMED_PHASES.preparation.minutes - 25);
     expect(status('maison-protections', chapter)).toEqual({ state: 'trop-longue', minutes: 40 });
-    expect(perform(chapter, action('maison-protections'), ACTIONS)).toBe(chapter);
+    expect(perform(chapter, action('maison-protections'))).toBe(chapter);
     expect(status('mairie-dicrim', chapter).state).toBe('possible');
   });
 
@@ -153,16 +154,24 @@ describe('temps et actions', () => {
 });
 
 describe('fin de phase', () => {
-  it("ne laisse pas terminer la journée tant qu'il reste un geste faisable", () => {
+  it('laisse terminer la journée à tout moment, en sachant ce qui est laissé de côté', () => {
     const chapter = started();
-    const blocked = status('maison-nuit', chapter);
-    expect(blocked.state).toBe('pas-encore');
-    if (blocked.state === 'pas-encore') expect(blocked.left.map((a) => a.id).sort()).toEqual([...PREPARATION].sort());
-    expect(perform(chapter, action('maison-nuit'), ACTIONS)).toBe(chapter);
+    expect(status('maison-nuit', chapter).state).toBe('possible');
+    expect(remaining(ACTIONS, chapter).map((a) => a.id).sort()).toEqual([...PREPARATION].sort());
 
     const almost = play(chapter, ...PREPARATION.filter((id) => id !== 'ecole-plan'));
-    const stillBlocked = status('maison-nuit', almost);
-    expect(stillBlocked.state === 'pas-encore' && stillBlocked.left.map((a) => a.id)).toEqual(['ecole-plan']);
+    expect(remaining(ACTIONS, almost).map((a) => a.id)).toEqual(['ecole-plan']);
+    // L'interface demande confirmation ; les règles, elles, laissent faire.
+    expect(play(almost, 'maison-nuit').phase).toBe('vigilance');
+  });
+
+  it("n'invite à rentrer chez soi qu'une fois les gestes accomplis", () => {
+    const chapter = started();
+    // Kit, protections, zone refuge et diagnostic : « terminer la journée » n'est pas compté tant qu'il reste des gestes.
+    expect(pendingAt(ACTIONS, chapter, 'domicile')).toBe(4);
+    const done = play(chapter, ...PREPARATION);
+    expect(remaining(ACTIONS, done)).toEqual([]);
+    expect(pendingAt(ACTIONS, done, 'domicile')).toBe(1);
   });
 
   it('passe en vigilance quand tout est fait et que le joueur termine sa journée', () => {
@@ -171,23 +180,27 @@ describe('fin de phase', () => {
     expect(chapter.minutesLeft).toBe(TIMED_PHASES.vigilance.minutes);
   });
 
-  it("laisse terminer la journée quand le temps ne permet plus aucun geste", () => {
+  it('ne compte plus comme restant un geste pour lequel le temps manque', () => {
     const chapter = spend(started(), TIMED_PHASES.preparation.minutes - 5);
-    expect(status('maison-nuit', chapter).state).toBe('possible');
+    expect(remaining(ACTIONS, chapter)).toEqual([]);
+    expect(pendingAt(ACTIONS, chapter, 'domicile')).toBe(1);
   });
 
-  it("ne laisse se mettre à l'abri qu'une fois les gestes de la vigilance accomplis", () => {
+  it("laisse se mettre à l'abri, une fois les gestes de la vigilance accomplis ou non", () => {
     const vigilance = nextPhase(play(started(), ...PREPARATION));
-    expect(status('maison-abri', vigilance).state).toBe('pas-encore');
-    const done = play(vigilance, 'maison-installer', 'maison-polluants', 'maison-reseaux', 'jeanne-accueil', 'gymnase-ouverture', 'maison-abri');
-    expect(done.phase).toBe('crise');
+    expect(remaining(ACTIONS, vigilance)).toHaveLength(5);
+    expect(play(vigilance, 'maison-abri').phase).toBe('crise');
+    const done = play(vigilance, 'maison-installer', 'maison-polluants', 'maison-reseaux', 'jeanne-accueil', 'gymnase-ouverture');
+    expect(remaining(ACTIONS, done)).toEqual([]);
+    expect(play(done, 'maison-abri').phase).toBe('crise');
   });
 
   it("ne compte pas un geste verrouillé parmi ceux qui restent à faire", () => {
-    // Sans protections préparées, leur installation est impossible : elle ne doit pas bloquer la mise à l'abri.
+    // Sans protections préparées, leur installation est impossible : elle n'a pas à retenir le joueur.
     const vigilance = nextPhase(started());
-    const done = play(vigilance, 'maison-polluants', 'maison-reseaux', 'jeanne-accueil', 'gymnase-ouverture', 'maison-abri');
-    expect(done.phase).toBe('crise');
+    expect(remaining(ACTIONS, vigilance).map((a) => a.id)).not.toContain('maison-installer');
+    const done = play(vigilance, 'maison-polluants', 'maison-reseaux', 'jeanne-accueil', 'gymnase-ouverture');
+    expect(remaining(ACTIONS, done)).toEqual([]);
   });
 });
 

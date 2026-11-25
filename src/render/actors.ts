@@ -14,12 +14,13 @@ export interface PlayerPose {
 }
 
 /** Le joueur vu de dessus : un réserviste en chasuble orange. */
-export function paintPlayer(ctx: CanvasRenderingContext2D, pose: PlayerPose): void {
+export function paintPlayer(ctx: CanvasRenderingContext2D, pose: PlayerPose, size = 1): void {
   const swing = pose.moving ? Math.sin(pose.phase) : 0;
   ctx.save();
   ctx.translate(pose.x, pose.y);
-  // Dessiné un peu plus grand que son emprise au sol, pour rester lisible sur le plan.
-  ctx.scale(1.2, 1.2);
+  // Dessiné un peu plus grand que son emprise au sol, pour rester lisible sur le plan,
+  // et grossi d'autant quand la carte est dézoomée (`size`).
+  ctx.scale(1.2 * size, 1.2 * size);
 
   ctx.fillStyle = 'rgba(30, 30, 20, 0.28)';
   ctx.beginPath();

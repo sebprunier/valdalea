@@ -8,7 +8,13 @@ export interface Settings {
   reducedMotion: boolean | null;
   /** Carte de risque affichée par-dessus le plan (disponible une fois le DICRIM consulté) ; `null` : aucune. */
   hazardLayer: string | null;
+  /** Niveau de zoom de la carte ; `null` : le niveau par défaut. */
+  zoom: number | null;
 }
+
+/** Applications du téléphone qui peuvent signaler une nouveauté. */
+export const NEWS_IDS = ['alertes', 'dicrim', 'bilan'] as const;
+export type NewsId = (typeof NEWS_IDS)[number];
 
 /** Tout ce qui est sauvegardé d'une partie. Aucune donnée personnelle. */
 export interface GameState {
@@ -20,13 +26,25 @@ export interface GameState {
   chapter: Chapter;
   /** Badges obtenus, conservés d'une partie à l'autre du chapitre. */
   badges: string[];
+  /** Applications du téléphone où quelque chose de nouveau attend d'être regardé. */
+  news: NewsId[];
   settings: Settings;
 }
 
-export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null };
+export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, settings };
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, news: [], settings };
+}
+
+/** Signale une nouveauté dans une application du téléphone. */
+export function withNews(state: GameState, id: NewsId): GameState {
+  return state.news.includes(id) ? state : { ...state, news: [...state.news, id] };
+}
+
+/** La nouveauté a été regardée. */
+export function withoutNews(state: GameState, id: NewsId): GameState {
+  return state.news.includes(id) ? { ...state, news: state.news.filter((other) => other !== id) } : state;
 }
 
 export function markVisited(state: GameState, placeId: string): GameState {

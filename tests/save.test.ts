@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clearGame, loadGame, memoryStorage, saveGame, type LoadContext } from '../src/core/save';
-import { markVisited, movePlayer, newGame } from '../src/core/state';
+import { markVisited, movePlayer, newGame, withNews, withoutNews } from '../src/core/state';
 import { Store } from '../src/core/store';
 
 const context: LoadContext = {
@@ -62,7 +62,7 @@ describe('sauvegarde', () => {
     expect(state?.visited).toEqual(['mairie']);
     expect(state?.chapter.phase).toBe('accueil');
     expect(state?.badges).toEqual([]);
-    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null });
+    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null, zoom: null });
   });
 
   it('nettoie un chapitre sauvegardé : actions, réponses et badges inconnus sont écartés', () => {
@@ -100,6 +100,20 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.settings.hazardLayer).toBeNull();
   });
 
+  it('reprend les nouveautés du téléphone et le niveau de zoom, en écartant ce qui est inconnu', () => {
+    const storage = memoryStorage();
+    const write = (extra: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, ...extra }));
+    write({ news: ['bilan', 'inconnue', 'bilan', 3], settings: { zoom: 1 } });
+    expect(loadGame(storage, context)?.news).toEqual(['bilan']);
+    expect(loadGame(storage, context)?.settings.zoom).toBe(1);
+    // Une sauvegarde d'avant ces réglages, ou une valeur aberrante : valeurs par défaut.
+    write({ settings: { zoom: 2.5 } });
+    expect(loadGame(storage, context)?.news).toEqual([]);
+    expect(loadGame(storage, context)?.settings.zoom).toBeNull();
+    write({ settings: { zoom: -1 } });
+    expect(loadGame(storage, context)?.settings.zoom).toBeNull();
+  });
+
   it('efface la partie', () => {
     const storage = memoryStorage();
     saveGame(storage, newGame({ x: 1, y: 1 }));
@@ -124,6 +138,14 @@ describe('état', () => {
     const state = markVisited(newGame({ x: 1, y: 1 }), 'mairie');
     expect(markVisited(state, 'mairie')).toBe(state);
     expect(movePlayer(state, { x: 1, y: 1 })).toBe(state);
+  });
+
+  it('signale une nouveauté une seule fois, et la retire quand elle a été vue', () => {
+    const state = withNews(newGame({ x: 1, y: 1 }), 'alertes');
+    expect(withNews(state, 'alertes')).toBe(state);
+    expect(withNews(state, 'bilan').news).toEqual(['alertes', 'bilan']);
+    expect(withoutNews(state, 'alertes').news).toEqual([]);
+    expect(withoutNews(state, 'dicrim')).toBe(state);
   });
 
   it('prévient les abonnés uniquement en cas de changement', () => {

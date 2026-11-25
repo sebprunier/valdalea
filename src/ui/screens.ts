@@ -30,6 +30,7 @@ function controlsList(): HTMLElement {
     ...row('Se déplacer', arrowKeys(), ' ou ', keys('Z', 'Q', 'S', 'D'), ', ou désignez un point de la carte (clic ou doigt)'),
     ...row('Courir', 'maintenir ', keys('Maj')),
     ...row('Ouvrir un lieu', keys('Entrée'), ' ou ', keys('E')),
+    ...row('Zoomer, dézoomer', keys('+'), ' et ', keys('-'), ', la molette, ou les boutons en bas de la carte'),
     ...row('Carnet de mission', keys('M')),
     ...row('Liste des lieux', keys('L')),
     ...row('Téléphone', keys('T')),
@@ -116,7 +117,19 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      'Le carnet de mission (touche M) liste les gestes de la journée, vous dit par où commencer et vous y conduit. Sur la carte, des flèches orange pointent vers les lieux où il reste quelque chose à faire.',
+      "Le bandeau « Mission », sous la barre du haut, dit toujours quoi faire ensuite. Il ouvre le carnet de mission (touche M), qui liste les gestes de la journée et vous y conduit. Sur la carte, des flèches orange pointent vers les lieux où il reste quelque chose à faire.",
+    ),
+    h('h3', null, 'Le temps qu’il fait, la vigilance, le téléphone'),
+    h(
+      'p',
+      null,
+      "En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance crues ; ils ouvrent le détail et les messages reçus. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : une alerte, le DICRIM, le bilan.",
+    ),
+    h('h3', null, 'Recommencer'),
+    h(
+      'p',
+      null,
+      "Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend l'automne au début en gardant vos badges, « Tout recommencer » efface la partie. À la fin de la crue, le bilan et le carnet de mission proposent aussi de rejouer.",
     ),
     h('h3', null, 'Les repères sur la carte'),
     h(

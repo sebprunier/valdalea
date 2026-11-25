@@ -3,7 +3,7 @@ import type { RiskId } from '../world/model';
 /**
  * Le DICRIM de Val-d'Aléa.
  *
- * C'est un document fictif, bâti comme un vrai : mot du maire, un chapitre par
+ * C'est un document fictif, bâti comme un vrai : mot des élus, un chapitre par
  * risque avec sa carte, les moyens d'alerte et une page mémo. Ce qui décrit la
  * commune (`local`, `commune`) est inventé. Ce qui décrit les phénomènes et les
  * bons réflexes (`phenomenon`, `reflexes`) reprend les pages officielles citées.
@@ -28,9 +28,10 @@ export interface DicrimRisk {
 export const DICRIM = {
   title: "Document d'information communal sur les risques majeurs",
   edition: 'Édition 2026',
-  mayor: {
-    name: 'Hélène Vasseur',
-    word: [
+  word: {
+    title: 'Le mot des élus',
+    signature: "Le conseil municipal de Val-d'Aléa",
+    paragraphs: [
       "Val-d'Aléa a grandi entre une rivière, une falaise et une forêt. Cette géographie fait son charme ; elle fait aussi ses risques.",
       "Aucun n'est une fatalité, à condition de les connaître. Ce document vous dit où ils se trouvent, ce que la commune fait pour s'y préparer et ce que chacun peut faire chez soi.",
       'Lisez-le, conservez-le, parlez-en autour de vous.',

@@ -1,7 +1,7 @@
 import { ACTIONS, QUESTIONS } from '../content/inondation';
 import type { ActionDef } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
-import { actionsAt, actionStatus, formatDuration, isTimed, type ActionStatus, type Chapter } from '../core/chapter';
+import { actionsAt, actionStatus, formatDuration, isTimed, remaining, type ActionStatus, type Chapter } from '../core/chapter';
 import { findPlace, findSector, type Commune, type Place } from '../world/model';
 import { createDialog } from './dialog';
 import { lexiconBox, mountQuestion, sourceList } from './documents';
@@ -45,8 +45,6 @@ function statusLabel(status: ActionStatus): string {
       return 'Impossible';
     case 'trop-longue':
       return 'Plus assez de temps';
-    case 'pas-encore':
-      return 'Pas encore';
     default:
       return '';
   }
@@ -56,7 +54,10 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
   const dialog = createDialog({ id: 'fiche-lieu', title: '', className: 'dialog--wide' });
   let place: Place | null = null;
 
-  const status = (action: ActionDef): ActionStatus => actionStatus(action, deps.getChapter(), ACTIONS);
+  const status = (action: ActionDef): ActionStatus => actionStatus(action, deps.getChapter());
+
+  /** Gestes encore faisables que le joueur laisserait derrière lui en accomplissant cette action. */
+  const leftBehind = (action: ActionDef): ActionDef[] => (action.endsPhase ? remaining(ACTIONS, deps.getChapter()) : []);
 
   /** Rappel du temps de jeu restant, en tête des listes de gestes. */
   function timeNote(chapter: Chapter): HTMLElement | null {
@@ -119,12 +120,14 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
         { class: 'actions' },
         ...actions.map((action, index) => {
           const state = status(action);
+          const left = state.state === 'possible' ? leftBehind(action).length : 0;
+          const label = left > 0 ? (left > 1 ? `${left} gestes restants` : '1 geste restant') : statusLabel(state);
           const button = h(
             'button',
             { type: 'button', class: `action action--${state.state}` },
             h('span', { class: 'action__number', 'aria-hidden': 'true' }, String(index + 1)),
             h('span', { class: 'action__title' }, action.title),
-            h('span', { class: 'action__status' }, state.state === 'faite' ? icon('coche') : state.state === 'possible' && state.minutes > 0 ? icon('horloge') : null, statusLabel(state)),
+            h('span', { class: 'action__status' }, state.state === 'faite' ? icon('coche') : state.state === 'possible' && state.minutes > 0 ? icon('horloge') : null, label),
           );
           button.addEventListener('click', () => detail(action));
           return h('li', null, button);
@@ -209,7 +212,24 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
     ];
     host.append(...info.filter((node): node is HTMLElement => node !== null));
 
-    if (state.state === 'possible') {
+    const left = state.state === 'possible' ? leftBehind(action) : [];
+    if (left.length > 0) {
+      // Clore la phase en laissant des gestes faisables : possible, mais on demande confirmation.
+      const stay = h('button', { type: 'button', class: 'button button--primary' }, 'Revenir aux gestes');
+      stay.addEventListener('click', () => overview(true));
+      const go = h('button', { type: 'button', class: 'button' }, `${action.title} quand même`);
+      go.addEventListener('click', finish);
+      host.append(
+        h(
+          'div',
+          { class: 'warning' },
+          h('p', null, h('strong', null, left.length > 1 ? `Il vous reste ${left.length} gestes que vous avez encore le temps d'accomplir :` : "Il vous reste un geste que vous avez encore le temps d'accomplir :")),
+          h('ul', { class: 'bullets' }, ...left.map((other) => h('li', null, h('strong', null, `${findPlace(deps.commune, other.place)?.name ?? ''} : `), other.title))),
+          h('p', { class: 'fine-print' }, 'Votre carnet de mission (touche M) vous y conduit.'),
+        ),
+        h('div', { class: 'dialog__actions' }, go, stay),
+      );
+    } else if (state.state === 'possible') {
       if (state.minutes > 0) {
         host.append(
           h(
@@ -231,17 +251,6 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       host.append(h('p', { class: 'verdict verdict--ko' }, icon('fermer'), 'Impossible maintenant'), h('p', null, action.locked ?? ''));
     } else if (state.state === 'trop-longue') {
       host.append(h('p', { class: 'verdict verdict--ko' }, icon('fermer'), 'Plus assez de temps'), h('p', null, `Il faudrait ${formatDuration(state.minutes)} de jeu, et il vous en reste ${formatDuration(chapter.minutesLeft)}.`));
-    } else if (state.state === 'pas-encore') {
-      host.append(
-        h('p', { class: 'verdict verdict--ko' }, icon('fermer'), 'Pas encore'),
-        h('p', null, `Il vous reste ${state.left.length > 1 ? `${state.left.length} gestes` : 'un geste'} à accomplir avant cela :`),
-        h(
-          'ul',
-          { class: 'bullets' },
-          ...state.left.map((other) => h('li', null, h('strong', null, `${findPlace(deps.commune, other.place)?.name ?? ''} : `), other.title)),
-        ),
-        h('p', { class: 'fine-print' }, 'Votre carnet de mission (touche M) vous y conduit.'),
-      );
     }
 
     dialog.body.replaceChildren(back, host);

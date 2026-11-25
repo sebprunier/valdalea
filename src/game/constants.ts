@@ -14,3 +14,10 @@ export const INTERACT_RADIUS = 58;
  * À 100 m par minute de jeu, le joueur marche à 6 km/h.
  */
 export const UNITS_PER_METER = 1;
+
+/**
+ * Niveaux de zoom de la carte, en facteur de la vue normale. Peu nombreux et
+ * bornés : assez pour prendre du recul, pas assez pour perdre le personnage.
+ */
+export const ZOOM_LEVELS = [0.6, 0.8, 1, 1.3] as const;
+export const DEFAULT_ZOOM = 2;

@@ -83,25 +83,14 @@ export type ActionStatus =
   | { state: 'verrouillee' }
   /** Il ne reste pas assez de temps dans la phase. */
   | { state: 'trop-longue'; minutes: number }
-  /** Action qui clôt la phase, alors qu'il reste des gestes faisables : `left` les énumère. */
-  | { state: 'pas-encore'; left: ActionDef[] }
   | { state: 'hors-phase' };
 
-/**
- * État d'une action. `all` est la liste complète des actions du chapitre : elle
- * sert à savoir, pour une action qui clôt la phase, s'il reste autre chose à faire.
- */
-export function actionStatus(action: ActionDef, chapter: Chapter, all: readonly ActionDef[]): ActionStatus {
+export function actionStatus(action: ActionDef, chapter: Chapter): ActionStatus {
   if (chapter.done.includes(action.id)) return { state: 'faite' };
   if (action.phase !== chapter.phase) return { state: 'hors-phase' };
   if (action.requires && !chapter.done.includes(action.requires)) return { state: 'verrouillee' };
   const minutes = actionMinutes(action, chapter);
   if (isTimed(chapter.phase) && minutes > chapter.minutesLeft) return { state: 'trop-longue', minutes };
-  // On ne termine pas la journée (et on ne se met pas à l'abri) en laissant derrière soi un geste encore faisable.
-  if (action.endsPhase && isTimed(chapter.phase)) {
-    const left = gestures(all, chapter).filter((other) => actionStatus(other, chapter, all).state === 'possible');
-    if (left.length > 0) return { state: 'pas-encore', left };
-  }
   return { state: 'possible', minutes };
 }
 
@@ -110,19 +99,32 @@ export function gestures(actions: readonly ActionDef[], chapter: Chapter): Actio
   return actions.filter((action) => action.phase === chapter.phase && !action.endsPhase);
 }
 
+/**
+ * Gestes de la phase encore faisables : ceux que le joueur laisserait derrière
+ * lui en clôturant la phase maintenant. L'interface lui demande alors confirmation.
+ */
+export function remaining(actions: readonly ActionDef[], chapter: Chapter): ActionDef[] {
+  return gestures(actions, chapter).filter((action) => actionStatus(action, chapter).state === 'possible');
+}
+
 /** Actions à afficher dans un lieu : celles de la phase en cours, faites ou non. */
 export function actionsAt(actions: readonly ActionDef[], chapter: Chapter, placeId: string): ActionDef[] {
   return actions.filter((action) => action.place === placeId && action.phase === chapter.phase);
 }
 
-/** Nombre d'actions encore possibles dans un lieu. */
+/**
+ * Nombre d'actions qui attendent le joueur dans un lieu. L'action qui clôt la
+ * phase n'est comptée qu'une fois les autres gestes accomplis : tant qu'il en
+ * reste, le repère ne doit pas inviter à rentrer.
+ */
 export function pendingAt(actions: readonly ActionDef[], chapter: Chapter, placeId: string): number {
-  return actionsAt(actions, chapter, placeId).filter((action) => actionStatus(action, chapter, actions).state === 'possible').length;
+  const open = remaining(actions, chapter).length > 0;
+  return actionsAt(actions, chapter, placeId).filter((action) => actionStatus(action, chapter).state === 'possible' && !(action.endsPhase && open)).length;
 }
 
 /** Accomplit une action. Sans effet si elle n'est pas possible. */
-export function perform(chapter: Chapter, action: ActionDef, all: readonly ActionDef[]): Chapter {
-  const status = actionStatus(action, chapter, all);
+export function perform(chapter: Chapter, action: ActionDef): Chapter {
+  const status = actionStatus(action, chapter);
   if (status.state !== 'possible') return chapter;
   const after: Chapter = {
     ...chapter,

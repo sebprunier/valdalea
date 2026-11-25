@@ -1,6 +1,6 @@
 import { ACTIONS, OBJECTIVES } from '../content/inondation';
 import type { ActionDef } from '../content/model';
-import { actionMinutes, actionStatus, clockLabel, formatDuration, gestures, isTimed, TIMED_PHASES, type Chapter } from '../core/chapter';
+import { actionMinutes, actionStatus, clockLabel, formatDuration, gestures, isTimed, remaining, TIMED_PHASES, type Chapter } from '../core/chapter';
 import { distance, type Vec } from '../core/geometry';
 import type { Commune, Place } from '../world/model';
 import { createDialog } from './dialog';
@@ -9,7 +9,8 @@ import { formatDistance } from './screens';
 
 /**
  * Carnet de mission : ce qu'il reste à faire, où, et par quoi commencer.
- * C'est la réponse à « que dois-je faire maintenant ? ».
+ * C'est la réponse à « que dois-je faire maintenant ? ». Son conseil du moment
+ * est affiché en permanence dans la barre d'état, qui ouvre le carnet.
  */
 
 export interface MissionDeps {
@@ -18,12 +19,18 @@ export interface MissionDeps {
   getPlayer(): Vec;
   /** Emmène le joueur dans un lieu et l'ouvre. */
   goTo(place: Place): void;
+  /** Ouvre le bilan de la crue, dans le téléphone. */
+  openBilan(): void;
+  /** Recommence le chapitre, en gardant les badges. */
+  replay(): void;
 }
 
 export interface Mission {
   open(returnFocus: HTMLElement | null): void;
   /** Conseil du moment, affiché aussi dans la barre d'état. */
   hint(): { text: string; place: Place | null };
+  /** Avancement des gestes de la phase, quand elle en compte. */
+  progress(): { done: number; total: number } | null;
 }
 
 export function createMission(deps: MissionDeps): Mission {
@@ -35,8 +42,7 @@ export function createMission(deps: MissionDeps): Mission {
   function pendingPlaces(chapter: Chapter): Array<{ place: Place; actions: ActionDef[] }> {
     const player = deps.getPlayer();
     const byPlace = new Map<string, ActionDef[]>();
-    for (const action of gestures(ACTIONS, chapter)) {
-      if (actionStatus(action, chapter, ACTIONS).state !== 'possible') continue;
+    for (const action of remaining(ACTIONS, chapter)) {
       byPlace.set(action.place, [...(byPlace.get(action.place) ?? []), action]);
     }
     return [...byPlace.entries()]
@@ -72,11 +78,19 @@ export function createMission(deps: MissionDeps): Mission {
     }
   }
 
+  function progress(): { done: number; total: number } | null {
+    const chapter = deps.getChapter();
+    const all = gestures(ACTIONS, chapter);
+    if (!isTimed(chapter.phase) || all.length === 0) return null;
+    return { done: all.filter((action) => chapter.done.includes(action.id)).length, total: all.length };
+  }
+
   function render(): void {
     const chapter = deps.getChapter();
     const player = deps.getPlayer();
     const advice = hint();
-    const parts: HTMLElement[] = [h('p', { class: 'lead' }, OBJECTIVES[chapter.phase])];
+    // L'objectif de la phase, sauf quand le conseil du moment dit déjà la même chose.
+    const parts: HTMLElement[] = advice.text === OBJECTIVES[chapter.phase] ? [] : [h('p', { class: 'lead' }, OBJECTIVES[chapter.phase])];
 
     if (isTimed(chapter.phase)) {
       const total = TIMED_PHASES[chapter.phase].minutes;
@@ -102,7 +116,22 @@ export function createMission(deps: MissionDeps): Mission {
       });
       hintBox.append(button);
     }
-    parts.push(hintBox);
+    if (chapter.phase === 'bilan') {
+      const bilan = h('button', { type: 'button', class: 'button button--primary button--small' }, 'Voir le bilan');
+      bilan.addEventListener('click', () => {
+        dialog.close();
+        deps.openBilan();
+      });
+      const again = h('button', { type: 'button', class: 'button button--small' }, "Rejouer l'automne");
+      again.addEventListener('click', () => {
+        dialog.close();
+        deps.replay();
+      });
+      hintBox.append(h('div', { class: 'hint__actions' }, bilan, again));
+      parts.push(hintBox, h('p', { class: 'fine-print' }, "Rejouer l'automne reprend le chapitre au début, chez le maire. Vos badges sont conservés."));
+    } else {
+      parts.push(hintBox);
+    }
 
     const all = gestures(ACTIONS, chapter);
     if (all.length > 0 && isTimed(chapter.phase)) {
@@ -120,7 +149,7 @@ export function createMission(deps: MissionDeps): Mission {
         const items = all
           .filter((action) => action.place === target.id)
           .map((action) => {
-            const status = actionStatus(action, chapter, ACTIONS);
+            const status = actionStatus(action, chapter);
             const label =
               status.state === 'faite'
                 ? 'fait'
@@ -152,6 +181,7 @@ export function createMission(deps: MissionDeps): Mission {
 
   return {
     hint,
+    progress,
     open(returnFocus) {
       render();
       dialog.open(returnFocus);

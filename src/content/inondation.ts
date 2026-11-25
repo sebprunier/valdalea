@@ -1,4 +1,4 @@
-import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, StakeDef } from './model';
+import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
 
 /**
  * Chapitre « L'automne » : le risque inondation.
@@ -152,7 +152,7 @@ export const ACTIONS: ActionDef[] = [
     endsPhase: true,
     narrative: true,
     title: 'Terminer la journée',
-    why: 'Une fois tous les gestes accomplis, vous pouvez rentrer : la journée est finie.',
+    why: "La journée s'arrête quand vous le décidez, ou à la tombée de la nuit. Ce qui n'a pas été préparé aujourd'hui manquera si l'eau monte.",
     who: 'Vous.',
     done: 'Vous rentrez. Dehors, le ciel se couvre.',
     sources: [],
@@ -543,6 +543,8 @@ export const FLOOD = {
   peak: 1.6,
   /** Niveau au début de la vigilance orange. */
   rising: 0.45,
+  /** Niveau en fin de journée, quand la décrue est amorcée. */
+  receding: 0.5,
 };
 
 export const OBJECTIVES = {
@@ -550,5 +552,102 @@ export const OBJECTIVES = {
   preparation: 'Accomplissez tous les gestes de prévention avant la tombée de la nuit.',
   vigilance: "L'eau monte : installez ce qui a été préparé, puis rentrez vous mettre à l'abri.",
   crise: 'La Follette déborde : faites les bons choix.',
-  bilan: 'La crue est passée. Consultez le bilan dans votre téléphone.',
+  bilan: 'La crue est passée. Le bilan et vos badges sont dans votre téléphone.',
 } as const;
+
+// ------------------------------------------------------- Situation et récit
+
+/** Ce que la barre d'état et la carte montrent à chaque phase : vigilance, temps qu'il fait, état de la rivière. */
+export const SITUATION: Record<keyof typeof OBJECTIVES, { vigilance: VigilanceLevel; sky: SkyId; river: string }> = {
+  accueil: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
+  preparation: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
+  vigilance: { vigilance: 'orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
+  crise: { vigilance: 'rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
+  bilan: { vigilance: 'jaune', sky: 'eclaircie', river: 'en décrue' },
+};
+
+/** Pendant la dernière heure de la journée de préparation, le jour baisse : c'est le signe que le temps presse. */
+export const DUSK = { minutesLeft: 60, sky: 'soir' as SkyId };
+
+/**
+ * Les quatre niveaux de la vigilance crues, tels que Vigicrues les définit.
+ * Le joueur les retrouve en touchant l'indicateur de vigilance.
+ */
+export const VIGILANCE_SCALE: {
+  intro: string;
+  levels: Array<{ id: VigilanceLevel; name: string; meaning: string }>;
+  sources: string[];
+} = {
+  intro:
+    "Vigicrues attribue une couleur à chaque tronçon de cours d'eau surveillé, selon le niveau de vigilance adapté pour faire face au danger susceptible de se produire dans les 24 heures à venir.",
+  levels: [
+    { id: 'verte', name: 'Vert', meaning: 'Pas de vigilance particulière requise.' },
+    {
+      id: 'jaune',
+      name: 'Jaune',
+      meaning: "Risque de crue ou de montée rapide des eaux n'entraînant pas de dommages significatifs, mais nécessitant une vigilance particulière dans le cas d'activités saisonnières et/ou exposées.",
+    },
+    {
+      id: 'orange',
+      name: 'Orange',
+      meaning: "Risque de crue génératrice de débordements importants susceptibles d'avoir un impact significatif sur la vie collective et la sécurité des biens et des personnes.",
+    },
+    { id: 'rouge', name: 'Rouge', meaning: 'Risque de crue majeure. Menace directe et généralisée de la sécurité des personnes et des biens.' },
+  ],
+  sources: ['vigicrues-guide'],
+};
+
+/**
+ * Le récit entre les phases. Chaque moment précède une alerte ou un changement
+ * de décor : le joueur voit le ciel se couvrir et la pluie tomber avant de lire
+ * le bulletin qui l'annonce.
+ */
+export const STORY = {
+  soir: {
+    id: 'soir',
+    when: 'Samedi, 18 h',
+    title: 'La nuit tombe',
+    paragraphs: ["La journée s'achève. Le ciel s'est couvert, et le vent se lève.", 'Votre téléphone vibre : un message de Vigicrues.'],
+    late: "La nuit tombe avant que vous ayez pu tout faire : vous rentrez chez vous. Le ciel s'est couvert, et le vent se lève.",
+    next: 'Lire le message',
+    sky: 'soir',
+    vigilance: 'verte',
+  },
+  nuit: {
+    id: 'nuit',
+    when: 'Dimanche soir',
+    title: 'La pluie arrive',
+    paragraphs: ['Le dimanche a été gris et lourd. À la tombée de la nuit, la pluie arrive, comme annoncé.', 'Elle tombe toute la nuit, sans faiblir. La Follette commence à gonfler.'],
+    next: 'Continuer',
+    sky: 'nuit-pluie',
+    vigilance: 'jaune',
+  },
+  matin: {
+    id: 'matin',
+    when: 'Lundi, 7 h 30',
+    title: "L'eau affleure le quai",
+    paragraphs: ['Au réveil, il pleut toujours. De votre fenêtre, vous voyez la Follette, brune et rapide, au ras du quai.', 'Votre téléphone vibre de nouveau.'],
+    next: 'Lire le message',
+    sky: 'pluie',
+    vigilance: 'jaune',
+  },
+  abri: {
+    id: 'abri',
+    when: 'Lundi, 9 h 30',
+    title: 'La Follette déborde',
+    paragraphs: ["Vous êtes à l'étage. Dehors, la pluie redouble : l'eau a franchi le quai et gagne la rue.", 'Votre téléphone se met à sonner.'],
+    late: "L'eau monte trop vite pour continuer : vous rentrez vous mettre à l'abri, à l'étage. Dehors, la pluie redouble : l'eau a franchi le quai et gagne la rue.",
+    next: "Lire l'alerte",
+    sky: 'forte-pluie',
+    vigilance: 'orange',
+  },
+  decrue: {
+    id: 'decrue',
+    when: 'Lundi, 17 h',
+    title: 'La décrue',
+    paragraphs: ["La pluie a cessé en début d'après-midi. Lentement, l'eau se retire du Bas-Bourg, en laissant la boue derrière elle.", "La mairie annonce la fin de l'alerte."],
+    next: 'Voir le bilan',
+    sky: 'eclaircie',
+    vigilance: 'orange',
+  },
+} satisfies Record<string, StoryCard>;

@@ -1,6 +1,6 @@
 import { newChapter, PHASES, type Chapter, type Phase } from './chapter';
 import type { Vec } from './geometry';
-import { SAVE_VERSION, type GameState } from './state';
+import { NEWS_IDS, SAVE_VERSION, type GameState, type NewsId } from './state';
 
 const KEY = 'jcrm:partie';
 
@@ -96,6 +96,7 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     visited: knownIds(data.visited, context.placeIds),
     chapter: readChapter(data.chapter, context),
     badges: knownIds(data.badges, context.badgeIds),
+    news: knownIds(data.news, new Set<string>(NEWS_IDS)) as NewsId[],
     settings: {
       reducedMotion: typeof settings.reducedMotion === 'boolean' ? settings.reducedMotion : null,
       // Les premières sauvegardes ne connaissaient que la zone inondable, par oui ou par non.
@@ -105,6 +106,8 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
           : typeof settings.hazardLayer === 'string' && context.riskIds.has(settings.hazardLayer)
             ? settings.hazardLayer
             : null,
+      // Le jeu ramène lui-même le niveau dans ses bornes.
+      zoom: typeof settings.zoom === 'number' && Number.isInteger(settings.zoom) && settings.zoom >= 0 && settings.zoom < 16 ? settings.zoom : null,
     },
   };
 }

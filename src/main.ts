@@ -1,11 +1,11 @@
 import './styles/main.css';
 import { ACTIONS, BADGES, SITUATIONS } from './content/inondation';
-import { pendingAt } from './core/chapter';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
 import { Store } from './core/store';
-import { PLAYER_RADIUS } from './game/constants';
+import { DEFAULT_ZOOM, PLAYER_RADIUS } from './game/constants';
 import { Game } from './game/game';
+import { WeatherLayer } from './render/weather';
 import { createUi, type Ui } from './ui/app';
 import { requireElement } from './ui/dom';
 import { buildElevation } from './world/elevation';
@@ -47,7 +47,7 @@ document.addEventListener('visibilitychange', () => {
 
 // --------------------------------------------------------------------- Jeu
 // `ui` est créé juste après le jeu ; les signaux du jeu ne partent qu'une fois la partie lancée.
-let ui: Ui;
+let ui: Ui | undefined;
 const game = new Game({
   surface: requireElement('map'),
   canvas: requireElement<HTMLCanvasElement>('canvas'),
@@ -58,16 +58,21 @@ const game = new Game({
   elevation,
   start: store.get().player,
   hooks: {
-    nearPlaceChanged: (place) => ui.setNearPlace(place),
-    sectorChanged: (sector) => ui.setSector(sector),
-    interact: (place) => ui.openPlace(place),
-    shortcut: (action) => ui.openPanel(action),
+    nearPlaceChanged: (place) => ui?.setNearPlace(place),
+    sectorChanged: (sector) => ui?.setSector(sector),
+    interact: (place) => ui?.openPlace(place),
+    shortcut: (action) => ui?.openPanel(action),
+    zoomChanged: (level) => ui?.zoomChanged(level),
     moved: (pos) => store.update((state) => movePlayer(state, pos)),
-    walked: (units) => ui.walked(units),
+    walked: (units) => ui?.walked(units),
     isVisited: (placeId) => store.get().visited.includes(placeId),
-    pendingAt: (placeId) => pendingAt(ACTIONS, store.get().chapter, placeId),
+    pendingAt: (placeId) => ui?.pendingAt(placeId) ?? 0,
   },
 });
+
+// Le zoom choisi lors d'une partie précédente est repris avant que l'interface n'existe : rien n'est annoncé.
+game.setZoom(store.get().settings.zoom ?? DEFAULT_ZOOM);
+const weather = new WeatherLayer(requireElement<HTMLCanvasElement>('weather'));
 
 // ------------------------------------------------------- Animations réduites
 const systemMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -75,6 +80,7 @@ const isReducedMotion = (): boolean => store.get().settings.reducedMotion ?? sys
 const applyMotion = (): void => {
   const reduced = isReducedMotion();
   game.reducedMotion = reduced;
+  weather.setStill(reduced);
   document.documentElement.dataset.motion = reduced ? 'reduced' : 'full';
 };
 systemMotion.addEventListener('change', applyMotion);
@@ -86,6 +92,7 @@ ui = createUi({
   elevation,
   store,
   game,
+  weather,
   hasSave: saved !== null,
   persistent,
   isReducedMotion,
@@ -100,5 +107,5 @@ ui.showStart();
 
 // En développement uniquement : accès au jeu depuis la console du navigateur.
 if (import.meta.env.DEV) {
-  Object.assign(window, { jcrm: { game, store, commune, grid, elevation } });
+  Object.assign(window, { jcrm: { game, store, commune, grid, elevation, weather } });
 }

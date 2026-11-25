@@ -8,8 +8,8 @@ import { sourceList } from './documents';
 import { h } from './dom';
 
 /**
- * Le DICRIM de Val-d'Aléa, présenté comme un vrai document : couverture, mot du
- * maire, un chapitre et une carte par risque, l'alerte, une page mémo.
+ * Le DICRIM de Val-d'Aléa, présenté comme un vrai document : couverture, mot des
+ * élus, un chapitre et une carte par risque, l'alerte, une page mémo.
  * Sa lecture est libre : le joueur le feuillette, ou le referme.
  */
 
@@ -132,9 +132,9 @@ export function createDicrimViewer(deps: DicrimViewerDeps): DicrimViewer {
 
     const intro = page(
       'dicrim-intro',
-      heading('h3', 'Le mot du maire'),
-      ...DICRIM.mayor.word.map((text) => h('p', null, text)),
-      h('p', { class: 'signature' }, `${DICRIM.mayor.name}, maire de ${deps.commune.name}`),
+      heading('h3', DICRIM.word.title),
+      ...DICRIM.word.paragraphs.map((text) => h('p', null, text)),
+      h('p', { class: 'signature' }, DICRIM.word.signature),
       heading('h4', 'À quoi sert ce document ?'),
       ...DICRIM.about.paragraphs.map((text) => h('p', null, text)),
       sourceList(DICRIM.about.sources),

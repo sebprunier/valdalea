@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
-import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, QUESTIONS, SITUATIONS, STAKES } from '../src/content/inondation';
+import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, QUESTIONS, SITUATION, SITUATIONS, STAKES, STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
 import { SOURCES } from '../src/content/model';
 import { PLACE_TEXTS } from '../src/content/places';
+import { SKIES } from '../src/render/weather';
 import { RISK_IDS } from '../src/world/model';
 import { buildValDAlea } from '../src/world/valdalea';
 
@@ -40,6 +41,7 @@ describe('cohérence des contenus', () => {
       ...[BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE].flatMap((b) => b.sources),
       ...dicrimSources(),
       ...LEXICON.flatMap((entry) => entry.sources),
+      ...VIGILANCE_SCALE.sources,
     ];
     for (const id of cited) expect(SOURCES[id], `source ${id}`).toBeDefined();
     for (const [id, source] of Object.entries(SOURCES)) {
@@ -69,6 +71,34 @@ describe('cohérence des contenus', () => {
       expect(risk.mapSummary.length, `${risk.id} : description de la carte`).toBeGreaterThan(40);
       for (const group of risk.reflexes) expect(group.items.length, `${risk.id} / ${group.heading}`).toBeGreaterThan(0);
     }
+  });
+
+  it('définit les quatre niveaux de vigilance, source à l’appui, et un temps pour chaque phase', () => {
+    expect(VIGILANCE_SCALE.levels.map((level) => level.id)).toEqual(['verte', 'jaune', 'orange', 'rouge']);
+    expect(VIGILANCE_SCALE.sources.length).toBeGreaterThan(0);
+    for (const level of VIGILANCE_SCALE.levels) expect(level.meaning.length, level.id).toBeGreaterThan(20);
+    const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
+    for (const [phase, situation] of Object.entries(SITUATION)) {
+      expect(levels.has(situation.vigilance), phase).toBe(true);
+      expect(SKIES[situation.sky], phase).toBeDefined();
+      expect(situation.river.length, phase).toBeGreaterThan(5);
+    }
+  });
+
+  it('fait précéder chaque alerte d’un moment de récit complet', () => {
+    const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
+    for (const [key, card] of Object.entries(STORY)) {
+      expect(card.id, key).toBe(key);
+      expect(card.when.length, key).toBeGreaterThan(3);
+      expect(card.title.length, key).toBeGreaterThan(3);
+      expect(card.paragraphs.length, key).toBeGreaterThan(0);
+      expect(card.next.length, key).toBeGreaterThan(3);
+      expect(SKIES[card.sky], key).toBeDefined();
+      expect(levels.has(card.vigilance), key).toBe(true);
+    }
+    // Les deux phases qui peuvent s'achever faute de temps ont leur variante.
+    expect(STORY.soir.late).toBeTruthy();
+    expect(STORY.abri.late).toBeTruthy();
   });
 
   it('donne à chaque question une bonne réponse et des identifiants uniques', () => {

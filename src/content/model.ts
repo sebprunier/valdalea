@@ -112,6 +112,31 @@ export interface BadgeDef {
   earned(view: ChapterView): boolean;
 }
 
+/** Niveaux de la vigilance crues. */
+export type VigilanceLevel = 'verte' | 'jaune' | 'orange' | 'rouge';
+
+/** Le temps qu'il fait, tel que la carte le montre. */
+export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie';
+
+/**
+ * Un moment de récit entre deux phases : il laisse au joueur le temps de voir
+ * la situation changer avant qu'une alerte n'arrive. Fiction pure, sans consigne.
+ */
+export interface StoryCard {
+  id: string;
+  /** Jour et heure du récit. */
+  when: string;
+  title: string;
+  paragraphs: string[];
+  /** Premier paragraphe quand la phase précédente s'est achevée faute de temps. */
+  late?: string;
+  /** Libellé du bouton qui fait avancer le récit. */
+  next: string;
+  /** Ce que montrent la carte et la barre d'état pendant ce moment. */
+  sky: SkyId;
+  vigilance: VigilanceLevel;
+}
+
 export interface Bulletin {
   id: string;
   /** Émetteur affiché en tête du message. */

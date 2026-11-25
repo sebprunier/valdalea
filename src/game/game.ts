@@ -8,8 +8,8 @@ import type { Elevation } from '../world/elevation';
 import type { WalkGrid } from '../world/grid';
 import { sectorAt, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
-import { INTERACT_RADIUS, PLAYER_RADIUS, RUN_SPEED, WALK_SPEED } from './constants';
-import { Input, type Action } from './input';
+import { DEFAULT_ZOOM, INTERACT_RADIUS, PLAYER_RADIUS, RUN_SPEED, WALK_SPEED, ZOOM_LEVELS } from './constants';
+import { Input, type Action, type Shortcut } from './input';
 
 /** Échelle de la vue d'ensemble (mini-carte, et repli tant qu'une tuile n'est pas prête). */
 const OVERVIEW_SCALE = 0.25;
@@ -20,13 +20,18 @@ const ROUTE_INTERVAL = 0.15;
 /** Vitesse de montée ou de descente de la crue à l'écran, en mètres par seconde. */
 const FLOOD_SPEED = 0.11;
 
+/** Temps consacré, par image, à préparer les tuiles manquantes (en millisecondes). */
+const BAKE_BUDGET = 7;
+
 export interface GameHooks {
   /** Le joueur entre à portée d'un lieu, ou s'en éloigne. */
   nearPlaceChanged(place: Place | null): void;
   sectorChanged(sector: Sector | null): void;
   /** Le joueur demande à ouvrir le lieu devant lequel il se trouve. */
   interact(place: Place): void;
-  shortcut(action: 'phone' | 'places' | 'help' | 'mission'): void;
+  shortcut(action: Shortcut): void;
+  /** Le niveau de zoom vient de changer. */
+  zoomChanged(level: number): void;
   /** Position du joueur, signalée au plus une fois par seconde et à chaque pause. */
   moved(pos: Vec): void;
   /** Distance que le joueur vient de parcourir, en unités monde : le temps de jeu en dépend. */
@@ -73,8 +78,11 @@ export class Game {
   private readonly player: PlayerPose;
   private readonly camera: Vec;
   private scale = 1; // pixels écran par unité monde
-  /** Agrandissement des repères quand la carte est dézoomée (petits écrans). */
+  /** Niveau de zoom choisi par le joueur : indice dans `ZOOM_LEVELS`. */
+  private zoomIndex = DEFAULT_ZOOM;
+  /** Agrandissement des repères et du personnage quand la carte est dézoomée. */
   private markerSize = 1;
+  private playerSize = 1;
   private paused = true;
 
   /** Itinéraire en cours (déplacement au pointeur) : points de passage restants. */
@@ -173,6 +181,20 @@ export class Game {
     this.moveTo(place.pos);
   }
 
+  /** Niveau de zoom en cours : indice dans `ZOOM_LEVELS`. */
+  get zoomLevel(): number {
+    return this.zoomIndex;
+  }
+
+  /** Change de niveau de zoom ; la demande est ramenée dans les bornes. */
+  setZoom(level: number): void {
+    const next = clamp(Math.round(level), 0, ZOOM_LEVELS.length - 1);
+    if (next === this.zoomIndex) return;
+    this.zoomIndex = next;
+    this.layout(false);
+    this.hooks.zoomChanged(next);
+  }
+
   /** Affiche une carte de risque par-dessus le plan, ou la retire (`null`). */
   setHazardLayer(risk: RiskId | null): void {
     if (risk === this.hazardRisk) return;
@@ -222,7 +244,10 @@ export class Game {
 
   private handleAction(action: Action): void {
     if (this.paused) return;
-    if (action !== 'interact') this.hooks.shortcut(action);
+    if (action === 'zoom-in') this.setZoom(this.zoomIndex + 1);
+    else if (action === 'zoom-out') this.setZoom(this.zoomIndex - 1);
+    else if (action === 'halt') this.stop();
+    else if (action !== 'interact') this.hooks.shortcut(action);
     else if (this.near) this.hooks.interact(this.near);
   }
 
@@ -392,17 +417,27 @@ export class Game {
   // ------------------------------------------------------------------ Caméra
 
   private resize(): void {
+    this.layout(true);
+  }
+
+  /**
+   * Cale l'échelle de la carte sur la taille de l'écran et le niveau de zoom.
+   * @param atOnce dessiner toutes les tuiles visibles d'un coup (premier affichage,
+   * redimensionnement) plutôt que de les laisser arriver en quelques images (zoom)
+   */
+  private layout(atOnce: boolean): void {
     const cssWidth = this.surface.clientWidth;
     const cssHeight = this.surface.clientHeight;
     if (cssWidth === 0 || cssHeight === 0) return;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    // Zoom : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
-    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6);
+    // Vue normale : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
+    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
     // L'échelle est arrondie pour qu'une tuile fasse un nombre entier de pixels :
     // les tuiles sont alors recopiées sans rééchantillonnage ni raccord visible.
     const tilePx = Math.max(64, Math.round(TILE_SIZE * zoom * pixelRatio));
     this.scale = tilePx / TILE_SIZE;
     this.markerSize = Math.max(1, 1 / zoom);
+    this.playerSize = Math.max(1, 0.85 / zoom);
     this.canvas.width = Math.round(cssWidth * pixelRatio);
     this.canvas.height = Math.round(cssHeight * pixelRatio);
     this.tiles.setTilePixels(tilePx);
@@ -410,7 +445,7 @@ export class Game {
     const rows = Math.ceil(this.canvas.height / tilePx) + 3;
     this.tiles.setCapacity(cols * rows + 8);
     this.clampCamera();
-    this.firstPaint = true;
+    if (atOnce) this.firstPaint = true;
     this.dirty = true;
   }
 
@@ -455,14 +490,16 @@ export class Game {
     const ty1 = Math.floor((origin.y + height - 1) / tilePx);
 
     // Au premier affichage, toutes les tuiles visibles sont dessinées d'un coup ;
-    // ensuite au plus deux par image, pour ne jamais faire sauter l'animation.
-    let budget = this.firstPaint ? Infinity : 2;
+    // ensuite quelques millisecondes par image (et au moins une tuile), pour ne
+    // jamais faire sauter l'animation, même après un changement de zoom.
+    const deadline = this.firstPaint ? Infinity : performance.now() + BAKE_BUDGET;
+    let budget = 1;
     let missing = false;
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         if (!this.tiles.inRange(tx, ty)) continue;
         let tile = this.tiles.peek(tx, ty);
-        if (!tile && budget > 0) {
+        if (!tile && (budget > 0 || performance.now() < deadline)) {
           tile = this.tiles.bake(tx, ty);
           budget--;
         }
@@ -477,8 +514,8 @@ export class Game {
         }
       }
     }
-    // Préparation d'une tuile de la couronne extérieure, tant qu'il reste du budget.
-    if (budget > 0) {
+    // Préparation d'une tuile de la couronne extérieure, s'il reste du temps.
+    if (!missing && (budget > 0 || performance.now() < deadline)) {
       prefetch: for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
         for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
           if (this.tiles.inRange(tx, ty) && !this.tiles.peek(tx, ty)) {
@@ -515,7 +552,7 @@ export class Game {
         still: this.reducedMotion,
       });
     }
-    paintPlayer(ctx, this.player);
+    paintPlayer(ctx, this.player, this.playerSize);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.paintPointers(origin);

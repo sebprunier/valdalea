@@ -194,8 +194,27 @@ kbd {
   white-space: nowrap;
 }
 
+/* Les indicateurs de la barre sont des boutons : ils ouvrent le détail, dans le téléphone. */
+.chip--button {
+  min-height: 2.25rem;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.chip--button:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.chip__icon {
+  display: inline-flex;
+}
+
 /* Niveau de vigilance : la couleur est doublée par le texte et par la forme de la pastille. */
-.chip__swatch {
+.swatch {
+  display: inline-block;
   width: 0.85rem;
   height: 0.85rem;
   flex: none;
@@ -203,19 +222,22 @@ kbd {
   border-radius: 50%;
 }
 
-.chip--vigilance[data-level='jaune'] .chip__swatch {
+[data-level='jaune'] > .swatch,
+.swatch[data-level='jaune'] {
   background: #f5cc00;
   border-radius: 0;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
-.chip--vigilance[data-level='orange'] .chip__swatch {
+[data-level='orange'] > .swatch,
+.swatch[data-level='orange'] {
   background: #ff9214;
   border-radius: 0;
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
-.chip--vigilance[data-level='rouge'] .chip__swatch {
+[data-level='rouge'] > .swatch,
+.swatch[data-level='rouge'] {
   background: #ff5247;
   border-radius: 0;
 }
@@ -224,19 +246,83 @@ kbd {
   border-color: #ff5247;
 }
 
-.hud__objective {
+/*
+ * Bandeau de mission : ce qu'il faut faire maintenant, le temps qu'il reste et
+ * l'avancement. C'est un seul bouton, qui ouvre le carnet.
+ */
+.mission-bar {
   grid-area: objective;
-  color: #e9e3d6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.9rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.7rem 0.35rem 0.4rem;
+  border: 1px solid #5d6b78;
+  border-radius: var(--radius);
+  background: #243241;
+  color: var(--paper);
   font-size: 0.9375rem;
+  text-align: left;
 }
 
-.hud__objective-label {
-  margin-right: 0.35rem;
-  color: #ffb07c;
-  font-size: 0.75rem;
+.mission-bar:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.mission-bar__label {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  background: var(--accent);
+  color: #fff;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+}
+
+.mission-bar__text {
+  flex: 1 1 16rem;
+  font-weight: 600;
+}
+
+.mission-bar__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.9rem;
+  margin-left: auto;
+  color: #d8d2c4;
+}
+
+.mission-bar__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.mission-bar__clock[data-urgent='true'] {
+  color: #ffb07c;
+  font-weight: 700;
+}
+
+.mission-bar__clock[data-urgent='true'] .chip__bar > span {
+  background: #ff9214;
+}
+
+.mission-bar__progress {
+  padding: 0.05rem 0.55rem;
+  border: 1px solid #8a97a3;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mission-bar kbd {
+  color: #d8d2c4;
 }
 
 .hud__actions {
@@ -247,6 +333,7 @@ kbd {
 }
 
 .hud-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -266,6 +353,29 @@ kbd {
 
 .hud-button kbd {
   color: #d8d2c4;
+}
+
+/* Pastille de nouveauté, sur le téléphone et sur ses applications : un chiffre ou un point, doublé d'un texte lu à voix haute. */
+.news,
+.app__news {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #ff9214;
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.news {
+  top: -0.45rem;
+  right: -0.45rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.25rem;
 }
 
 /* ------------------------------------------------------------------ Carte */
@@ -293,6 +403,48 @@ kbd {
   height: 100%;
   touch-action: none;
   cursor: crosshair;
+}
+
+/* Le temps qu'il fait : un voile et la pluie, par-dessus la carte, sans gêner le pointeur. */
+.map .weather {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Zoom : deux boutons, en bas à droite de la carte. */
+.zoom {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.zoom__button {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 1.1rem;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 35%);
+}
+
+.zoom__button:hover {
+  background: #2c3b49;
+}
+
+/* En butée : le bouton reste là, mais se montre inactif. */
+.zoom__button[aria-disabled='true'] {
+  border-color: #b9c0c7;
+  background: #5d6b78;
+  color: #cfd5da;
+  cursor: default;
+  box-shadow: none;
 }
 
 .prompt {
@@ -577,6 +729,7 @@ kbd {
 }
 
 .app {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 0.4rem;
@@ -602,6 +755,14 @@ kbd {
 
 .app:hover .app__icon {
   background: var(--accent);
+}
+
+.app__news {
+  top: 0.1rem;
+  left: calc(50% + 1.25rem);
+  width: 1.1rem;
+  height: 1.1rem;
+  border-color: var(--paper);
 }
 
 .minimap {
@@ -701,7 +862,7 @@ kbd {
 }
 
 @media (max-width: 34rem) {
-  .hud-button span {
+  .hud-button__label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -711,8 +872,60 @@ kbd {
   }
 
   .hud-button kbd,
+  .mission-bar kbd,
   .prompt__hint kbd {
     display: none;
+  }
+
+  /* Barre resserrée : la carte doit garder l'essentiel de l'écran. */
+  .hud {
+    gap: 0.35rem 0.75rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .chip {
+    padding: 0.1rem 0.6rem;
+    font-size: 0.875rem;
+  }
+
+  .chip__extra,
+  .mission-bar .chip__bar {
+    display: none;
+  }
+
+  .mission-bar {
+    gap: 0.2rem 0.6rem;
+    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
+    font-size: 0.875rem;
+  }
+
+  .mission-bar__label {
+    padding: 0.3rem;
+  }
+
+  .mission-bar__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mission-bar__text {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .mission-bar__meta {
+    flex: 1 1 100%;
+    margin-left: 0;
+    padding-left: 2.2rem;
+  }
+
+  /* Le nom du lieu ne passe jamais sous les boutons de zoom. */
+  .prompt {
+    max-width: calc(100% - 8.5rem);
   }
 
   .dialog__panel {
@@ -737,6 +950,11 @@ kbd {
   }
 }
 
+/* Le ciel change en douceur, sauf si les animations sont réduites. */
+:root:not([data-motion='reduced']) .map .weather {
+  transition: background-color 1.8s ease;
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -746,6 +964,9 @@ kbd {
 
 @media (forced-colors: active) {
   .hud-button,
+  .mission-bar,
+  .chip--button,
+  .zoom__button,
   .button,
   .place-row,
   .prompt__button {
@@ -773,6 +994,16 @@ kbd {
 
 .dialog--docked::backdrop {
   background: rgb(16 22 30 / 14%);
+}
+
+/* Moment de récit : même place que la crise, sans le rouge de l'alerte. */
+.dialog--story {
+  width: min(38rem, calc(100vw - 1.5rem));
+  border-top-color: var(--ink);
+}
+
+.dialog--story::backdrop {
+  background: transparent;
 }
 
 .dialog__kicker .tag {
@@ -1271,14 +1502,6 @@ meter {
   background: #8fd19e;
 }
 
-#hud-clock[data-urgent='true'] {
-  border-color: #ffb07c;
-}
-
-#hud-clock[data-urgent='true'] .chip__bar > span {
-  background: #ff9214;
-}
-
 .toasts {
   position: absolute;
   top: 0.75rem;
@@ -1356,6 +1579,79 @@ meter {
   border-left: 0.4rem solid var(--accent);
   border-radius: var(--radius);
   background: var(--paper-2);
+}
+
+.hint__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Avertissement avant de clore une phase en laissant des gestes faisables. */
+.warning {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 0.4rem solid #ff9214;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+/* -------------------------------------------- Téléphone : vigilance et partie */
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.facts dt {
+  font-weight: 700;
+}
+
+.level-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+/* Sur fond clair, un filet sombre détache les pastilles, la jaune surtout. */
+.dialog .swatch {
+  filter: drop-shadow(0 0 0.5px #1b2733) drop-shadow(0 0 0.5px #1b2733);
+}
+
+.scale {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.scale__level {
+  padding: 0.5rem 0.9rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.bulletin > h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1.0625rem;
+}
+
+.restart {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.restart dd {
+  margin-bottom: 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
 }
 
 .mission-place {

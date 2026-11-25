@@ -12,15 +12,19 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**.
 
-1. **Préparation.** Le maire confie sa première mission au joueur : consulter le DICRIM, préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, convenir d'un abri avec une voisine isolée, lire le repère de crue, vérifier les consignes du camping, préparer le centre d'hébergement. La journée ne se termine que lorsque tout est fait, ou que la nuit tombe.
+1. **Préparation.** Le maire confie sa première mission au joueur : consulter le DICRIM, préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, convenir d'un abri avec une voisine isolée, lire le repère de crue, vérifier les consignes du camping, préparer le centre d'hébergement. La journée se termine quand le joueur le décide — une confirmation lui rappelle les gestes encore faisables — ou à la tombée de la nuit.
 2. **Vigilance orange.** Ce qui a été préparé peut être installé ; le reste, il est trop tard.
 3. **Crue.** Six décisions à prendre pendant que l'eau monte sur la carte.
 4. **Bilan.** Ce qui a tenu, ce qui a été touché, pourquoi, avec la source officielle de chaque consigne. Un indice de préparation et des badges.
 
 Autour de ce chapitre :
 
-- **Le DICRIM de Val-d'Aléa**, un vrai document à feuilleter : mot du maire, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Chaque carte peut s'afficher sur le plan du jeu.
-- **Le carnet de mission**, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
+- **Le récit entre les phases** : aucune alerte n'arrive sans prévenir. Un court moment de récit la précède, pendant lequel le joueur voit le soir tomber, la pluie arriver et l'eau monter sur la carte. Rien n'avance tout seul : c'est lui qui passe à la suite.
+- **La barre d'état** : le temps qu'il fait et le niveau de vigilance, qui ouvrent le détail (les quatre niveaux de vigilance, les messages reçus), et le bandeau de mission, qui dit toujours quoi faire ensuite, avec le temps restant et l'avancement.
+- **Le DICRIM de Val-d'Aléa**, un vrai document à feuilleter : mot des élus, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Chaque carte peut s'afficher sur le plan du jeu.
+- **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
+- **Le téléphone**, tableau de bord du jeu : une pastille y signale ce qui vient d'arriver (une alerte, le DICRIM, le bilan). On y rejoue le chapitre ou on y recommence la partie, dans les réglages.
+- **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
 - **Les vues rapprochées** des lieux, en fausse 3D, qui reflètent les gestes accomplis et la hauteur de l'eau.
 
@@ -53,7 +57,9 @@ Toute consigne de sécurité affichée dans le jeu reprend une page officielle, 
 - `src/content/lexique.ts` : les définitions du lexique.
 - `src/content/places.ts` : textes de présentation des lieux (aucune consigne).
 
-Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
+Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
+
+Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne.
 
 Pour modifier une consigne : relire la page officielle, corriger le texte, mettre à jour la date `consulte` de la source. Les tests refusent une consigne sans source.
 
@@ -66,7 +72,7 @@ Aucune dépendance à l'exécution : TypeScript, l'API Canvas 2D, SVG et le DOM.
 | `src/core` | Géométrie, état de la partie, sauvegarde, règles du chapitre (phases, temps, bilan). Sans DOM, testable seul. |
 | `src/world` | Plan de la commune (`valdalea.ts`), grille de franchissabilité, calcul d'itinéraire, relief et inondation, zones de risque. Sans DOM. |
 | `src/content` | Textes et contenus de prévention, séparés du code pour être relus facilement. |
-| `src/render` | Dessin du plan, mis en cache par tuiles, cartes de risques, nappes d'eau et éléments animés. |
+| `src/render` | Dessin du plan, mis en cache par tuiles, cartes de risques, nappes d'eau, temps qu'il fait (voile et pluie) et éléments animés. |
 | `src/game` | Boucle de jeu, entrées clavier et pointeur, caméra. |
 | `src/ui` | Interface en HTML : barre, fenêtres, téléphone, fiches de lieux, carnet de mission, DICRIM, schémas, déroulé du chapitre. |
 | `src/ui/scenes` | Vues rapprochées des lieux, dessinées en SVG. |
@@ -81,16 +87,17 @@ Le jeu vise les critères du RGAA :
 - l'interface est en HTML sémantique, les fenêtres utilisent l'élément natif `<dialog>` ;
 - tout se fait au clavier, et le focus reste visible ;
 - la carte et les illustrations ne sont pas indispensables : la liste des lieux, le carnet de mission et la liste des gestes en sont l'alternative, et chaque carte de risque est décrite en toutes lettres ;
-- rien n'est chronométré ;
+- rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;
+- la pluie et la lumière du soir sont un décor : le temps qu'il fait est aussi écrit dans la barre d'état ;
 - aucune information ne repose sur la couleur seule (niveaux de vigilance, zones des cartes, états des gestes, résultats du bilan) ;
-- les animations se désactivent, et suivent par défaut le réglage du système.
+- les animations se désactivent, et suivent par défaut le réglage du système : la pluie reste alors visible, mais immobile.
 
 Aucun audit de conformité n'a encore été réalisé.
 
 ## Feuille de route
 
 1. **Socle** : carte, déplacement, lieux, téléphone, sauvegarde. *Fait.*
-2. **Inondation, de bout en bout** : vues rapprochées, gestes de prévention, vigilance, crue, bilan, DICRIM complet, carnet de mission, premiers badges. *Fait.*
+2. **Inondation, de bout en bout** : vues rapprochées, gestes de prévention, vigilance, crue, bilan, DICRIM complet, carnet de mission, récit et météo, premiers badges. *Fait.*
 3. **Autres risques naturels et technologiques** : rendre jouables le feu de forêt, l'accident industriel, les argiles, les cavités et les chutes de blocs, déjà cartographiés ; tempête ; calendrier des saisons.
 4. **Finition** : tutoriel, son, page de ressources officielles, plan individuel de mise en sûreté.
 5. **Extensions** : risques sanitaires et sociétaux, mode hors ligne.

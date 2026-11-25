@@ -1,5 +1,5 @@
-import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, FLOOD, SITUATIONS, STAKES } from '../content/inondation';
-import type { ActionDef, Bulletin } from '../content/model';
+import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, FLOOD, SITUATIONS, STAKES, STORY } from '../content/inondation';
+import type { ActionDef, Bulletin, SkyId, StoryCard, VigilanceLevel } from '../content/model';
 import { answer, assess, currentSituation, isTimeUp, nextPhase, type Assessment, type Chapter, type Phase } from '../core/chapter';
 import type { Vec } from '../core/geometry';
 import { createDialog, type DialogHandle } from './dialog';
@@ -7,10 +7,22 @@ import { bilanContent, bulletinContent, mountQuestion } from './documents';
 import { h } from './dom';
 
 /**
- * Déroulé du chapitre : bulletins, passage d'une phase à l'autre, séquence de
- * crise et bilan. C'est ici que le récit s'enchaîne ; les règles, elles, sont
- * dans `core/chapter`.
+ * Déroulé du chapitre : moments de récit, bulletins, passage d'une phase à
+ * l'autre, séquence de crise et bilan. C'est ici que le récit s'enchaîne ; les
+ * règles, elles, sont dans `core/chapter`.
+ *
+ * Aucune alerte n'arrive sans prévenir : un moment de récit la précède, pendant
+ * lequel le joueur voit le ciel changer et l'eau monter sur la carte. Rien
+ * n'avance tout seul : c'est lui qui passe à la suite.
  */
+
+/** Ce que la barre d'état et la carte montrent pendant un moment de récit, à la place de l'état de la phase. */
+export interface Scene {
+  vigilance: VigilanceLevel;
+  sky: SkyId;
+  /** Jour, heure et titre du moment, affichés à la place de la mission. */
+  caption: string;
+}
 
 export interface FlowDeps {
   getChapter(): Chapter;
@@ -29,11 +41,8 @@ export interface FlowDeps {
   goHome(): void;
   setFlood(level: number, immediate?: boolean): void;
   setFocus(point: Vec | null): void;
-  /**
-   * Niveau de vigilance à afficher le temps d'un bulletin qui précède la phase
-   * en cours (la vigilance jaune du samedi soir) ; `null` revient à l'affichage normal.
-   */
-  showVigilance(level: 'jaune' | null): void;
+  /** Met en scène un moment de récit ; `null` revient à l'état normal de la phase. */
+  stage(scene: Scene | null): void;
   /** Point de la carte à montrer pendant la crue. */
   crisisFocus: Vec;
   /** Élément qui reprend le focus à la fin d'une séquence. */
@@ -83,9 +92,35 @@ export function createFlow(deps: FlowDeps): Flow {
     await closed(bulletinDialog);
   }
 
-  const crisisDialog = createDialog({ id: 'crise', title: '', className: 'dialog--docked', closable: false });
   // Certains navigateurs ferment une fenêtre modale au second appui sur Échap, quoi qu'on demande.
-  // Tant qu'une décision est attendue, la fenêtre de crise est donc rouverte.
+  // Tant que le joueur doit y répondre, les fenêtres du récit et de la crise sont donc rouvertes.
+  const storyDialog = createDialog({ id: 'recit', title: '', className: 'dialog--docked dialog--story', closable: false });
+  let telling = false;
+  storyDialog.onClose(() => {
+    if (telling) storyDialog.open(deps.focusTarget);
+  });
+
+  const sceneOf = (card: StoryCard): Scene => ({ vigilance: card.vigilance, sky: card.sky, caption: `${card.when} — ${card.title}` });
+
+  /**
+   * Raconte un moment. La fenêtre est ancrée en bas de l'écran : au-dessus, la
+   * carte montre le ciel et la rivière de ce moment-là. `late` : la phase
+   * précédente s'est achevée faute de temps.
+   */
+  async function tell(card: StoryCard, late = false): Promise<void> {
+    deps.stage(sceneOf(card));
+    const paragraphs = late && card.late ? [card.late, ...card.paragraphs.slice(1)] : card.paragraphs;
+    const next = h('button', { type: 'button', class: 'button button--primary' }, card.next);
+    storyDialog.setTitle(card.title);
+    storyDialog.body.replaceChildren(h('p', { class: 'dialog__kicker' }, card.when), ...paragraphs.map((text) => h('p', null, text)), h('div', { class: 'dialog__actions' }, next));
+    telling = true;
+    if (storyDialog.isOpen) storyDialog.focusTitle();
+    else storyDialog.open(deps.focusTarget);
+    await new Promise<void>((resolve) => next.addEventListener('click', () => resolve(), { once: true }));
+    telling = false;
+  }
+
+  const crisisDialog = createDialog({ id: 'crise', title: '', className: 'dialog--docked', closable: false });
   let deciding = false;
   crisisDialog.onClose(() => {
     if (deciding) crisisDialog.open(deps.focusTarget);
@@ -103,36 +138,52 @@ export function createFlow(deps: FlowDeps): Flow {
     return reached.length > 0 ? reached[reached.length - 1].floodLevel : FLOOD.rising;
   }
 
-  /** Lance la séquence d'entrée dans la phase en cours. */
-  async function enter(phase: Phase): Promise<void> {
+  /**
+   * Lance la séquence d'entrée dans la phase en cours.
+   * @param late la phase précédente s'est achevée faute de temps, et non par décision du joueur
+   */
+  async function enter(phase: Phase, late = false): Promise<void> {
     if (busy) return;
     busy = true;
     try {
       deps.closePlace();
       if (phase === 'vigilance') {
-        deps.showVigilance('jaune');
-        await showBulletin(BULLETIN_JAUNE);
-        deps.showVigilance(null);
+        // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
         deps.goHome();
+        deps.setFocus(deps.crisisFocus);
+        await tell(STORY.soir, late);
+        storyDialog.close();
+        deps.stage({ ...sceneOf(STORY.soir), vigilance: 'jaune' });
+        await showBulletin(BULLETIN_JAUNE);
+        await tell(STORY.nuit);
         deps.setFlood(FLOOD.rising);
+        await tell(STORY.matin);
+        storyDialog.close();
+        deps.stage(null);
         await showBulletin(BULLETIN_ORANGE);
+        deps.setFocus(null);
         deps.announce('Vigilance orange. Vous êtes chez vous.');
       } else if (phase === 'crise') {
-        await runCrisis();
+        await runCrisis(late);
       } else if (phase === 'bilan') {
         await showBilan(true);
       }
     } finally {
       busy = false;
+      deps.stage(null);
     }
   }
 
-  async function runCrisis(): Promise<void> {
+  async function runCrisis(late: boolean): Promise<void> {
     deps.goHome();
     deps.setFocus(deps.crisisFocus);
     const first = currentSituation(deps.getChapter(), SITUATIONS);
     if (first === SITUATIONS[0]) {
-      deps.setFlood(FLOOD.rising);
+      // L'eau franchit le quai pendant que le joueur lit : il la voit avant que l'alerte ne sonne.
+      deps.setFlood(SITUATIONS[0].floodLevel);
+      await tell(STORY.abri, late);
+      storyDialog.close();
+      deps.stage(null);
       await showBulletin(BULLETIN_ROUGE);
     } else {
       deps.setFlood(floodLevel(), true);
@@ -150,7 +201,6 @@ export function createFlow(deps: FlowDeps): Flow {
           tone: 'crise',
           onAnswer: (chosen) => deps.setChapter((chapter) => answer(chapter, situation.id, chosen[0])),
           onContinue: resolve,
-          continueLabel: index + 1 < SITUATIONS.length ? 'Continuer' : 'Voir le bilan',
         });
         if (crisisDialog.isOpen) crisisDialog.focusTitle();
         else crisisDialog.open(deps.focusTarget);
@@ -158,8 +208,12 @@ export function createFlow(deps: FlowDeps): Flow {
     }
     deciding = false;
     crisisDialog.close();
-    await closed(crisisDialog);
+    // La décrue : la pluie cesse, l'eau se retire, puis vient le bilan.
+    deps.setFlood(FLOOD.receding);
+    await tell(STORY.decrue);
+    storyDialog.close();
     deps.setChapter(nextPhase);
+    deps.stage(null);
     await showBilan(true);
   }
 
@@ -193,9 +247,8 @@ export function createFlow(deps: FlowDeps): Flow {
   function check(): boolean {
     const chapter = deps.getChapter();
     if (busy || !isTimeUp(chapter)) return false;
-    deps.announce(chapter.phase === 'preparation' ? 'La nuit tombe.' : "L'eau monte : vous rentrez vous mettre à l'abri.");
     deps.setChapter(nextPhase);
-    void enter(deps.getChapter().phase);
+    void enter(deps.getChapter().phase, true);
     return true;
   }
 
