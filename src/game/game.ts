@@ -2,10 +2,11 @@ import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
 import { floodLayer, hazardLayer, type WaterLayer } from '../render/flood';
 import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
+import { paintRisk } from '../render/riskmap';
 import { TILE_SIZE, TileCache } from '../render/tiles';
 import type { Elevation } from '../world/elevation';
 import type { WalkGrid } from '../world/grid';
-import { sectorAt, type Commune, type Place, type Sector } from '../world/model';
+import { sectorAt, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
 import { INTERACT_RADIUS, PLAYER_RADIUS, RUN_SPEED, WALK_SPEED } from './constants';
 import { Input, type Action } from './input';
@@ -25,7 +26,7 @@ export interface GameHooks {
   sectorChanged(sector: Sector | null): void;
   /** Le joueur demande à ouvrir le lieu devant lequel il se trouve. */
   interact(place: Place): void;
-  shortcut(action: 'phone' | 'places' | 'help'): void;
+  shortcut(action: 'phone' | 'places' | 'help' | 'mission'): void;
   /** Position du joueur, signalée au plus une fois par seconde et à chaque pause. */
   moved(pos: Vec): void;
   /** Distance que le joueur vient de parcourir, en unités monde : le temps de jeu en dépend. */
@@ -84,8 +85,8 @@ export class Game {
   private sinceRoute = ROUTE_INTERVAL;
   private stuckFor = 0;
 
-  /** Niveau de la zone inondable affichée (crue de référence), ou `null` si elle est masquée. */
-  private hazardLevel: number | null = null;
+  /** Carte de risque affichée par-dessus le plan, ou `null`. */
+  private hazardRisk: RiskId | null = null;
   /** Niveau de la crue à l'écran, qui rejoint progressivement `floodTarget`. */
   private floodLevel = 0;
   private floodTarget = 0;
@@ -172,10 +173,10 @@ export class Game {
     this.moveTo(place.pos);
   }
 
-  /** Affiche ou masque la zone inondable, pour une crue du niveau donné. */
-  setHazardZone(level: number | null): void {
-    this.hazardLevel = level;
-    if (level !== null) this.hazard.setLevel(level);
+  /** Affiche une carte de risque par-dessus le plan, ou la retire (`null`). */
+  setHazardLayer(risk: RiskId | null): void {
+    if (risk === this.hazardRisk) return;
+    this.hazardRisk = risk;
     this.dirty = true;
   }
 
@@ -188,7 +189,7 @@ export class Game {
 
   /** Dessine la zone inondable et la crue sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
   paintWater(ctx: CanvasRenderingContext2D): void {
-    if (this.hazardLevel !== null) this.hazard.draw(ctx);
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.hazard);
     if (this.floodLevel > 0.02) {
       this.flood.setLevel(this.floodLevel);
       this.flood.draw(ctx);
@@ -492,7 +493,7 @@ export class Game {
     if (missing) this.dirty = true;
 
     ctx.setTransform(scale, 0, 0, scale, -origin.x, -origin.y);
-    if (this.hazardLevel !== null) this.hazard.draw(ctx);
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 13, this.hazard);
     if (this.floodLevel > 0.02) {
       this.flood.setLevel(this.floodLevel);
       this.flood.draw(ctx);
@@ -515,6 +516,59 @@ export class Game {
       });
     }
     paintPlayer(ctx, this.player);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.paintPointers(origin);
+  }
+
+  /**
+   * Flèches au bord de l'écran, vers les lieux où il reste un geste à faire et
+   * qui sont hors champ : le joueur sait toujours dans quelle direction aller.
+   */
+  private paintPointers(origin: Vec): void {
+    const { ctx, canvas, scale } = this;
+    const unit = canvas.width / Math.max(1, this.surface.clientWidth); // un pixel CSS, en pixels de l'image
+    const margin = 30 * unit;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    for (const place of this.commune.places) {
+      const todo = this.hooks.pendingAt(place.id);
+      if (todo === 0) continue;
+      const x = place.pos.x * scale - origin.x;
+      const y = place.pos.y * scale - origin.y;
+      if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) continue;
+      // Point du bord de l'écran dans la direction du lieu.
+      const dx = x - cx;
+      const dy = y - cy;
+      const reach = Math.min((cx - margin) / Math.abs(dx || 1e-6), (cy - margin) / Math.abs(dy || 1e-6));
+      const px = cx + dx * reach;
+      const py = cy + dy * reach;
+      const angle = Math.atan2(dy, dx);
+      const r = 13 * unit;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.fillStyle = '#b93d0a';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 * unit;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * (r + 9 * unit), Math.sin(angle) * (r + 9 * unit));
+      ctx.lineTo(Math.cos(angle + 0.55) * r, Math.sin(angle + 0.55) * r);
+      ctx.lineTo(Math.cos(angle - 0.55) * r, Math.sin(angle - 0.55) * r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${12 * unit}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(Math.min(9, todo)), 0, 0.5 * unit);
+      ctx.restore();
+    }
   }
 }
 

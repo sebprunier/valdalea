@@ -1,16 +1,34 @@
-import { ACTIONS, FLOOD, OBJECTIVES } from '../content/inondation';
-import { clockLabel, formatDuration, isTimed, MINUTES_PER_UNIT, newChapter, pendingAt, perform, spend, type Chapter, type Phase } from '../core/chapter';
+import { ACTIONS, OBJECTIVES } from '../content/inondation';
+import {
+  clockLabel,
+  formatDuration,
+  isTimed,
+  MINUTES_PER_UNIT,
+  newChapter,
+  pendingAt,
+  perform,
+  spend,
+  timeAlert,
+  TIMED_PHASES,
+  type Chapter,
+  type Phase,
+} from '../core/chapter';
 import { DEFAULT_SETTINGS, markVisited, newGame, withBadges, withChapter, type GameState } from '../core/state';
 import type { Store } from '../core/store';
 import type { Game } from '../game/game';
+import { RISK_NAMES } from '../render/riskmap';
 import type { Elevation } from '../world/elevation';
-import { findPlace, type Commune, type Place, type Sector } from '../world/model';
+import { exposuresAt, isExposed } from '../world/hazards';
+import { findPlace, RISK_IDS, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
+import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, requireElement } from './dom';
 import { createFlow } from './flow';
+import { createMission } from './mission';
 import { createPhone } from './phone';
 import { createPlaceUi } from './place';
 import { createHelpDialog, createPlacesDialog, createStartDialog } from './screens';
+import { createToaster } from './toast';
 
 /** Ce dont l'interface a besoin du reste du jeu. */
 export interface UiDeps {
@@ -24,11 +42,13 @@ export interface UiDeps {
   setReducedMotion(reduced: boolean): void;
 }
 
+export type Panel = 'phone' | 'places' | 'help' | 'mission';
+
 export interface Ui {
   setNearPlace(place: Place | null): void;
   setSector(sector: Sector | null): void;
   openPlace(place: Place): void;
-  openPanel(panel: 'phone' | 'places' | 'help', trigger?: HTMLElement | null): void;
+  openPanel(panel: Panel, trigger?: HTMLElement | null): void;
   /** Le joueur vient de parcourir cette distance à pied : le temps du jeu avance. */
   walked(units: number): void;
   showStart(): void;
@@ -50,24 +70,53 @@ export function createUi(deps: UiDeps): Ui {
   const vigilanceText = requireElement<HTMLElement>('hud-vigilance-text');
   const clockChip = requireElement<HTMLElement>('hud-clock');
   const clockText = requireElement<HTMLElement>('hud-clock-text');
+  const clockBar = requireElement<HTMLElement>('hud-clock-bar');
   const objective = requireElement<HTMLElement>('hud-objective');
   const prompt = requireElement<HTMLElement>('prompt');
   const promptButton = requireElement<HTMLButtonElement>('prompt-button');
   const promptName = requireElement<HTMLElement>('prompt-name');
   const announce = createAnnouncer(requireElement<HTMLElement>('announcer'));
+  const toasts = requireElement<HTMLElement>('toasts');
+  const toast = createToaster(toasts);
 
   setFallbackFocus(map);
   onModalChange((anyOpen) => game.setPaused(anyOpen));
 
   const chapter = (): Chapter => store.get().chapter;
-  const setChapter = (recipe: (chapter: Chapter) => Chapter): void => store.update((state) => withChapter(state, recipe(state.chapter)));
   const dicrimRead = (): boolean => chapter().done.includes('mairie-dicrim');
   const home = findPlace(commune, 'domicile')?.pos ?? commune.spawn;
+
+  /** Modifie le chapitre, et prévient le joueur si le temps commence à manquer. */
+  function setChapter(recipe: (chapter: Chapter) => Chapter): void {
+    const before = chapter();
+    store.update((state) => withChapter(state, recipe(state.chapter)));
+    const after = chapter();
+    if (after.phase !== before.phase || !isTimed(after.phase)) return;
+    const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
+    if (threshold === null) return;
+    const left = formatDuration(after.minutesLeft);
+    toast(after.phase === 'preparation' ? `Le temps presse : il vous reste ${left} avant la nuit.` : `L'eau monte : il vous reste ${left} pour vous mettre à l'abri.`);
+  }
 
   let near: Place | null = null;
   let sectorName = commune.name;
   /** Vigilance affichée le temps d'un bulletin, à la place de celle de la phase. */
   let interlude: 'jaune' | null = null;
+
+  function setLayer(risk: RiskId | null): void {
+    store.update((state) => (state.settings.hazardLayer === risk ? state : { ...state, settings: { ...state.settings, hazardLayer: risk } }));
+  }
+
+  // ------------------------------------------------------------- Documents
+  const dicrim = createDicrimViewer({
+    commune,
+    elevation,
+    overview: game.overview,
+    showOnMap: (risk) => {
+      setLayer(risk);
+      toast(`Carte affichée sur le plan : ${RISK_NAMES[risk].toLowerCase()}. Vous pouvez la changer dans le téléphone, application Carte.`);
+    },
+  });
 
   // ------------------------------------------------------------- Déroulé
   const flow = createFlow({
@@ -75,8 +124,8 @@ export function createUi(deps: UiDeps): Ui {
     setChapter,
     getBadges: () => store.get().badges,
     addBadges: (ids) => store.update((state) => withBadges(state, ids)),
-    isHazardShown: () => store.get().settings.hazardLayer,
-    setHazardShown,
+    showFloodZone: () => setLayer('inondation'),
+    openDicrim: (returnFocus) => dicrim.open(returnFocus),
     replay,
     closePlace: () => placeUi.close(),
     goHome: () => game.moveTo(home),
@@ -91,10 +140,6 @@ export function createUi(deps: UiDeps): Ui {
     focusTarget: map,
     announce,
   });
-
-  function setHazardShown(shown: boolean): void {
-    store.update((state) => (state.settings.hazardLayer === shown ? state : { ...state, settings: { ...state.settings, hazardLayer: shown } }));
-  }
 
   /** Recommence le chapitre : les badges, les lieux visités et les réglages sont conservés. */
   function replay(): void {
@@ -113,23 +158,25 @@ export function createUi(deps: UiDeps): Ui {
     commune,
     getChapter: chapter,
     getWater: (place) => ({ depth: elevation.depthAt(place.pos, flow.floodLevel()), flood: flow.floodLevel() }),
-    isExposed: (place) => (dicrimRead() ? elevation.isFlooded(place.pos, FLOOD.reference) : null),
-    perform: (action) => setChapter((current) => perform(current, action)),
+    getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
+    getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
+    perform: (action) => setChapter((current) => perform(current, action, ACTIONS)),
     afterAction: (action) => void flow.afterAction(action),
   });
 
-  const placesDialog = createPlacesDialog(
-    commune,
-    (place) => {
-      game.travelTo(place);
-      // Si le trajet a épuisé le temps de la phase, la suite du récit prend la main.
-      if (!flow.isBusy()) openPlace(place);
-    },
-    (place) => ({
-      pending: pendingAt(ACTIONS, chapter(), place.id),
-      exposed: dicrimRead() ? elevation.isFlooded(place.pos, FLOOD.reference) : null,
-    }),
-  );
+  /** Emmène le joueur dans un lieu (le trajet compte), puis l'ouvre. */
+  function goTo(place: Place): void {
+    game.travelTo(place);
+    // Si le trajet a épuisé le temps de la phase, la suite du récit prend la main.
+    if (!flow.isBusy()) openPlace(place);
+  }
+
+  const placesDialog = createPlacesDialog(commune, goTo, (place) => ({
+    pending: pendingAt(ACTIONS, chapter(), place.id),
+    exposed: dicrimRead() ? RISK_IDS.some((risk) => isExposed(commune, elevation, risk, place.pos)) : null,
+  }));
+
+  const mission = createMission({ commune, getChapter: chapter, getPlayer: () => game.position, goTo });
 
   async function restart(): Promise<boolean> {
     const confirmed = await confirm({
@@ -157,7 +204,8 @@ export function createUi(deps: UiDeps): Ui {
     getBulletins: () => flow.bulletins(),
     getAssessment: () => flow.assessment(),
     isDicrimRead: dicrimRead,
-    setHazardShown,
+    openDicrim: () => dicrim.open(null),
+    setLayer,
     isReducedMotion: deps.isReducedMotion,
     setReducedMotion: deps.setReducedMotion,
     replay,
@@ -175,7 +223,7 @@ export function createUi(deps: UiDeps): Ui {
   });
   // Une fois l'accueil refermé, on reprend le récit là où il en était.
   startDialog.onClose(() => {
-    announce(OBJECTIVES[chapter().phase]);
+    announce(mission.hint().text);
     flow.resume();
   });
 
@@ -186,17 +234,20 @@ export function createUi(deps: UiDeps): Ui {
     placeUi.show(place, map);
   }
 
-  function openPanel(panel: 'phone' | 'places' | 'help', trigger: HTMLElement | null = map): void {
+  function openPanel(panel: Panel, trigger: HTMLElement | null = map): void {
+    if (flow.isBusy()) return;
     if (panel === 'phone') phone.open(trigger);
     else if (panel === 'help') helpDialog.open(trigger);
+    else if (panel === 'mission') mission.open(trigger);
     else placesDialog.show(game.position, store.get().visited, trigger);
   }
 
   // Boutons de la barre : au clavier, le focus revient sur le bouton ; à la souris, sur la carte.
-  const bind = (id: string, panel: 'phone' | 'places' | 'help'): void => {
+  const bind = (id: string, panel: Panel): void => {
     const button = requireElement<HTMLButtonElement>(id);
     button.addEventListener('click', (event) => openPanel(panel, event.detail === 0 ? button : map));
   };
+  bind('button-mission', 'mission');
   bind('button-places', 'places');
   bind('button-phone', 'phone');
   bind('button-help', 'help');
@@ -219,15 +270,26 @@ export function createUi(deps: UiDeps): Ui {
 
     const clock = interlude ? null : clockLabel(current);
     clockChip.hidden = clock === null;
-    if (clock !== null) clockText.textContent = `${clock} — reste ${formatDuration(current.minutesLeft)}`;
+    if (clock !== null && isTimed(current.phase)) {
+      clockText.textContent = `${clock} — reste ${formatDuration(current.minutesLeft)}`;
+      const share = current.minutesLeft / TIMED_PHASES[current.phase].minutes;
+      clockBar.style.width = `${Math.round(share * 100)}%`;
+      // Le temps qui presse se lit dans le texte ; la couleur ne fait que le souligner.
+      clockChip.dataset.urgent = String(current.minutesLeft <= 60);
+    }
 
-    objective.textContent = OBJECTIVES[current.phase];
-    if (shownPhase !== null && shownPhase !== current.phase) announce(OBJECTIVES[current.phase]);
+    // L'objectif affiché est le conseil du moment : il dit toujours quoi faire ensuite.
+    objective.textContent = mission.hint().text;
+    if (shownPhase !== null && shownPhase !== current.phase) {
+      announce(OBJECTIVES[current.phase]);
+      // Les messages de la phase précédente (« le temps presse ») n'ont plus lieu d'être.
+      toasts.replaceChildren();
+    }
     shownPhase = current.phase;
 
-    // Pendant la crue, c'est l'eau elle-même qui se voit : la zone inondable théorique s'efface.
-    const showZone = state.settings.hazardLayer && current.done.includes('mairie-dicrim') && current.phase !== 'crise';
-    game.setHazardZone(showZone ? FLOOD.reference : null);
+    // Pendant la crue, c'est l'eau elle-même qui se voit : les zones théoriques s'effacent.
+    const layer = state.settings.hazardLayer as RiskId | null;
+    game.setHazardLayer(layer && current.done.includes('mairie-dicrim') && current.phase !== 'crise' ? layer : null);
     game.invalidate();
   }
   store.subscribe(sync);

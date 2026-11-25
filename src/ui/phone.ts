@@ -1,12 +1,14 @@
-import { BADGES, DICRIM } from '../content/inondation';
+import { BADGES } from '../content/inondation';
+import { LEXICON } from '../content/lexique';
 import type { Bulletin } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import type { Assessment } from '../core/chapter';
 import type { Vec } from '../core/geometry';
 import type { GameState } from '../core/state';
-import type { Commune } from '../world/model';
+import { RISK_NAMES } from '../render/riskmap';
+import { RISK_IDS, type Commune, type RiskId } from '../world/model';
 import { createDialog } from './dialog';
-import { badgeList, bilanContent, bulletinContent, dicrimContent } from './documents';
+import { badgeList, bilanContent, bulletinContent, lexiconEntry } from './documents';
 import { h, icon, type IconName } from './dom';
 
 /**
@@ -26,7 +28,10 @@ export interface PhoneDeps {
   getBulletins(): Bulletin[];
   getAssessment(): Assessment | null;
   isDicrimRead(): boolean;
-  setHazardShown(shown: boolean): void;
+  /** Ouvre le DICRIM par-dessus le téléphone. */
+  openDicrim(): void;
+  /** Affiche une carte de risque sur le plan du jeu, ou aucune. */
+  setLayer(risk: RiskId | null): void;
   isReducedMotion(): boolean;
   setReducedMotion(reduced: boolean): void;
   /** Recommence le chapitre en gardant les badges. */
@@ -39,13 +44,14 @@ export interface Phone {
   open(returnFocus: HTMLElement | null): void;
 }
 
-type View = 'accueil' | 'carte' | 'carnet' | 'alertes' | 'dicrim' | 'bilan' | 'reglages';
+type View = 'accueil' | 'carte' | 'carnet' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages';
 
 const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconName }> = [
   { view: 'carte', label: 'Carte', icon: 'carte' },
   { view: 'alertes', label: 'Alertes', icon: 'alerte' },
   { view: 'dicrim', label: 'DICRIM', icon: 'document' },
-  { view: 'carnet', label: 'Carnet', icon: 'carnet' },
+  { view: 'lexique', label: 'Lexique', icon: 'aide' },
+  { view: 'carnet', label: 'Lieux', icon: 'carnet' },
   { view: 'bilan', label: 'Bilan', icon: 'medaille' },
   { view: 'reglages', label: 'Réglages', icon: 'reglages' },
 ];
@@ -53,9 +59,10 @@ const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconNam
 const TITLES: Record<View, string> = {
   accueil: 'Téléphone',
   carte: 'Carte',
-  carnet: 'Carnet',
+  carnet: 'Lieux découverts',
   alertes: 'Alertes',
   dicrim: 'DICRIM',
+  lexique: 'Lexique',
   bilan: 'Bilan et badges',
   reglages: 'Réglages',
 };
@@ -82,19 +89,32 @@ export function createPhone(deps: PhoneDeps): Phone {
   const mapCanvas = h('canvas', { class: 'minimap', role: 'img' });
   const mapWhere = h('p', { class: 'phone__where' });
   const mapLegend = h('ol', { class: 'legend' });
-  const mapZone = h('input', { type: 'checkbox', id: 'carte-zone' });
-  mapZone.addEventListener('change', () => {
-    deps.setHazardShown(mapZone.checked);
-    renderMap();
-  });
-  const mapZoneField = h('div', { class: 'field' }, mapZone, h('label', { for: 'carte-zone' }, 'Afficher la zone inondable'), h('p', { class: 'fine-print' }, 'En violet sur le plan.'));
+  // Couches de risque : une seule à la fois, comme sur les cartes officielles.
+  const layerInputs = new Map<string, HTMLInputElement>();
+  const layerChoice = (value: string, label: string): HTMLElement => {
+    const id = `couche-${value}`;
+    const input = h('input', { type: 'radio', name: 'couche', id, value });
+    input.addEventListener('change', () => {
+      deps.setLayer(value === 'aucune' ? null : (value as RiskId));
+      renderMap();
+    });
+    layerInputs.set(value, input);
+    return h('div', { class: 'check' }, input, h('label', { for: id }, label));
+  };
+  const mapZoneField = h(
+    'fieldset',
+    { class: 'choices' },
+    h('legend', null, 'Carte de risque à afficher'),
+    layerChoice('aucune', 'Aucune'),
+    ...RISK_IDS.map((risk) => layerChoice(risk, RISK_NAMES[risk])),
+  );
   const mapView = h(
     'div',
     { class: 'stack' },
     mapWhere,
     mapCanvas,
-    mapZoneField,
     h('p', { class: 'fine-print' }, 'Votre position est le point orange. Les numéros renvoient à la liste ci-dessous.'),
+    mapZoneField,
     mapLegend,
   );
 
@@ -102,7 +122,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     const state = deps.getState();
     const player = deps.getPlayer();
     mapZoneField.hidden = !deps.isDicrimRead();
-    mapZone.checked = state.settings.hazardLayer;
+    for (const [value, input] of layerInputs) input.checked = value === (state.settings.hazardLayer ?? 'aucune');
     mapWhere.textContent = `Vous êtes ici : ${deps.getSectorName()}.`;
     mapCanvas.setAttribute(
       'aria-label',
@@ -201,14 +221,24 @@ export function createPhone(deps: PhoneDeps): Phone {
   const dicrimView = h('div', { class: 'stack' });
 
   function renderDicrim(): void {
-    if (deps.isDicrimRead()) dicrimView.replaceChildren(dicrimContent(DICRIM));
-    else {
+    if (deps.isDicrimRead()) {
+      const open = h('button', { type: 'button', class: 'button button--primary' }, 'Ouvrir le DICRIM');
+      open.addEventListener('click', () => deps.openDicrim());
+      dicrimView.replaceChildren(
+        h('p', { class: 'lead' }, "Le document d'information communal sur les risques majeurs de Val-d'Aléa."),
+        h('p', null, "Six risques, une carte pour chacun, les bons réflexes et un mémo à conserver. Vous l'avez consulté à la mairie ; il reste disponible ici."),
+        open,
+      );
+    } else {
       dicrimView.replaceChildren(
         h('p', { class: 'lead' }, "Vous n'avez pas encore consulté le DICRIM."),
         h('p', null, "Le document d'information communal sur les risques majeurs se consulte à la mairie. Une fois lu, il reste disponible ici."),
       );
     }
   }
+
+  // ---------------------------------------------------------------- Lexique
+  const lexiconView = h('div', { class: 'stack' }, h('p', null, 'Les mots de la prévention, expliqués simplement.'), ...LEXICON.map((entry) => lexiconEntry(entry, 'h3')));
 
   // ------------------------------------------------------------------ Bilan
   const bilanView = h('div', { class: 'stack' });
@@ -257,6 +287,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     carnet: notebookView,
     alertes: alertsView,
     dicrim: dicrimView,
+    lexique: lexiconView,
     bilan: bilanView,
     reglages: settingsView,
   };

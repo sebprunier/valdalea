@@ -10,6 +10,7 @@ import { createUi, type Ui } from './ui/app';
 import { requireElement } from './ui/dom';
 import { buildElevation } from './world/elevation';
 import { buildRoadMask, buildWalkGrid } from './world/grid';
+import { RISK_IDS } from './world/model';
 import { Pathfinder } from './world/pathfinding';
 import { buildValDAlea } from './world/valdalea';
 
@@ -24,6 +25,7 @@ const saved = loadGame(storage, {
   actionIds: new Set(ACTIONS.map((action) => action.id)),
   situationChoices: new Map(SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
   badgeIds: new Set(BADGES.map((badge) => badge.id)),
+  riskIds: new Set(RISK_IDS),
   isFree: (pos) => grid.circleFree(pos.x, pos.y, PLAYER_RADIUS),
   spawn: commune.spawn,
 });

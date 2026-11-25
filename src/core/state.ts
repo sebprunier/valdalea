@@ -6,8 +6,8 @@ export const SAVE_VERSION = 2;
 export interface Settings {
   /** `null` : suivre le réglage du système (prefers-reduced-motion). */
   reducedMotion: boolean | null;
-  /** Afficher la zone inondable sur la carte (disponible une fois le DICRIM consulté). */
-  hazardLayer: boolean;
+  /** Carte de risque affichée par-dessus le plan (disponible une fois le DICRIM consulté) ; `null` : aucune. */
+  hazardLayer: string | null;
 }
 
 /** Tout ce qui est sauvegardé d'une partie. Aucune donnée personnelle. */
@@ -23,7 +23,7 @@ export interface GameState {
   settings: Settings;
 }
 
-export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: false };
+export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
   return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, settings };

@@ -30,6 +30,7 @@ function controlsList(): HTMLElement {
     ...row('Se déplacer', arrowKeys(), ' ou ', keys('Z', 'Q', 'S', 'D'), ', ou désignez un point de la carte (clic ou doigt)'),
     ...row('Courir', 'maintenir ', keys('Maj')),
     ...row('Ouvrir un lieu', keys('Entrée'), ' ou ', keys('E')),
+    ...row('Carnet de mission', keys('M')),
     ...row('Liste des lieux', keys('L')),
     ...row('Téléphone', keys('T')),
     ...row('Aide', keys('H')),
@@ -109,7 +110,13 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "Rien n'est chronométré. L'heure affichée en haut de l'écran n'avance que lorsque vous accomplissez un geste ou que vous vous déplacez : prenez tout le temps de lire.",
+      "Rien n'est chronométré. L'heure affichée en haut de l'écran est celle du jeu : elle n'avance que lorsque vous accomplissez un geste ou que vous vous déplacez. Un geste « de 30 minutes » se fait d'un coup et retire 30 minutes à votre journée. Prenez tout le temps de lire.",
+    ),
+    h('h3', null, 'Savoir quoi faire'),
+    h(
+      'p',
+      null,
+      'Le carnet de mission (touche M) liste les gestes de la journée, vous dit par où commencer et vous y conduit. Sur la carte, des flèches orange pointent vers les lieux où il reste quelque chose à faire.',
     ),
     h('h3', null, 'Les repères sur la carte'),
     h(

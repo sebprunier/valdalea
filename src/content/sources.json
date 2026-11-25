@@ -82,5 +82,59 @@
     "editeur": "Ministère de l'Intérieur",
     "url": "https://www.fr-alert.gouv.fr/",
     "consulte": "2026-11-25"
+  },
+  "georisques-mouvement-terrain": {
+    "titre": "Mouvement de terrain",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-un-risque/mouvement-de-terrain",
+    "consulte": "2026-11-25"
+  },
+  "georisques-argiles": {
+    "titre": "Retrait-gonflement des argiles",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-un-risque/retrait-gonflement-des-argiles",
+    "consulte": "2026-11-25"
+  },
+  "georisques-feu": {
+    "titre": "Que faire en cas de feu de forêt ?",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/que-faire-en-cas-de-feu-de-foret",
+    "consulte": "2026-11-25"
+  },
+  "georisques-old": {
+    "titre": "Obligations légales de débroussaillement",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/OLD-obligations-legales-de-debroussaillement",
+    "consulte": "2026-11-25"
+  },
+  "georisques-industriel": {
+    "titre": "Que faire en cas d'accident industriel ?",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/me-preparer-me-proteger/que-faire-en-cas-d-accident-industriel",
+    "consulte": "2026-11-25"
+  },
+  "georisques-risque-industriel": {
+    "titre": "Accident industriel",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/minformer-sur-un-risque/accident-industriel",
+    "consulte": "2026-11-25"
+  },
+  "vigicrues": {
+    "titre": "Carte de vigilance crues",
+    "editeur": "Vigicrues",
+    "url": "https://www.vigicrues.gouv.fr/",
+    "consulte": "2026-11-25"
+  },
+  "meteofrance-vigilance": {
+    "titre": "Carte de vigilance météorologique",
+    "editeur": "Météo-France",
+    "url": "https://vigilance.meteofrance.fr/",
+    "consulte": "2026-11-25"
+  },
+  "georisques": {
+    "titre": "Connaître les risques près de chez soi",
+    "editeur": "Géorisques",
+    "url": "https://www.georisques.gouv.fr/",
+    "consulte": "2026-11-25"
   }
 }

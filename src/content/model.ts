@@ -39,6 +39,10 @@ export interface ActionDef {
   endsPhase?: boolean;
   /** Action de pur récit (finir la journée) : elle ne porte aucune consigne, donc aucune source. */
   narrative?: boolean;
+  /** Mots du lexique expliqués avec ce geste. */
+  lexicon?: string[];
+  /** Illustration montrée quand le geste est accompli. */
+  figure?: 'repere';
   title: string;
   /** Pourquoi ce geste compte. */
   why: string;

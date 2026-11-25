@@ -1,6 +1,6 @@
 import type { Vec } from '../core/geometry';
 
-export type Action = 'interact' | 'phone' | 'places' | 'help';
+export type Action = 'interact' | 'phone' | 'places' | 'help' | 'mission';
 
 /**
  * Les touches sont lues par position physique (`event.code`) : ZQSD sur un clavier
@@ -25,6 +25,7 @@ const ACTION_KEYS: Record<string, Action> = {
   KeyT: 'phone',
   KeyL: 'places',
   KeyH: 'help',
+  KeyM: 'mission',
 };
 
 /**

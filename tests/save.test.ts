@@ -8,6 +8,7 @@ const context: LoadContext = {
   actionIds: new Set(['mairie-accueil', 'maison-kit']),
   situationChoices: new Map([['enfants', new Set(['ecole', 'a-pied'])]]),
   badgeIds: new Set(['kit']),
+  riskIds: new Set(['inondation', 'cavites']),
   isFree: (pos) => pos.x >= 0,
   spawn: { x: 100, y: 100 },
 };
@@ -61,7 +62,7 @@ describe('sauvegarde', () => {
     expect(state?.visited).toEqual(['mairie']);
     expect(state?.chapter.phase).toBe('accueil');
     expect(state?.badges).toEqual([]);
-    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: false });
+    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null });
   });
 
   it('nettoie un chapitre sauvegardé : actions, réponses et badges inconnus sont écartés', () => {
@@ -84,6 +85,19 @@ describe('sauvegarde', () => {
     const storage = memoryStorage();
     storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, chapter: { phase: 'hiver', done: ['maison-kit'] } }));
     expect(loadGame(storage, context)?.chapter.phase).toBe('accueil');
+  });
+
+  it('reprend la carte de risque affichée, y compris depuis l’ancien format oui/non', () => {
+    const storage = memoryStorage();
+    const write = (hazardLayer: unknown) => storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, settings: { hazardLayer } }));
+    write(true);
+    expect(loadGame(storage, context)?.settings.hazardLayer).toBe('inondation');
+    write('cavites');
+    expect(loadGame(storage, context)?.settings.hazardLayer).toBe('cavites');
+    write('inconnue');
+    expect(loadGame(storage, context)?.settings.hazardLayer).toBeNull();
+    write(false);
+    expect(loadGame(storage, context)?.settings.hazardLayer).toBeNull();
   });
 
   it('efface la partie', () => {

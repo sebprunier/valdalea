@@ -20,11 +20,12 @@ export const ACTIONS: ActionDef[] = [
     title: 'Vous présenter au maire',
     why: "Le maire est responsable de la sécurité sur sa commune : il veille à l'information sur les risques et à l'organisation des secours en cas de crise.",
     who: 'Vous. Le maire vous attend pour votre première mission de réserviste.',
-    done: "« Bienvenue dans la réserve ! L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans. Commencez par lire notre DICRIM, puis faites le tour des lieux exposés. Vous avez l'après-midi. »",
+    done: "« Bienvenue dans la réserve ! L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans. Commencez par lire notre DICRIM, puis faites le tour des lieux exposés : chez vous, chez votre voisine Jeanne, à l'école, au camping, au gymnase. Vous avez jusqu'à 18 heures ; votre carnet de mission vous dira ce qu'il reste à faire. »",
     sources: ['georisques-acteurs'],
   },
   {
     id: 'mairie-dicrim',
+    lexicon: ['dicrim'],
     place: 'mairie',
     phase: 'preparation',
     minutes: 20,
@@ -36,6 +37,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'maison-kit',
+    lexicon: ['kit'],
     place: 'domicile',
     phase: 'preparation',
     minutes: 30,
@@ -48,6 +50,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'maison-protections',
+    lexicon: ['batardeau'],
     place: 'domicile',
     phase: 'preparation',
     minutes: 40,
@@ -59,6 +62,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'maison-refuge',
+    lexicon: ['zone-refuge'],
     place: 'domicile',
     phase: 'preparation',
     minutes: 30,
@@ -70,6 +74,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'maison-diagnostic',
+    lexicon: ['diagnostic'],
     place: 'domicile',
     phase: 'preparation',
     minutes: 10,
@@ -81,6 +86,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'jeanne-refuge',
+    lexicon: ['zone-refuge'],
     place: 'jeanne',
     phase: 'preparation',
     minutes: 20,
@@ -92,17 +98,20 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'pont-repere',
+    lexicon: ['repere-de-crue'],
+    figure: 'repere',
     place: 'pont',
     phase: 'preparation',
     minutes: 10,
     title: 'Lire le repère de crue',
     why: "Un repère de crue indique le niveau maximal atteint par une grande inondation passée. Il entretient la mémoire du risque : là où l'eau est montée, elle peut remonter.",
     who: 'Le maire inventorie les repères de crue de sa commune ; la commune les entretient et les protège.',
-    done: "Sur la culée du pont, une plaque : « Crue du 12 octobre 1958 ». Le trait est gravé bien au-dessus du quai. Ce jour-là, tout le Bas-Bourg était sous l'eau.",
+    done: "Sur la culée du pont, une plaque émaillée : « Crue du 12 octobre 1958 ». Le trait est bien au-dessus du quai. Ce jour-là, tout le Bas-Bourg était sous l'eau. Vous savez maintenant jusqu'où elle peut monter chez vous.",
     sources: ['reperes-de-crues', 'georisques-information-preventive'],
   },
   {
     id: 'ecole-plan',
+    lexicon: ['ppms'],
     place: 'ecole',
     phase: 'preparation',
     minutes: 15,
@@ -125,6 +134,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'gymnase-preparation',
+    lexicon: ['pcs'],
     place: 'gymnase',
     phase: 'preparation',
     minutes: 40,
@@ -142,7 +152,7 @@ export const ACTIONS: ActionDef[] = [
     endsPhase: true,
     narrative: true,
     title: 'Terminer la journée',
-    why: "Vous pouvez rentrer avant la tombée de la nuit. Le temps qui reste ne sera pas reporté : assurez-vous d'avoir fait l'essentiel.",
+    why: 'Une fois tous les gestes accomplis, vous pouvez rentrer : la journée est finie.',
     who: 'Vous.',
     done: 'Vous rentrez. Dehors, le ciel se couvre.',
     sources: [],
@@ -151,6 +161,7 @@ export const ACTIONS: ActionDef[] = [
   // ---------------------------------------------------------------- Vigilance
   {
     id: 'maison-installer',
+    lexicon: ['batardeau'],
     place: 'domicile',
     phase: 'vigilance',
     minutes: 25,
@@ -526,71 +537,9 @@ export const BULLETIN_ROUGE: Bulletin = {
   sources: ['vigicrues-guide', 'fr-alert'],
 };
 
-// ------------------------------------------------------------------- DICRIM
-
-export interface DocSection {
-  heading: string;
-  paragraphs?: string[];
-  list?: string[];
-  sources?: string[];
-}
-
-/** Le DICRIM de Val-d'Aléa : un document fictif, bâti comme un vrai. */
-export const DICRIM: DocSection[] = [
-  {
-    heading: "Qu'est-ce que le DICRIM ?",
-    paragraphs: [
-      "Le document d'information communal sur les risques majeurs est obligatoire dans toute commune exposée à au moins un risque majeur. Il présente ces risques, leurs conséquences prévisibles, les mesures de prévention, de protection et de sauvegarde, et les consignes de sécurité à appliquer.",
-      'Le maire le fait connaître par tout moyen approprié et le met à jour au moins tous les cinq ans.',
-    ],
-    sources: ['georisques-dicrim', 'georisques-information-preventive'],
-  },
-  {
-    heading: "Le risque d'inondation à Val-d'Aléa",
-    paragraphs: [
-      "La Follette traverse la commune d'ouest en est. Lors des fortes pluies d'automne, elle peut sortir de son lit en quelques heures. Les crues de 1958 et de 1994 ont inondé tout le Bas-Bourg ; un repère de crue, sur le pont, en garde la mémoire.",
-      'Sont situés en zone inondable : le quai de la Follette et les maisons qui le bordent, l’école du Quai, et le camping des Berges sur la rive sud. Le pont et la passerelle sont fermés dès que la rivière déborde.',
-    ],
-  },
-  {
-    heading: 'Comment serez-vous alerté ?',
-    paragraphs: [
-      "FR-Alert prévient en temps réel toute personne qui se trouve dans une zone de danger, par une notification sur son téléphone portable. Aucune inscription ni application n'est nécessaire.",
-      "D'autres canaux complètent ce dispositif : SMS de la mairie, sirènes, radios locales, applications Météo-France et Vigicrues.",
-    ],
-    sources: ['fr-alert', 'ecologie-reflexes'],
-  },
-  {
-    heading: 'Où trouver refuge ?',
-    paragraphs: [
-      "Chez soi, à l'étage, tant que les autorités ne donnent pas l'ordre d'évacuer. En cas d'évacuation, la commune ouvre un centre d'hébergement au gymnase des Hauts, hors de la zone inondable.",
-    ],
-    sources: ['georisques-inondation'],
-  },
-  {
-    heading: "Les bons réflexes quand l'eau monte",
-    list: [
-      "S'éloigner des cours d'eau, des berges et des ponts.",
-      'Reporter tous ses déplacements, à pied comme en voiture.',
-      "Ne pas aller chercher ses enfants à la crèche ou à l'école : ils y sont en sécurité.",
-      "S'informer sur les sites de Météo-France et de Vigicrues.",
-      'Installer les protections sans se mettre en danger, et placer en hauteur les produits polluants.',
-      "Couper, si possible, les réseaux de gaz, d'électricité et de chauffage.",
-      "Se réfugier dans un bâtiment, en hauteur ou à l'étage, avec son kit d'urgence 72 heures.",
-      'Ne pas descendre dans les sous-sols ni dans les parkings souterrains.',
-      "Ne pas prendre sa voiture : 30 cm d'eau suffisent à l'emporter.",
-      'Éviter de téléphoner, afin de laisser les réseaux disponibles pour les secours.',
-      "Rester à l'abri et n'évacuer son domicile que sur ordre des autorités.",
-    ],
-    sources: ['georisques-inondation'],
-  },
-];
-
 /** Hauteurs de crue, en mètres au-dessus du niveau normal de la Follette. */
 export const FLOOD = {
-  /** Crue de référence : c'est elle qui délimite la zone inondable du DICRIM. */
-  reference: 1.8,
-  /** Pointe de la crue jouée dans ce chapitre. */
+  /** Pointe de la crue jouée dans ce chapitre. La crue de référence, plus haute, est une donnée du relief. */
   peak: 1.6,
   /** Niveau au début de la vigilance orange. */
   rising: 0.45,
@@ -598,8 +547,8 @@ export const FLOOD = {
 
 export const OBJECTIVES = {
   accueil: 'Présentez-vous à la mairie.',
-  preparation: 'Préparez la commune avant la tombée de la nuit.',
-  vigilance: "Protégez ce qui peut l'être, puis rentrez vous mettre à l'abri.",
+  preparation: 'Accomplissez tous les gestes de prévention avant la tombée de la nuit.',
+  vigilance: "L'eau monte : installez ce qui a été préparé, puis rentrez vous mettre à l'abri.",
   crise: 'La Follette déborde : faites les bons choix.',
   bilan: 'La crue est passée. Consultez le bilan dans votre téléphone.',
 } as const;

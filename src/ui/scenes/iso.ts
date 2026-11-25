@@ -86,6 +86,14 @@ export class IsoCanvas {
     this.parts.push(`<line x1="${round(x1)}" y1="${round(y1)}" x2="${round(x2)}" y2="${round(y2)}" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round"/>`);
   }
 
+  /** Trait pointillé (un niveau repéré sur une façade, par exemple). */
+  dashedLine(a: Point3, b: Point3, stroke: string, width = 2.5): void {
+    if (this.aboveWaterOnly && (a[2] < this.cut || b[2] < this.cut)) return;
+    const [x1, y1] = this.place(...a);
+    const [x2, y2] = this.place(...b);
+    this.parts.push(`<line x1="${round(x1)}" y1="${round(y1)}" x2="${round(x2)}" y2="${round(y2)}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="7 5" stroke-linecap="round"/>`);
+  }
+
   /** Surface horizontale (pelouse, chaussée, dalle). */
   ground(x: number, y: number, w: number, d: number, fill: string, z = 0, line?: string): void {
     this.polygon(

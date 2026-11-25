@@ -8,5 +8,9 @@ export const RUN_SPEED = 280;
 /** Distance à laquelle un lieu devient accessible. */
 export const INTERACT_RADIUS = 58;
 
-/** Conversion d'affichage : 8 unités monde pour un mètre. */
-export const UNITS_PER_METER = 8;
+/**
+ * Conversion d'affichage des distances : une unité monde vaut un mètre. La commune
+ * fait donc 4,2 km sur 3 ; les bâtiments, eux, sont grossis comme sur un plan schématique.
+ * À 100 m par minute de jeu, le joueur marche à 6 km/h.
+ */
+export const UNITS_PER_METER = 1;

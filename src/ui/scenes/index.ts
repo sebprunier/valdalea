@@ -13,6 +13,11 @@ export interface SceneState {
   water: number;
   /** Hauteur de la crue, en mètres au-dessus du niveau normal de la rivière. */
   flood: number;
+  /**
+   * Hauteur qu'a atteinte ici la crue de 1958, si le joueur a lu le repère de
+   * crue (et si le lieu a été inondé) ; `null` sinon.
+   */
+  mark1958: number | null;
 }
 
 export interface Scene {
@@ -50,6 +55,7 @@ function house(state: SceneState): Scene {
       'Votre maison, à un étage, vue depuis le quai.',
       installed ? 'Des batardeaux barrent la porte.' : prepared ? 'Des batardeaux sont rangés contre la façade.' : '',
       state.did('maison-kit') ? "Le sac du kit d'urgence est prêt." : '',
+      state.mark1958 ? `Un trait rouge sur la façade marque le niveau de la crue de 1958 : ${heightLabel(state.mark1958)}.` : '',
       state.water > 0 ? `L'eau entoure la maison sur ${heightLabel(state.water)}.` : '',
     ),
     draw(c) {
@@ -94,6 +100,8 @@ function house(state: SceneState): Scene {
       c.box(2.6, 13.7, 0, 4.2, 1.8, 0.8, faces('#3f6f9f', '#27496b'));
       c.box(3.5, 13.8, 0.8, 2.3, 1.6, 0.6, faces('#cfe1ee', '#27496b'));
 
+      floodMarkOnWalls(c, state, 5, 4, 8, 6);
+
       c.spot('maison-kit', 6.8, 10.5, 0.9);
       c.spot('maison-protections', 8.95, 10.1, 1.3);
       c.spot('maison-installer', 8.95, 10.1, 1.3);
@@ -128,6 +136,7 @@ function neighbourHouse(state: SceneState): Scene {
       c.gable(3.6, 3.1, 2.8, 8.8, 6.3, 2, TILE);
       // Banc
       c.box(9.4, 9.3, 0, 1.6, 0.45, 0.45, faces('#a98660', LINE));
+      floodMarkOnWalls(c, state, 4, 3.5, 8, 5.5);
       if (!away) c.person(7.75, 9.7, '#7c5c8e');
       c.spot('jeanne-refuge', 7.75, 9.6, 1.9);
       c.spot('jeanne-accueil', 7.75, 9.6, 1.9);
@@ -331,6 +340,15 @@ function sportsHall(state: SceneState): Scene {
 }
 
 // ---------------------------------------------------------------------------
+
+/** Trait pointillé à la hauteur de la crue de 1958, sur les deux façades visibles d'un bâtiment. */
+function floodMarkOnWalls(c: IsoCanvas, state: SceneState, x: number, y: number, w: number, d: number): void {
+  const z = state.mark1958;
+  if (z === null || z <= 0.05) return;
+  c.dashedLine([x, y + d + 0.02, z], [x + w + 0.02, y + d + 0.02, z], '#b93d0a');
+  c.dashedLine([x + w + 0.02, y + d + 0.02, z], [x + w + 0.02, y, z], '#b93d0a');
+  c.signLeft(x + 1, y + d + 0.03, z + 0.12, '1958', 0.42, '#b93d0a');
+}
 
 function describe(...sentences: string[]): string {
   return sentences.filter(Boolean).join(' ');

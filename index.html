@@ -31,9 +31,16 @@
             <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2" />
           </svg>
           <span id="hud-clock-text"></span>
+          <span class="chip__bar" aria-hidden="true"><span id="hud-clock-bar"></span></span>
         </p>
       </div>
       <nav class="hud__actions" aria-label="Menu du jeu">
+        <button type="button" class="hud-button hud-button--main" id="button-mission" aria-keyshortcuts="M">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 4h6v3H9V4Zm0 1.5H6v15h12v-15h-3M9 12l2 2 4-4.5M9 17h6" />
+          </svg>
+          <span>Mission</span> <kbd aria-hidden="true">M</kbd>
+        </button>
         <button type="button" class="hud-button" id="button-places" aria-keyshortcuts="L">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
@@ -55,7 +62,7 @@
           <span>Aide</span> <kbd aria-hidden="true">H</kbd>
         </button>
       </nav>
-      <p class="hud__objective"><span class="hud__objective-label">Objectif</span> <span id="hud-objective"></span></p>
+      <p class="hud__objective"><span class="hud__objective-label">À faire</span> <span id="hud-objective"></span></p>
     </header>
 
     <main class="stage">
@@ -72,8 +79,10 @@
       </div>
       <p id="map-help" class="sr-only">
         Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. L ouvre la
-        liste des lieux, qui permet de jouer sans la carte. T ouvre le téléphone, H l'aide.
+        liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. T
+        ouvre le téléphone, H l'aide.
       </p>
+      <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
       <div class="prompt" id="prompt" hidden>
         <button type="button" class="prompt__button" id="prompt-button">
           <span class="prompt__name" id="prompt-name"></span>

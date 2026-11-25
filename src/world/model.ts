@@ -2,7 +2,7 @@ import type { Rect, Vec } from '../core/geometry';
 
 /**
  * Modèle de données de la commune. Tout est décrit sous forme vectorielle,
- * en unités « monde » (8 unités ≈ 1 mètre), nord en haut.
+ * en unités « monde » (une unité vaut un mètre), nord en haut.
  */
 
 export type Side = 'N' | 'S' | 'E' | 'W';
@@ -139,6 +139,31 @@ export interface Relief {
   eastRise: { fromX: number; run: number };
   /** Hauteur du tablier des ponts, en mètres au-dessus du niveau normal de la rivière. */
   bridgeDeck: number;
+  /** Hauteur de la crue de référence : elle délimite la zone inondable. */
+  referenceFlood: number;
+}
+
+export type RiskId = 'inondation' | 'mouvement-terrain' | 'cavites' | 'argiles' | 'feu-foret' | 'industriel';
+
+export const RISK_IDS: readonly RiskId[] = ['inondation', 'mouvement-terrain', 'cavites', 'argiles', 'feu-foret', 'industriel'];
+
+/**
+ * Zone d'aléa cartographiée. La zone inondable n'en fait pas partie : elle se
+ * déduit du relief et de la crue de référence.
+ */
+export interface HazardZone {
+  risk: Exclude<RiskId, 'inondation'>;
+  /** Classe de la zone, propre à chaque risque (voir la légende des cartes). */
+  level: 'fort' | 'moyen';
+  poly: Vec[];
+  bounds: Rect;
+}
+
+/** Point remarquable d'une carte de risque : entrée de carrière, site industriel… */
+export interface HazardMark {
+  risk: RiskId;
+  pos: Vec;
+  label: string;
 }
 
 export interface Commune {
@@ -146,6 +171,8 @@ export interface Commune {
   width: number;
   height: number;
   relief: Relief;
+  hazards: HazardZone[];
+  hazardMarks: HazardMark[];
   river: River;
   grounds: Ground[];
   roads: Road[];

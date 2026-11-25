@@ -24,7 +24,7 @@ describe('relief et inondation', () => {
 
   it('laisse au sec la mairie, le gymnase, le Vieux-Bourg, la cité et l’usine, même pour la crue de référence', () => {
     for (const id of ['mairie', 'gymnase', 'vieux-bourg', 'argilieres', 'cite', 'usine', 'brandes', 'sous-la-roche']) {
-      expect(elevation.isFlooded(at(id), FLOOD.reference), id).toBe(false);
+      expect(elevation.isFlooded(at(id), commune.relief.referenceFlood), id).toBe(false);
     }
   });
 

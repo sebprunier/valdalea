@@ -53,6 +53,8 @@ export interface LoadContext {
   /** Choix valides de chaque situation de crise. */
   situationChoices: ReadonlyMap<string, ReadonlySet<string>>;
   badgeIds: ReadonlySet<string>;
+  /** Cartes de risque existantes. */
+  riskIds: ReadonlySet<string>;
   /** Le joueur peut-il se tenir à cette position ? */
   isFree: (pos: Vec) => boolean;
   /** Position de repli si la position sauvegardée n'est plus valable. */
@@ -96,7 +98,13 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     badges: knownIds(data.badges, context.badgeIds),
     settings: {
       reducedMotion: typeof settings.reducedMotion === 'boolean' ? settings.reducedMotion : null,
-      hazardLayer: settings.hazardLayer === true,
+      // Les premières sauvegardes ne connaissaient que la zone inondable, par oui ou par non.
+      hazardLayer:
+        settings.hazardLayer === true
+          ? 'inondation'
+          : typeof settings.hazardLayer === 'string' && context.riskIds.has(settings.hazardLayer)
+            ? settings.hazardLayer
+            : null,
     },
   };
 }

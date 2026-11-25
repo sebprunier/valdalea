@@ -1,7 +1,8 @@
-import type { DocSection } from '../content/inondation';
+import { findEntry, type LexiconEntry } from '../content/lexique';
 import { SOURCES, type BadgeDef, type Bulletin, type Question } from '../content/model';
 import type { Assessment } from '../core/chapter';
 import { h, icon } from './dom';
+import { lexiconFigure } from './figures';
 
 /**
  * Éléments de contenu réutilisés par plusieurs écrans : liens vers les sources,
@@ -134,19 +135,25 @@ export function bulletinContent(bulletin: Bulletin): HTMLElement {
   );
 }
 
-// ------------------------------------------------------------------- DICRIM
+// ------------------------------------------------------------------ Lexique
 
-export function dicrimContent(sections: readonly DocSection[]): HTMLElement {
+/** Un mot du lexique : sa définition, son schéma s'il en a un, sa source. */
+export function lexiconEntry(entry: LexiconEntry, level: 'h3' | 'h4' = 'h4'): HTMLElement {
   return h(
     'div',
-    { class: 'stack document' },
-    ...sections.flatMap((section) => [
-      h('h3', null, section.heading),
-      ...(section.paragraphs ?? []).map((text) => h('p', null, text)),
-      section.list ? h('ul', { class: 'bullets' }, ...section.list.map((line) => h('li', null, line))) : null,
-      section.sources ? sourceList(section.sources) : null,
-    ]),
+    { class: 'word' },
+    h(level, { class: 'word__term' }, entry.term),
+    h('p', null, entry.definition),
+    entry.figure ? lexiconFigure(entry.figure) : null,
+    sourceList(entry.sources),
   );
+}
+
+/** Encadré « Le mot », placé dans la fiche d'un geste qui emploie un terme technique. */
+export function lexiconBox(ids: readonly string[]): HTMLElement | null {
+  const entries = ids.map(findEntry).filter((entry): entry is LexiconEntry => entry !== undefined);
+  if (entries.length === 0) return null;
+  return h('div', { class: 'wordbox' }, h('p', { class: 'wordbox__label' }, entries.length > 1 ? 'Les mots' : 'Le mot'), ...entries.map((entry) => lexiconEntry(entry)));
 }
 
 // -------------------------------------------------------------------- Bilan

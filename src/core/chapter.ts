@@ -24,9 +24,21 @@ export interface Chapter {
 
 /** Durée des phases où le temps est compté, et heure à laquelle elles commencent. */
 export const TIMED_PHASES = {
-  preparation: { minutes: 240, day: 'Samedi', startsAt: 14 * 60 },
-  vigilance: { minutes: 100, day: 'Lundi', startsAt: 7 * 60 + 30 },
+  // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
+  preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
+  vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
 } as const;
+
+/** Seuils, en minutes restantes, où le joueur est prévenu que le temps presse. */
+export const TIME_ALERTS = [60, 30, 10] as const;
+
+/** Seuil d'alerte franchi entre deux instants, ou `null`. */
+export function timeAlert(minutesBefore: number, minutesAfter: number): number | null {
+  for (const threshold of TIME_ALERTS) {
+    if (minutesBefore > threshold && minutesAfter <= threshold && minutesAfter > 0) return threshold;
+  }
+  return null;
+}
 
 /** Minutes de jeu que coûte une unité monde parcourue à pied. */
 export const MINUTES_PER_UNIT = 0.01;
@@ -71,15 +83,31 @@ export type ActionStatus =
   | { state: 'verrouillee' }
   /** Il ne reste pas assez de temps dans la phase. */
   | { state: 'trop-longue'; minutes: number }
+  /** Action qui clôt la phase, alors qu'il reste des gestes faisables : `left` les énumère. */
+  | { state: 'pas-encore'; left: ActionDef[] }
   | { state: 'hors-phase' };
 
-export function actionStatus(action: ActionDef, chapter: Chapter): ActionStatus {
+/**
+ * État d'une action. `all` est la liste complète des actions du chapitre : elle
+ * sert à savoir, pour une action qui clôt la phase, s'il reste autre chose à faire.
+ */
+export function actionStatus(action: ActionDef, chapter: Chapter, all: readonly ActionDef[]): ActionStatus {
   if (chapter.done.includes(action.id)) return { state: 'faite' };
   if (action.phase !== chapter.phase) return { state: 'hors-phase' };
   if (action.requires && !chapter.done.includes(action.requires)) return { state: 'verrouillee' };
   const minutes = actionMinutes(action, chapter);
   if (isTimed(chapter.phase) && minutes > chapter.minutesLeft) return { state: 'trop-longue', minutes };
+  // On ne termine pas la journée (et on ne se met pas à l'abri) en laissant derrière soi un geste encore faisable.
+  if (action.endsPhase && isTimed(chapter.phase)) {
+    const left = gestures(all, chapter).filter((other) => actionStatus(other, chapter, all).state === 'possible');
+    if (left.length > 0) return { state: 'pas-encore', left };
+  }
   return { state: 'possible', minutes };
+}
+
+/** Gestes de la phase en cours, hors actions qui la clôturent. */
+export function gestures(actions: readonly ActionDef[], chapter: Chapter): ActionDef[] {
+  return actions.filter((action) => action.phase === chapter.phase && !action.endsPhase);
 }
 
 /** Actions à afficher dans un lieu : celles de la phase en cours, faites ou non. */
@@ -89,12 +117,12 @@ export function actionsAt(actions: readonly ActionDef[], chapter: Chapter, place
 
 /** Nombre d'actions encore possibles dans un lieu. */
 export function pendingAt(actions: readonly ActionDef[], chapter: Chapter, placeId: string): number {
-  return actionsAt(actions, chapter, placeId).filter((action) => actionStatus(action, chapter).state === 'possible').length;
+  return actionsAt(actions, chapter, placeId).filter((action) => actionStatus(action, chapter, actions).state === 'possible').length;
 }
 
 /** Accomplit une action. Sans effet si elle n'est pas possible. */
-export function perform(chapter: Chapter, action: ActionDef): Chapter {
-  const status = actionStatus(action, chapter);
+export function perform(chapter: Chapter, action: ActionDef, all: readonly ActionDef[]): Chapter {
+  const status = actionStatus(action, chapter, all);
   if (status.state !== 'possible') return chapter;
   const after: Chapter = {
     ...chapter,

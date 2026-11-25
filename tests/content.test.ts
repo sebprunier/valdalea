@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, DICRIM, QUESTIONS, SITUATIONS, STAKES } from '../src/content/inondation';
+import { DICRIM, dicrimSources } from '../src/content/dicrim';
+import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, QUESTIONS, SITUATIONS, STAKES } from '../src/content/inondation';
+import { findEntry, LEXICON } from '../src/content/lexique';
 import { SOURCES } from '../src/content/model';
 import { PLACE_TEXTS } from '../src/content/places';
+import { RISK_IDS } from '../src/world/model';
 import { buildValDAlea } from '../src/world/valdalea';
 
 const commune = buildValDAlea();
@@ -35,13 +38,36 @@ describe('cohérence des contenus', () => {
       ...SITUATIONS.flatMap((s) => s.sources),
       ...STAKES.flatMap((s) => s.sources),
       ...[BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE].flatMap((b) => b.sources),
-      ...DICRIM.flatMap((section) => section.sources ?? []),
+      ...dicrimSources(),
+      ...LEXICON.flatMap((entry) => entry.sources),
     ];
     for (const id of cited) expect(SOURCES[id], `source ${id}`).toBeDefined();
     for (const [id, source] of Object.entries(SOURCES)) {
-      expect(source.url, id).toMatch(/^https:\/\/[a-z0-9.-]+\.gouv\.fr\//);
+      // Sites de l'État, et Météo-France pour la vigilance.
+      expect(source.url, id).toMatch(/^https:\/\/[a-z0-9.-]+\.(gouv|meteofrance)\.fr\//);
       expect(source.consulte, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(source.titre.length, id).toBeGreaterThan(3);
+    }
+  });
+
+  it('explique les mots techniques employés par les gestes', () => {
+    expect(new Set(LEXICON.map((entry) => entry.id)).size).toBe(LEXICON.length);
+    for (const action of ACTIONS) {
+      for (const id of action.lexicon ?? []) expect(findEntry(id), `${action.id} : mot ${id}`).toBeDefined();
+    }
+    for (const entry of LEXICON) {
+      expect(entry.sources.length, entry.id).toBeGreaterThan(0);
+      expect(entry.definition.length, entry.id).toBeGreaterThan(40);
+    }
+  });
+
+  it('consacre un chapitre du DICRIM à chaque risque cartographié, avec ses bons réflexes sourcés', () => {
+    expect(DICRIM.risks.map((risk) => risk.id)).toEqual([...RISK_IDS]);
+    for (const risk of DICRIM.risks) {
+      expect(risk.sources.length, risk.id).toBeGreaterThan(0);
+      expect(risk.reflexes.length, risk.id).toBeGreaterThan(0);
+      expect(risk.mapSummary.length, `${risk.id} : description de la carte`).toBeGreaterThan(40);
+      for (const group of risk.reflexes) expect(group.items.length, `${risk.id} / ${group.heading}`).toBeGreaterThan(0);
     }
   });
 

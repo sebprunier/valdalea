@@ -1,9 +1,9 @@
-import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, DICRIM, FLOOD, SITUATIONS, STAKES } from '../content/inondation';
+import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, FLOOD, SITUATIONS, STAKES } from '../content/inondation';
 import type { ActionDef, Bulletin } from '../content/model';
 import { answer, assess, currentSituation, isTimeUp, nextPhase, type Assessment, type Chapter, type Phase } from '../core/chapter';
 import type { Vec } from '../core/geometry';
 import { createDialog, type DialogHandle } from './dialog';
-import { bilanContent, bulletinContent, dicrimContent, mountQuestion } from './documents';
+import { bilanContent, bulletinContent, mountQuestion } from './documents';
 import { h } from './dom';
 
 /**
@@ -17,8 +17,10 @@ export interface FlowDeps {
   setChapter(recipe: (chapter: Chapter) => Chapter): void;
   getBadges(): readonly string[];
   addBadges(ids: readonly string[]): void;
-  isHazardShown(): boolean;
-  setHazardShown(shown: boolean): void;
+  /** Affiche la carte de la zone inondable sur le plan du jeu. */
+  showFloodZone(): void;
+  /** Ouvre le DICRIM. */
+  openDicrim(returnFocus: HTMLElement | null): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
   /** Ferme la fiche de lieu si elle est ouverte. */
@@ -52,7 +54,6 @@ export interface Flow {
   floodLevel(): number;
   /** Bulletins reçus jusqu'ici, du plus récent au plus ancien. */
   bulletins(): Bulletin[];
-  openDicrim(returnFocus: HTMLElement | null): void;
   /** Bilan du chapitre, s'il est terminé. */
   assessment(): Assessment | null;
 }
@@ -90,18 +91,6 @@ export function createFlow(deps: FlowDeps): Flow {
     if (deciding) crisisDialog.open(deps.focusTarget);
   });
   const bilanDialog = createDialog({ id: 'bilan', title: 'Bilan de la crue', className: 'dialog--wide' });
-
-  const dicrimDialog = createDialog({ id: 'dicrim', title: "DICRIM de Val-d'Aléa", className: 'dialog--wide' });
-  const hazardToggle = h('input', { type: 'checkbox', id: 'dicrim-zone' });
-  hazardToggle.addEventListener('change', () => deps.setHazardShown(hazardToggle.checked));
-  const dicrimClose = h('button', { type: 'button', class: 'button button--primary' }, 'Refermer le document');
-  dicrimClose.addEventListener('click', () => dicrimDialog.close());
-  dicrimDialog.body.append(
-    h('p', { class: 'dialog__kicker' }, "Document d'information communal sur les risques majeurs — extrait : le risque d'inondation"),
-    h('div', { class: 'field' }, hazardToggle, h('label', { for: 'dicrim-zone' }, 'Afficher la zone inondable sur la carte'), h('p', { class: 'fine-print' }, 'La zone apparaît en violet. Elle correspond à la plus forte crue connue.')),
-    dicrimContent(DICRIM),
-    h('div', { class: 'dialog__actions' }, dicrimClose),
-  );
 
   // ------------------------------------------------------------ Séquences
 
@@ -210,21 +199,15 @@ export function createFlow(deps: FlowDeps): Flow {
     return true;
   }
 
-  function openDicrim(returnFocus: HTMLElement | null): void {
-    hazardToggle.checked = deps.isHazardShown();
-    dicrimDialog.open(returnFocus);
-  }
-
   return {
     check,
-    openDicrim,
     floodLevel,
     isBusy: () => busy,
 
     afterAction(action) {
       if (action.id === 'mairie-dicrim') {
-        deps.setHazardShown(true);
-        openDicrim(null);
+        deps.showFloodZone();
+        deps.openDicrim(null);
         return true;
       }
       if (action.endsPhase && action.phase !== 'accueil') {
