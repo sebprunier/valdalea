@@ -260,19 +260,28 @@ function school(state: SceneState): Scene {
 
 function campsite(state: SceneState): Scene {
   const checked = state.did('camping-consignes');
+  const safeBarbecue = state.did('camping-barbecue');
   return renderIso({
     ground: { w: 24, d: 16 },
     water: state.water,
     label: describe(
-      'Le camping des Berges : le chalet de l’accueil, des tentes et des mobil-homes.',
+      'Le camping des Berges : le chalet de l’accueil, des tentes et des mobil-homes, entourés d’une haie.',
+      safeBarbecue ? 'Le barbecue est sur une dalle, près de l’allée, loin de la haie, avec un point d’eau.' : 'Le barbecue est posé dans l’herbe, au pied de la haie.',
       checked ? 'Les consignes sont affichées sur le panneau, près de l’accueil.' : '',
       state.water > 0 ? `L'eau recouvre les emplacements sur ${heightLabel(state.water)}.` : '',
     ),
     draw(c) {
       c.ground(0, 0, 24, 16, '#cbe3ae');
       c.ground(10.5, 0, 2.2, 16, '#dccba6');
-      c.tree(2, 2, 5);
+      // La haie, au fond et sur le côté : c'est elle qui rend le barbecue dangereux là où il est.
+      for (let x = 0.2; x < 23.5; x += 1.5) {
+        if (x > 9.8 && x < 13) continue;
+        c.box(x, 0.2, 0, 1.3, 0.8, 1.5, BUSH);
+      }
+      for (let y = 1.4; y < 15.4; y += 1.5) c.box(0.2, y, 0, 0.8, 1.3, 1.5, BUSH);
+      c.tree(2.4, 2.4, 5);
       c.tree(22, 2.5, 4.6);
+      c.tree(8.6, 8, 4.4);
       // Mobil-homes
       for (const x of [2.6, 14.2]) {
         c.box(x, 3.4, 0.3, 5.6, 2.4, 2.2, faces('#f1efe8', LINE));
@@ -298,8 +307,24 @@ function campsite(state: SceneState): Scene {
         c.panelLeft(15.4, 13.15, 1.05, 0.7, 0.75, '#f2dcc9', LINE);
         c.panelLeft(16.3, 13.15, 1.05, 0.7, 0.75, '#d9e6f2', LINE);
       }
+      // Le barbecue : dans l'herbe au pied de la haie, ou sur sa dalle, avec un point d'eau.
+      if (safeBarbecue) {
+        c.ground(12.9, 13.9, 2.2, 1.6, PAVING, 0, '#cfc4ad');
+        c.box(13.5, 14.4, 0, 0.7, 0.5, 0.85, faces('#3a3f45', '#1b2733'));
+        c.box(14.6, 14.2, 0, 0.25, 0.25, 0.9, faces('#4f8fc0', '#2c5f8a'));
+      } else {
+        for (const [x, y] of [
+          [1.3, 12.2],
+          [2.3, 13.6],
+          [1.5, 14.4],
+        ] as const) {
+          c.box(x, y, 0, 0.2, 0.2, 0.7, TALL_GRASS);
+        }
+        c.box(1.5, 13, 0, 0.7, 0.5, 0.85, faces('#3a3f45', '#1b2733'));
+      }
       if (state.water <= 0) c.person(18.3, 13.2, '#4f7a3a');
       c.spot('camping-consignes', 16.2, 13.2, 1.45);
+      c.spot('camping-barbecue', safeBarbecue ? 13.8 : 1.8, safeBarbecue ? 14.6 : 13.2, 1.3);
     },
   });
 }
@@ -359,7 +384,137 @@ function heightLabel(meters: number): string {
   return cm >= 100 ? `${(cm / 100).toFixed(1).replace('.', ',')} m` : `${cm} cm`;
 }
 
+// ------------------------------------------------- La maison en lisière
+
+/**
+ * Ce qui a été fait sur le terrain de Lucien, par identifiant de choix : pendant
+ * le geste, ce que le joueur a coché ; ensuite, le travail accompli.
+ */
+export type BrushWork = ReadonlySet<string>;
+
+/** Le terrain une fois débroussaillé dans les règles. */
+const BRUSH_DONE: BrushWork = new Set(['herbes', 'buissons', 'espacer', 'combustibles']);
+
+const TALL_GRASS = faces('#a9ba6a', '#7d8c47');
+const BUSH = faces('#5f8f4f', '#40683a');
+const WOOD = faces('#a5744a', '#6f4d30');
+const STUMP = faces('#b08a5e', '#6f553b');
+
+/**
+ * La maison de Lucien, dans sa clairière. Le dessin montre le terrain tel qu'il est :
+ * chaque élément de `work` y laisse sa trace, bonne ou mauvaise.
+ */
+export function buildBrushScene(work: BrushWork): Scene {
+  const did = (id: string): boolean => work.has(id);
+  return renderIso({
+    ground: { w: 20, d: 16 },
+    water: 0,
+    label: describe(
+      'La maison de Lucien, dans sa clairière : la forêt des Brandes commence au bout du jardin.',
+      did('herbes') ? "L'herbe est coupée." : 'Des herbes hautes couvrent le terrain, de la forêt à la maison.',
+      did('buissons') ? '' : 'Des buissons poussent contre la façade.',
+      did('raser') ? 'Tous les arbres du jardin ont été abattus : il ne reste que des souches.' : did('espacer') ? 'Les arbres du jardin ne se touchent plus.' : 'Deux arbres du jardin se touchent, tout près de la forêt.',
+      did('combustibles') ? 'Le tas de bois et la bouteille de gaz sont au fond du terrain, loin de la maison.' : 'Un tas de bois et une bouteille de gaz sont appuyés contre le mur.',
+      did('bruler') ? 'Un tas de branches brûle sur le terrain.' : '',
+    ),
+    draw(c) {
+      c.ground(0, 0, 20, 16, did('herbes') ? GRASS : '#c5d6a2');
+      c.ground(0, 14, 20, 2, '#e6dcc4', 0, '#cdbf9f');
+
+      // La forêt, au bout du jardin.
+      for (const [x, y, height] of [
+        [1, 1, 6],
+        [3.3, 0.6, 6.6],
+        [5.6, 1.3, 6],
+        [7.9, 0.5, 6.8],
+        [10.2, 1.2, 6.2],
+        [12.5, 0.6, 6.6],
+        [14.8, 1.3, 6],
+        [17, 0.7, 6.7],
+        [19.2, 1.2, 6.1],
+      ] as const) {
+        c.tree(x, y, height);
+      }
+
+      // Les herbes hautes, de la lisière à la maison.
+      if (!did('herbes')) {
+        for (let i = 0; i < 30; i++) {
+          const x = 1 + ((i * 7) % 18) + (i % 3) * 0.3;
+          const y = 2.6 + ((i * 5) % 4) + (i % 2) * 0.4;
+          c.box(x, y, 0, 0.22, 0.22, 0.75 + (i % 3) * 0.15, TALL_GRASS);
+        }
+      }
+
+      // Le tas de branches coupées, qui attend d'être emporté — ou qui brûle.
+      c.box(1.2, 4.6, 0, 1.5, 1, 0.4, WOOD);
+      if (did('bruler')) {
+        c.box(1.5, 4.8, 0.4, 0.5, 0.5, 1.1, faces('#ea6a22', '#b93d0a'));
+        c.box(2, 5, 0.4, 0.4, 0.4, 0.7, faces('#f5b020', '#b93d0a'));
+        c.disc(1.9, 4.9, 2.4, 0.5, '#9aa3ab');
+        c.disc(2.2, 4.6, 3.2, 0.7, '#b9c0c7');
+      }
+
+      // Les deux arbres qui se touchent, près de la lisière.
+      if (did('raser')) {
+        c.box(15, 4.6, 0, 0.45, 0.45, 0.3, STUMP);
+        c.box(16.4, 5.2, 0, 0.45, 0.45, 0.3, STUMP);
+      } else if (did('espacer')) {
+        c.tree(15, 4.8, 4.6);
+        c.box(16.4, 5.2, 0, 0.45, 0.45, 0.3, STUMP);
+      } else {
+        c.tree(15, 4.8, 4.6);
+        c.tree(16.3, 5.2, 4.4);
+      }
+
+      // Les buissons, contre la façade arrière.
+      if (!did('buissons')) {
+        for (const x of [7.3, 9.2, 11.1]) c.box(x, 6.2, 0, 1.1, 0.8, 0.9, BUSH);
+      }
+
+      // La maison.
+      c.box(7, 7, 0, 6, 5, 3.2, WALL);
+      c.panelRight(13, 8, 1, 1.3, 1.2, GLASS, LINE);
+      windowsLeft(c, 12, 1, [7.7, 11.2]);
+      c.panelLeft(9.4, 12, 0, 1.1, 2.1, DOOR, LINE);
+      c.gable(6.6, 6.6, 3.2, 6.8, 5.8, 2, TILE);
+
+      // Le tas de bois et la bouteille de gaz : contre le mur, ou au fond du terrain.
+      if (did('combustibles')) {
+        c.box(17.2, 11.6, 0, 1.6, 0.6, 0.8, WOOD);
+        c.box(18.4, 12.6, 0, 0.35, 0.35, 0.85, faces('#c9d1d8', '#7f8b95'));
+      } else {
+        c.box(13.05, 9.6, 0, 0.6, 1.6, 0.8, WOOD);
+        c.box(13.1, 11.4, 0, 0.35, 0.35, 0.85, faces('#c9d1d8', '#7f8b95'));
+      }
+
+      // L'arbre isolé, devant la maison : il peut rester.
+      if (did('raser')) c.box(3.4, 11.2, 0, 0.45, 0.45, 0.3, STUMP);
+      else c.tree(3.6, 11.4, 5);
+
+      // Le coin barbecue, sur la terrasse, et Lucien.
+      c.ground(14.2, 12.4, 2.4, 1.4, PAVING);
+      c.box(15, 12.8, 0, 0.6, 0.5, 0.8, faces('#3a3f45', '#1b2733'));
+      c.person(10.9, 13.1, '#7c5c8e');
+
+      c.spot('herbes', 11.5, 4.2, 0.6);
+      c.spot('buissons', 9.7, 6.5, 1.1);
+      c.spot('espacer', 15.7, 5, 3.4);
+      c.spot('combustibles', did('combustibles') ? 17.9 : 13.3, did('combustibles') ? 12 : 10.4, 1.1);
+      c.spot('raser', 3.6, 11.4, 3.8);
+      c.spot('bruler', 1.9, 5.3, 0.9);
+
+      c.spot('lucien-debroussailler', 11.5, 4.2, 0.6);
+    },
+  });
+}
+
+/** Chez Lucien : le terrain porte la trace du débroussaillement, une fois fait. */
+function edgeHouse(state: SceneState): Scene {
+  return buildBrushScene(state.did('lucien-debroussailler') ? BRUSH_DONE : new Set());
+}
+
 const SCENES: Record<string, (state: SceneState) => Scene> = {
+  lucien: edgeHouse,
   domicile: house,
   jeanne: neighbourHouse,
   mairie: townHall,

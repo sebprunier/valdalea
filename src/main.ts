@@ -1,5 +1,7 @@
 import './styles/main.css';
-import { ACTIONS, BADGES, SITUATIONS } from './content/inondation';
+import { Sound } from './audio/sound';
+import { ALL_ACTIONS, ALL_BADGES, ALL_SITUATIONS, CHAPTERS } from './content/chapitres';
+import { PROLOGUE } from './content/prologue';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
 import { Store } from './core/store';
@@ -22,9 +24,11 @@ const elevation = buildElevation(commune);
 const { storage, persistent } = browserStorage();
 const saved = loadGame(storage, {
   placeIds: new Set(commune.places.map((place) => place.id)),
-  actionIds: new Set(ACTIONS.map((action) => action.id)),
-  situationChoices: new Map(SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
-  badgeIds: new Set(BADGES.map((badge) => badge.id)),
+  actionIds: new Set(ALL_ACTIONS.map((action) => action.id)),
+  chapterIds: new Set(CHAPTERS.filter((chapter) => chapter.playable).map((chapter) => chapter.id)),
+  legacy: { chapterId: 'automne', prologue: PROLOGUE.map((action) => action.id) },
+  situationChoices: new Map(ALL_SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
+  badgeIds: new Set(ALL_BADGES.map((badge) => badge.id)),
   riskIds: new Set(RISK_IDS),
   isFree: (pos) => grid.circleFree(pos.x, pos.y, PLAYER_RADIUS),
   spawn: commune.spawn,
@@ -73,6 +77,7 @@ const game = new Game({
 // Le zoom choisi lors d'une partie précédente est repris avant que l'interface n'existe : rien n'est annoncé.
 game.setZoom(store.get().settings.zoom ?? DEFAULT_ZOOM);
 const weather = new WeatherLayer(requireElement<HTMLCanvasElement>('weather'));
+const sound = new Sound(store.get().settings.sound);
 
 // ------------------------------------------------------- Animations réduites
 const systemMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -93,6 +98,7 @@ ui = createUi({
   store,
   game,
   weather,
+  sound,
   hasSave: saved !== null,
   persistent,
   isReducedMotion,
@@ -107,5 +113,7 @@ ui.showStart();
 
 // En développement uniquement : accès au jeu depuis la console du navigateur.
 if (import.meta.env.DEV) {
-  Object.assign(window, { jcrm: { game, store, commune, grid, elevation, weather } });
+  Object.assign(window, { jcrm: { game, store, commune, grid, elevation, weather, sound } });
+  // Banc de mesure du son, chargé à part : il n'entre pas dans le jeu publié.
+  void import('./audio/lab').then(({ soundLab }) => Object.assign((window as unknown as { jcrm: object }).jcrm, { soundLab }));
 }

@@ -1,5 +1,4 @@
-import { ACTIONS, QUESTIONS } from '../content/inondation';
-import type { ActionDef } from '../content/model';
+import type { ActionDef, Question } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import { actionsAt, actionStatus, formatDuration, isTimed, remaining, type ActionStatus, type Chapter } from '../core/chapter';
 import { findPlace, findSector, type Commune, type Place } from '../world/model';
@@ -7,7 +6,7 @@ import { createDialog } from './dialog';
 import { lexiconBox, mountQuestion, sourceList } from './documents';
 import { h, icon } from './dom';
 import { floodMarkFigure } from './figures';
-import { buildScene } from './scenes';
+import { buildBrushScene, buildScene } from './scenes';
 
 /**
  * Vue rapprochée d'un lieu : son illustration, sa description et les gestes
@@ -18,6 +17,9 @@ import { buildScene } from './scenes';
 export interface PlaceUiDeps {
   commune: Commune;
   getChapter(): Chapter;
+  /** Gestes et questions de ce qui se joue : le prologue, puis le chapitre en cours. */
+  getActions(): readonly ActionDef[];
+  getQuestions(): readonly Question[];
   /** Hauteur d'eau dans le lieu et hauteur de la crue, à cet instant. */
   getWater(place: Place): { depth: number; flood: number };
   /** Hauteur atteinte ici par la crue de référence (celle de 1958), en mètres. */
@@ -59,7 +61,7 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
   const status = (action: ActionDef): ActionStatus => actionStatus(action, deps.getChapter());
 
   /** Gestes encore faisables que le joueur laisserait derrière lui en accomplissant cette action. */
-  const leftBehind = (action: ActionDef): ActionDef[] => (action.endsPhase ? remaining(ACTIONS, deps.getChapter()) : []);
+  const leftBehind = (action: ActionDef): ActionDef[] => (action.endsPhase ? remaining(deps.getActions(), deps.getChapter()) : []);
 
   /** Rappel du temps de jeu restant, en tête des listes de gestes. */
   function timeNote(chapter: Chapter): HTMLElement | null {
@@ -71,7 +73,7 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
     if (!place) return;
     const current = place;
     const chapter = deps.getChapter();
-    const actions = actionsAt(ACTIONS, chapter, current.id);
+    const actions = actionsAt(deps.getActions(), chapter, current.id);
     dialog.setTitle(current.name);
 
     const exposures = deps.getExposures(current);
@@ -112,7 +114,9 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       const message =
         chapter.phase === 'accueil'
           ? "Rien à faire ici pour l'instant : le maire vous attend à la mairie."
-          : chapter.phase === 'bilan'
+          : chapter.phase === 'libre'
+            ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans le calendrier : il vous confiera une mission."
+            : chapter.phase === 'bilan'
             ? 'La crue est passée. Le bilan est dans votre téléphone.'
             : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
       todo = h('p', { class: 'fine-print' }, message);
@@ -195,12 +199,14 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       deps.performed(action);
     };
 
-    const questions = (action.questions ?? []).map((id) => QUESTIONS.find((q) => q.id === id)).filter((q) => q !== undefined);
+    const questions = (action.questions ?? []).map((id) => deps.getQuestions().find((q) => q.id === id)).filter((q) => q !== undefined);
     const ask = (index: number): void => {
       const question = questions[index];
       dialog.setTitle(`${action.title} (${index + 1} sur ${questions.length})`);
       mountQuestion(host, question, {
         tone: 'quiz',
+        // Le débroussaillement se fait sur le dessin du terrain, qui change à chaque choix.
+        figure: action.figure === 'debroussaillement' ? buildBrushScene : undefined,
         onAnswer: () => undefined,
         onContinue: () => (index + 1 < questions.length ? ask(index + 1) : finish()),
       });

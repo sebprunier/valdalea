@@ -26,6 +26,7 @@ import type {
   RoadKind,
   RoofKind,
   Side,
+  Wildfire,
 } from './model';
 
 export const ROAD_WIDTH: Record<RoadKind, number> = {
@@ -194,6 +195,11 @@ export class WorldBuilder {
 
   spawn(pos: Vec): this {
     this.commune.spawn = { ...pos };
+    return this;
+  }
+
+  wildfire(wildfire: Wildfire): this {
+    this.commune.wildfire = wildfire;
     return this;
   }
 

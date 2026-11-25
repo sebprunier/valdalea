@@ -41,8 +41,8 @@ export interface ActionDef {
   narrative?: boolean;
   /** Mots du lexique expliqués avec ce geste. */
   lexicon?: string[];
-  /** Illustration montrée quand le geste est accompli. */
-  figure?: 'repere';
+  /** Illustration du geste : le repère de crue, montré une fois lu ; le terrain à débroussailler, sur lequel on agit. */
+  figure?: 'repere' | 'debroussaillement';
   /** Libellé du bouton qui accomplit le geste, quand « Le faire » ne dit pas assez bien ce qui va se passer. */
   go?: string;
   title: string;
@@ -79,10 +79,10 @@ export interface Question {
   sources: string[];
 }
 
-/** Situation de crise : une question, et le niveau de l'eau à ce moment-là. */
+/** Situation de crise : une question, et l'état du danger sur la carte à ce moment-là. */
 export interface Situation extends Question {
-  /** Hauteur de la crue, en mètres au-dessus du niveau normal de la rivière. */
-  floodLevel: number;
+  /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière, ou avancée du feu, de 0 à 1. */
+  hazard: number;
 }
 
 /** Ce que les règles du bilan peuvent lire du chapitre joué. */
@@ -118,7 +118,7 @@ export interface BadgeDef {
 export type VigilanceLevel = 'verte' | 'jaune' | 'orange' | 'rouge';
 
 /** Le temps qu'il fait, tel que la carte le montre. */
-export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie';
+export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie' | 'canicule' | 'fumee';
 
 /**
  * Un moment de récit entre deux phases : il laisse au joueur le temps de voir
@@ -134,6 +134,8 @@ export interface StoryCard {
   late?: string;
   /** Libellé du bouton qui fait avancer le récit. */
   next: string;
+  /** Signal sonore de ce moment : le téléphone qui vibre, ou l'alerte. */
+  sound?: 'message' | 'alerte';
   /** Ce que montrent la carte et la barre d'état pendant ce moment. */
   sky: SkyId;
   vigilance: VigilanceLevel;
@@ -148,4 +150,96 @@ export interface Bulletin {
   /** Consignes à puces, reprises de la source. */
   advice?: string[];
   sources: string[];
+}
+
+/** Un temps du récit qui ouvre une phase : un moment raconté, ou un message reçu. */
+export type Beat =
+  | {
+      tell: StoryCard;
+      /** Niveau du danger que la carte montre à partir de ce moment. */
+      hazard?: number;
+    }
+  | {
+      bulletin: Bulletin;
+      /** Niveau que prend l'indicateur pendant la lecture. Sans lui, la barre d'état montre déjà la phase qui commence. */
+      vigilance?: VigilanceLevel;
+    };
+
+/**
+ * La seconde moitié d'un chapitre : la vigilance, la crise et son bilan. Le
+ * déroulé (`ui/flow`) est le même pour tous les risques ; ce script lui dit quoi
+ * raconter, quoi montrer sur la carte et comment juger le résultat.
+ */
+export interface CrisisScript {
+  /** Ce que la carte met en scène : la crue de la rivière, ou le feu de forêt. */
+  hazard: 'crue' | 'feu';
+  /** Nom de la crise dans le titre des décisions : « La crue », « Le feu ». */
+  name: string;
+  /** Lieux où se trouve le joueur quand la vigilance commence, puis pendant la crise. */
+  places: { vigilance: string; crise: string };
+  /**
+   * Décalage vers le sud, en unités monde, du point que la caméra vise pendant les
+   * séquences. La fenêtre du récit occupe le bas de l'écran : on règle ainsi ce
+   * qui reste visible au-dessus d'elle (le quai et la rivière, ou la forêt).
+   */
+  lookSouth: number;
+  /** Récit d'entrée en vigilance. */
+  vigilance: Beat[];
+  /** Ce qui est annoncé quand le joueur reprend la main, au début de la vigilance. */
+  ready: string;
+  /** Récit d'entrée en crise, avant les décisions. */
+  onset: Beat[];
+  situations: Situation[];
+  /** Le dénouement, raconté avant le bilan. */
+  ending: StoryCard;
+  /** Niveau du danger sur la carte : du début à la fin de la vigilance, au dénouement, puis une fois le bilan établi. */
+  levels: { vigilance: readonly [number, number]; ending: number; after: number };
+  /** Pour le feu : le geste qui, accompli, épargne la clairière. Sans lui, elle brûle avec le reste. */
+  firebreak?: string;
+  stakes: StakeDef[];
+  badges: BadgeDef[];
+  bilan: { title: string; lead: string };
+}
+
+/** Horaires des phases où le temps est compté : durée, jour et heure de début. */
+export type ChapterTiming = Record<'preparation' | 'vigilance', { minutes: number; day: string; startsAt: number }>;
+
+/** Phases d'un chapitre, une fois le prologue passé. */
+export type ChapterPhase = 'preparation' | 'vigilance' | 'crise' | 'bilan';
+
+/**
+ * Ce qui fait un chapitre, vu du jeu : ses gestes, ses horaires, ce que la barre
+ * d'état et le téléphone en montrent. Les règles (`core/chapter`) et l'interface
+ * sont les mêmes pour tous ; seul ce contenu change.
+ */
+export interface ChapterContent {
+  id: string;
+  /** Gestes du chapitre, prologue non compris. */
+  actions: ActionDef[];
+  questions: Question[];
+  /** La mission de chaque phase, telle que le carnet la formule. */
+  objectives: Record<ChapterPhase, string>;
+  /** Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il fait. */
+  situation: Record<ChapterPhase, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
+  /** Libellé de l'indicateur de danger pour chaque niveau, tel que la barre d'état l'affiche pendant le récit. */
+  levels: Record<VigilanceLevel, string>;
+  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. */
+  forecast: Partial<Record<ChapterPhase, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
+  timing: ChapterTiming;
+  /** Baisse de la lumière en fin de préparation, quand la journée s'achève à la nuit. */
+  dusk: { minutesLeft: number; sky: SkyId } | null;
+  /** Le moment de récit qui ouvre le chapitre : la mission confiée par le maire. */
+  opening: StoryCard;
+  /** Comment le carnet nomme chaque phase minutée : « la journée », « la matinée »… */
+  period: Record<'preparation' | 'vigilance', string>;
+  /** Message « le temps presse » de chaque phase minutée ; `{reste}` y est remplacé par le temps restant. */
+  alerts: Record<'preparation' | 'vigilance', string>;
+  /** Application du téléphone qu'ouvre l'indicateur de danger. */
+  hazardApp: 'alertes' | 'meteo';
+  /** Ce qu'est cet indicateur, d'après sa source officielle : affiché dans l'application Météo. */
+  hazardInfo?: { title: string; text: string; sources: string[] };
+  /** La vigilance, la crise et le bilan. Sans ce script, seule la préparation du chapitre existe : la suite est en cours d'écriture. */
+  crisis?: CrisisScript;
+  /** Pour un chapitre sans suite : le moment de récit qui l'annonce. */
+  toBeContinued?: StoryCard;
 }

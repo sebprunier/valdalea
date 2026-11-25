@@ -164,7 +164,7 @@ export const DICRIM = {
         "Le plateau, au nord de la commune, repose sur une épaisse couche d'argile, autrefois exploitée par des tuileries. Le lotissement des Argilières y a été construit dans les années 1980.",
         'Après les étés secs de ces dernières années, plusieurs maisons du lotissement présentent des fissures.',
       ],
-      mapSummary: "L'exposition est forte sur tout le lotissement des Argilières. Elle est moyenne sur le reste du plateau et ses abords, jusqu'au nord du Haut-Bourg.",
+      mapSummary: "L'exposition est forte sur le nord et l'ouest du lotissement des Argilières, là où la couche d'argile est la plus épaisse : dans une même rue, des maisons voisines ne sont pas exposées de la même façon. Elle est moyenne sur le reste du lotissement, du plateau et de ses abords, jusqu'au nord du Haut-Bourg.",
       commune: ['Elle informe les acquéreurs et les constructeurs du zonage.', 'Elle signale à la préfecture les dégâts constatés après chaque sécheresse.'],
       reflexes: [
         {

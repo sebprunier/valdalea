@@ -15,17 +15,24 @@ export interface Sky {
   icon: 'soleil' | 'nuage' | 'pluie' | 'lune' | 'eclaircie';
   /** Intensité de la pluie, de 0 à 1. */
   rain: number;
+  /** Force du vent, de 0 à 1 : elle ne se voit pas, elle s'entend. Nulle par temps calme. */
+  wind: number;
+  /** Lumière du jour, de 0 (nuit) à 1 : les oiseaux en dépendent. */
+  daylight: number;
   /** Voile posé sur la carte (couleur CSS). */
   veil: string;
 }
 
 export const SKIES: Record<SkyId, Sky> = {
-  sec: { label: 'Temps sec', icon: 'soleil', rain: 0, veil: 'rgb(30 40 70 / 0%)' },
-  soir: { label: 'Le soir tombe', icon: 'nuage', rain: 0, veil: 'rgb(38 40 78 / 26%)' },
-  'nuit-pluie': { label: 'Nuit, pluie', icon: 'lune', rain: 0.7, veil: 'rgb(14 20 48 / 52%)' },
-  pluie: { label: 'Pluie', icon: 'pluie', rain: 0.6, veil: 'rgb(52 64 84 / 22%)' },
-  'forte-pluie': { label: 'Fortes pluies', icon: 'pluie', rain: 1, veil: 'rgb(44 54 76 / 32%)' },
-  eclaircie: { label: 'Éclaircies', icon: 'eclaircie', rain: 0, veil: 'rgb(60 70 84 / 8%)' },
+  sec: { label: 'Temps sec', icon: 'soleil', rain: 0, wind: 0, daylight: 1, veil: 'rgb(30 40 70 / 0%)' },
+  soir: { label: 'Le soir tombe', icon: 'nuage', rain: 0, wind: 0.5, daylight: 0.35, veil: 'rgb(38 40 78 / 26%)' },
+  'nuit-pluie': { label: 'Nuit, pluie', icon: 'lune', rain: 0.7, wind: 0.25, daylight: 0, veil: 'rgb(14 20 48 / 52%)' },
+  pluie: { label: 'Pluie', icon: 'pluie', rain: 0.6, wind: 0.2, daylight: 0.8, veil: 'rgb(52 64 84 / 22%)' },
+  'forte-pluie': { label: 'Fortes pluies', icon: 'pluie', rain: 1, wind: 0.55, daylight: 0.7, veil: 'rgb(44 54 76 / 32%)' },
+  eclaircie: { label: 'Éclaircies', icon: 'eclaircie', rain: 0, wind: 0.08, daylight: 0.9, veil: 'rgb(60 70 84 / 8%)' },
+  // L'été du feu : une lumière jaune et dure, puis la fumée qui obscurcit le ciel.
+  canicule: { label: 'Canicule, vent', icon: 'soleil', rain: 0, wind: 0.3, daylight: 1, veil: 'rgb(255 196 84 / 11%)' },
+  fumee: { label: 'Fumée', icon: 'nuage', rain: 0, wind: 0.5, daylight: 0.1, veil: 'rgb(124 74 38 / 36%)' },
 };
 
 interface Drop {

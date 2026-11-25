@@ -1,7 +1,8 @@
-import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
+import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
 
 /**
- * Chapitre « L'automne » : le risque inondation.
+ * Chapitre « L'automne » : le risque inondation. (Le prologue, commun à tous les
+ * chapitres, est dans `prologue.ts`.)
  *
  * Les gestes et consignes reprennent les pages officielles citées dans `sources`,
  * au premier rang desquelles « Que faire en cas d'inondation ? » (Géorisques).
@@ -11,31 +12,6 @@ import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, S
 // ------------------------------------------------------------------ Actions
 
 export const ACTIONS: ActionDef[] = [
-  {
-    id: 'mairie-accueil',
-    place: 'mairie',
-    phase: 'accueil',
-    minutes: 0,
-    endsPhase: true,
-    title: 'Vous présenter au maire',
-    why: "Le maire est responsable de la sécurité sur sa commune : il veille à l'information sur les risques et à l'organisation des secours en cas de crise.",
-    who: 'Vous. Le maire vous attend pour votre première mission de réserviste.',
-    done: "« Bienvenue dans la réserve ! L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans. Commencez par lire notre DICRIM, puis faites le tour des lieux exposés : chez vous, chez votre voisine Jeanne, à l'école, au camping, au gymnase. Vous avez jusqu'à 18 heures ; votre carnet de mission vous dira ce qu'il reste à faire. »",
-    sources: ['georisques-acteurs'],
-  },
-  {
-    id: 'mairie-dicrim',
-    lexicon: ['dicrim'],
-    place: 'mairie',
-    phase: 'preparation',
-    minutes: 20,
-    title: 'Consulter le DICRIM',
-    go: 'Ouvrir le DICRIM',
-    why: "Le document d'information communal sur les risques majeurs présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Se renseigner en mairie est la première des mesures de prévention.",
-    who: 'Le maire rédige le DICRIM et doit le faire connaître. À chacun de le lire.',
-    done: "Vous avez parcouru le DICRIM : vous savez maintenant où l'eau peut monter. La zone inondable s'affiche sur la carte, en hachures violettes. Le document reste disponible dans votre téléphone.",
-    sources: ['georisques-inondation', 'georisques-dicrim'],
-  },
   {
     id: 'maison-kit',
     lexicon: ['kit'],
@@ -285,7 +261,7 @@ export const QUESTIONS: Question[] = [
 export const SITUATIONS: Situation[] = [
   {
     id: 'berges',
-    floodLevel: 0.75,
+    hazard: 0.75,
     context: "9 h 40. Il pleut à verse depuis l'aube. Par la fenêtre, vous voyez des voisins partir vers le pont : « Viens voir, la Follette est impressionnante ! »",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -297,7 +273,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'enfants',
-    floodLevel: 1.0,
+    hazard: 1.0,
     context: "10 h 15. Votre téléphone sonne d'une sonnerie que vous n'aviez jamais entendue : c'est une alerte FR-Alert. La Follette déborde, le maire déclenche le plan communal de sauvegarde. Vos deux enfants sont à l'école du Quai, à trois minutes d'ici.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -310,7 +286,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'voiture',
-    floodLevel: 1.15,
+    hazard: 1.15,
     context: "10 h 30. Votre voiture est garée sur le quai. L'eau commence à l'entourer.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -322,7 +298,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'cave',
-    floodLevel: 1.3,
+    hazard: 1.3,
     context: "10 h 45. De l'eau suinte sous la porte de la cave. Vos albums photo sont en bas, sur une étagère.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -334,7 +310,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'telephone',
-    floodLevel: 1.45,
+    hazard: 1.45,
     context: "11 h. Vous êtes à l'étage. Vous n'avez pas de nouvelles de votre sœur, qui habite de l'autre côté du bourg.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -346,7 +322,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'evacuer',
-    floodLevel: 1.6,
+    hazard: 1.6,
     context: "11 h 30. L'eau a envahi la rue : près d'un mètre devant votre porte. Un voisin s'en va à pied, de l'eau jusqu'à la taille : « Venez, on va au gymnase ! »",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -444,14 +420,14 @@ export const STAKES: StakeDef[] = [
   {
     id: 'connaissance',
     title: 'Votre connaissance du risque',
+    // Le DICRIM est lu par tous, dès le prologue : ce qui compte ici, c'est d'être allé voir sur place.
     assess: (view) => {
-      const others = count(view, ['pont-repere', 'ecole-plan', 'maison-diagnostic']);
-      if (view.did('mairie-dicrim') && others >= 1) return 2;
-      return view.did('mairie-dicrim') || others >= 1 ? 1 : 0;
+      const visits = count(view, ['pont-repere', 'ecole-plan', 'maison-diagnostic']);
+      return visits >= 2 ? 2 : visits === 1 ? 1 : 0;
     },
     outcomes: [
-      "Vous avez agi sans vraiment connaître le risque : ni le DICRIM, ni l'histoire des crues de la Follette.",
-      "Vous vous êtes en partie informé. Le DICRIM, le repère de crue du pont, le plan de l'école : chaque source complète les autres.",
+      "Vous aviez lu le DICRIM, mais vous n'êtes pas allé voir sur place : ni le repère de crue du pont, ni le plan de l'école, ni le diagnostic de votre maison.",
+      "Vous vous êtes en partie informé sur place. Le repère de crue du pont, le plan de l'école, le diagnostic de la maison : chaque source complète le DICRIM.",
       "Vous saviez où l'eau pouvait monter, comment vous seriez alerté et où vous réfugier. C'est le point de départ de tout le reste.",
     ],
     lesson: "Se renseigner auprès de sa mairie sur le type d'inondation possible et sur les mesures de protection prévues, à commencer par le DICRIM.",
@@ -460,7 +436,12 @@ export const STAKES: StakeDef[] = [
 ];
 
 export const BADGES: BadgeDef[] = [
-  { id: 'informe', title: 'Bien informé', description: 'Consulter le DICRIM de la commune.', earned: (v) => v.did('mairie-dicrim') },
+  {
+    id: 'informe',
+    title: 'Bien informé',
+    description: "Compléter la lecture du DICRIM par deux visites au moins : le repère de crue, l'école, le diagnostic de la maison.",
+    earned: (v) => count(v, ['pont-repere', 'ecole-plan', 'maison-diagnostic']) >= 2,
+  },
   { id: 'kit', title: 'Kit prêt', description: "Préparer son kit d'urgence 72 h.", earned: (v) => v.did('maison-kit') },
   { id: 'memoire', title: 'Mémoire de crue', description: 'Retrouver le repère de crue de la commune.', earned: (v) => v.did('pont-repere') },
   {
@@ -549,7 +530,6 @@ export const FLOOD = {
 };
 
 export const OBJECTIVES = {
-  accueil: 'Présentez-vous à la mairie.',
   preparation: 'Accomplissez tous les gestes de prévention avant la tombée de la nuit.',
   vigilance: "L'eau monte : installez ce qui a été préparé, puis rentrez vous mettre à l'abri.",
   crise: 'La Follette déborde : faites les bons choix.',
@@ -559,16 +539,40 @@ export const OBJECTIVES = {
 // ------------------------------------------------------- Situation et récit
 
 /** Ce que la barre d'état et la carte montrent à chaque phase : vigilance, temps qu'il fait, état de la rivière. */
-export const SITUATION: Record<keyof typeof OBJECTIVES, { vigilance: VigilanceLevel; sky: SkyId; river: string }> = {
-  accueil: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
-  preparation: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
-  vigilance: { vigilance: 'orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
-  crise: { vigilance: 'rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
-  bilan: { vigilance: 'jaune', sky: 'eclaircie', river: 'en décrue' },
+export const SITUATION: ChapterContent['situation'] = {
+  preparation: { level: 'verte', indicator: 'Vigilance crues : verte', sky: 'sec', river: 'à son niveau habituel' },
+  vigilance: { level: 'orange', indicator: 'Vigilance crues : orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
+  crise: { level: 'rouge', indicator: 'Vigilance crues : rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
+  bilan: { level: 'jaune', indicator: 'Vigilance crues : jaune', sky: 'eclaircie', river: 'en décrue' },
+};
+
+/**
+ * Prévisions de l'application Météo, phase par phase. Fiction : elles annoncent
+ * le récit, comme un bulletin annonce la pluie.
+ */
+export const FORECAST: ChapterContent['forecast'] = {
+  preparation: [
+    { when: 'Cet après-midi', icon: 'soleil', text: 'Temps sec. Le ciel se couvre en fin de journée.' },
+    { when: 'Dimanche', icon: 'nuage', text: 'Ciel couvert. La pluie arrive dans la soirée.' },
+    { when: 'Lundi', icon: 'pluie', text: 'Fortes pluies toute la journée.' },
+  ],
+  vigilance: [
+    { when: 'Ce matin', icon: 'pluie', text: 'Pluie continue.' },
+    { when: 'Cet après-midi', icon: 'pluie', text: 'Fortes pluies.' },
+    { when: 'Mardi', icon: 'eclaircie', text: 'Accalmie.' },
+  ],
+  crise: [
+    { when: "Aujourd'hui", icon: 'pluie', text: "Fortes pluies, qui faiblissent dans l'après-midi." },
+    { when: 'Mardi', icon: 'eclaircie', text: 'Accalmie.' },
+  ],
+  bilan: [
+    { when: 'Ce soir', icon: 'eclaircie', text: 'La pluie a cessé.' },
+    { when: 'Demain', icon: 'soleil', text: 'Temps sec.' },
+  ],
 };
 
 /** Pendant la dernière heure de la journée de préparation, le jour baisse : c'est le signe que le temps presse. */
-export const DUSK = { minutesLeft: 60, sky: 'soir' as SkyId };
+export const DUSK: { minutesLeft: number; sky: SkyId } = { minutesLeft: 60, sky: 'soir' };
 
 /**
  * Les quatre niveaux de la vigilance crues, tels que Vigicrues les définit.
@@ -604,6 +608,18 @@ export const VIGILANCE_SCALE: {
  * le bulletin qui l'annonce.
  */
 export const STORY = {
+  debut: {
+    id: 'debut',
+    when: 'Samedi, midi',
+    title: "L'automne arrive",
+    paragraphs: [
+      "« L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans », vous a dit le maire.",
+      "Votre mission : faire le tour des lieux exposés avant la nuit. Chez vous, chez votre voisine Jeanne, au pont, à l'école, au camping, au gymnase. Vous avez jusqu'à 18 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
+    ],
+    next: 'Commencer',
+    sky: 'sec',
+    vigilance: 'verte',
+  },
   soir: {
     id: 'soir',
     when: 'Samedi, 18 h',
@@ -611,6 +627,7 @@ export const STORY = {
     paragraphs: ["La journée s'achève. Le ciel s'est couvert, et le vent se lève.", 'Votre téléphone vibre : un message de Vigicrues.'],
     late: "La nuit tombe avant que vous ayez pu tout faire : vous rentrez chez vous. Le ciel s'est couvert, et le vent se lève.",
     next: 'Lire le message',
+    sound: 'message',
     sky: 'soir',
     vigilance: 'verte',
   },
@@ -629,6 +646,7 @@ export const STORY = {
     title: "L'eau affleure le quai",
     paragraphs: ['Au réveil, il pleut toujours. De votre fenêtre, vous voyez la Follette, brune et rapide, au ras du quai.', 'Votre téléphone vibre de nouveau.'],
     next: 'Lire le message',
+    sound: 'message',
     sky: 'pluie',
     vigilance: 'jaune',
   },
@@ -639,6 +657,7 @@ export const STORY = {
     paragraphs: ["Vous êtes à l'étage. Dehors, la pluie redouble : l'eau a franchi le quai et gagne la rue.", 'Votre téléphone se met à sonner.'],
     late: "L'eau monte trop vite pour continuer : vous rentrez vous mettre à l'abri, à l'étage. Dehors, la pluie redouble : l'eau a franchi le quai et gagne la rue.",
     next: "Lire l'alerte",
+    sound: 'alerte',
     sky: 'forte-pluie',
     vigilance: 'orange',
   },
@@ -652,3 +671,45 @@ export const STORY = {
     vigilance: 'orange',
   },
 } satisfies Record<string, StoryCard>;
+
+/** Le chapitre, tel que le jeu le joue : sa journée de préparation, puis sa crue, que `ui/flow` met en scène. */
+export const AUTOMNE: ChapterContent = {
+  id: 'automne',
+  actions: ACTIONS,
+  questions: QUESTIONS,
+  objectives: OBJECTIVES,
+  situation: SITUATION,
+  levels: { verte: 'Vigilance crues : verte', jaune: 'Vigilance crues : jaune', orange: 'Vigilance crues : orange', rouge: 'Vigilance crues : rouge' },
+  forecast: FORECAST,
+  timing: {
+    // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
+    preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
+    vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
+  },
+  dusk: DUSK,
+  opening: STORY.debut,
+  period: { preparation: 'la journée', vigilance: 'la matinée' },
+  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant la nuit.', vigilance: "L'eau monte : il vous reste {reste} pour vous mettre à l'abri." },
+  hazardApp: 'alertes',
+  crisis: {
+    hazard: 'crue',
+    name: 'La crue',
+    places: { vigilance: 'domicile', crise: 'domicile' },
+    // On vise plus au sud que la maison : le quai et la rivière restent visibles au-dessus de la fenêtre du récit.
+    lookSouth: 170,
+    // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
+    vigilance: [{ tell: STORY.soir }, { bulletin: BULLETIN_JAUNE, vigilance: 'jaune' }, { tell: STORY.nuit }, { tell: STORY.matin, hazard: FLOOD.rising }, { bulletin: BULLETIN_ORANGE }],
+    ready: 'Vigilance orange. Vous êtes chez vous.',
+    // L'eau franchit le quai pendant que le joueur lit : il la voit avant que l'alerte ne sonne.
+    onset: [{ tell: STORY.abri, hazard: SITUATIONS[0].hazard }, { bulletin: BULLETIN_ROUGE }],
+    situations: SITUATIONS,
+    ending: STORY.decrue,
+    levels: { vigilance: [FLOOD.rising, FLOOD.rising], ending: FLOOD.receding, after: 0 },
+    stakes: STAKES,
+    badges: BADGES,
+    bilan: {
+      title: 'Bilan de la crue',
+      lead: 'En fin de journée, la Follette regagne son lit. Voici ce que la crue a laissé derrière elle, et ce que votre préparation a changé.',
+    },
+  },
+};

@@ -9,6 +9,25 @@
       content="Un jeu libre, gratuit et sans inscription pour apprendre à préparer sa commune et son foyer face aux risques majeurs."
     />
     <meta name="theme-color" content="#1b2733" />
+    <link rel="canonical" href="https://www.valdalea.fr/" />
+    <!-- Aperçu affiché quand le lien du jeu est partagé (réseaux sociaux, messageries). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="Val-d'Aléa" />
+    <meta property="og:title" content="Val-d'Aléa — un jeu pour se préparer aux risques majeurs" />
+    <meta
+      property="og:description"
+      content="Inondation, feu de forêt… Un jeu libre, gratuit et sans inscription pour apprendre à préparer sa commune et son foyer face aux risques majeurs."
+    />
+    <meta property="og:url" content="https://www.valdalea.fr/" />
+    <meta property="og:image" content="https://www.valdalea.fr/apercu.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta
+      property="og:image:alt"
+      content="Le plan de Val-d'Aléa : la rivière, le pont et les maisons du Bas-Bourg, avec le titre du jeu."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b2733'/%3E%3Cpath d='M4 21c5-5 9 3 14-2s6-1 10-4' fill='none' stroke='%23a3cfe8' stroke-width='3.5' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='11' r='5' fill='%23ea6a22'/%3E%3C/svg%3E"
@@ -21,8 +40,10 @@
       <div class="hud__where">
         <p class="hud__commune">Val-d'Aléa</p>
         <p class="hud__sector"><span class="sr-only">Secteur : </span><span id="hud-sector">Bas-Bourg</span></p>
+        <!-- Le chapitre en cours : un rappel. Il se choisit dans le téléphone, application Calendrier. -->
+        <p class="hud__chapter"><span class="sr-only">Chapitre : </span><span id="hud-chapter-text">Prologue</span></p>
       </div>
-      <!-- L'état du moment, sous le nom de la commune : le temps qu'il fait et la vigilance. Les deux ouvrent le détail, dans le téléphone. -->
+      <!-- L'état du moment, sous le nom de la commune : le temps qu'il fait et la vigilance. Chacun ouvre son application, dans le téléphone. -->
       <div class="hud__status">
         <button type="button" class="chip chip--button" id="hud-weather" aria-haspopup="dialog">
           <span class="chip__icon" id="hud-weather-icon" aria-hidden="true"></span>
@@ -30,7 +51,7 @@
         </button>
         <button type="button" class="chip chip--button chip--vigilance" id="hud-vigilance" data-level="verte" aria-haspopup="dialog">
           <span class="swatch" aria-hidden="true"></span>
-          <span>Vigilance<span class="chip__extra"> crues</span> : <span id="hud-vigilance-level">verte</span></span>
+          <span id="hud-vigilance-text">Aucune alerte</span>
         </button>
       </div>
       <!-- La mission : ce qu'il faut faire maintenant, le temps qu'il reste, l'avancement. Ce bouton, voisin des autres, ouvre le carnet. -->
@@ -55,12 +76,6 @@
         </span>
       </button>
       <nav class="hud__actions" aria-label="Menu du jeu">
-        <button type="button" class="hud-button" id="button-places" aria-keyshortcuts="L">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-          </svg>
-          <span class="hud-button__label">Lieux</span> <kbd aria-hidden="true">L</kbd>
-        </button>
         <button type="button" class="hud-button" id="button-phone" aria-keyshortcuts="T">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm3 17h2" />
@@ -75,6 +90,11 @@
             />
           </svg>
           <span class="hud-button__label">Aide</span> <kbd aria-hidden="true">H</kbd>
+        </button>
+        <!-- Le son se coupe d'ici à tout moment ; l'état est porté par aria-pressed et par le pictogramme. -->
+        <button type="button" class="hud-button hud-button--icon" id="button-sound" aria-pressed="true">
+          <span id="sound-icon" aria-hidden="true"></span>
+          <span class="sr-only">Son</span>
         </button>
       </nav>
     </header>
@@ -93,9 +113,8 @@
         <canvas id="weather" class="weather" aria-hidden="true"></canvas>
       </div>
       <p id="map-help" class="sr-only">
-        Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. L ouvre la
-        liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. T
-        ouvre le téléphone, H l'aide, G la légende de la carte. Plus et moins changent le zoom.
+        Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. T ouvre le
+        téléphone, la télécommande du jeu ; L y ouvre directement la liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. H ouvre l'aide, G la légende de la carte. Plus et moins changent le zoom.
       </p>
       <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
       <div class="map-tools">

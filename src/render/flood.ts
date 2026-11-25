@@ -65,9 +65,18 @@ export class WaterLayer {
   }
 }
 
+/** Couleur de l'eau de la crue. */
+const FLOOD_WATER = [92, 128, 150] as const;
+
 /** Crue en cours : une eau chargée, plus opaque avec la profondeur. */
 export function floodLayer(elevation: Elevation): WaterLayer {
-  return new WaterLayer(elevation, [92, 128, 150], (depth) => edge(depth) * (0.5 + depth * 0.22));
+  return new WaterLayer(elevation, FLOOD_WATER, (depth) => edge(depth) * (0.5 + depth * 0.22));
+}
+
+/** Échantillon pour la légende de la carte : l'eau de la crue, sous un mètre d'eau environ. */
+export function paintFloodSample(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.fillStyle = `rgb(${FLOOD_WATER[0]} ${FLOOD_WATER[1]} ${FLOOD_WATER[2]} / 0.72)`;
+  ctx.fillRect(0, 0, w, h);
 }
 
 /** Fondu sur les premiers centimètres d'eau : c'est lui qui adoucit le bord de la nappe. */

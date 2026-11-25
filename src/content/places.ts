@@ -47,6 +47,10 @@ export const PLACE_TEXTS: Record<string, PlaceText> = {
     description:
       "Une rue de maisons adossées au pied de la falaise. Les jardins des habitations les plus proches touchent les éboulis.",
   },
+  lucien: {
+    description:
+      "Une maison dans une clairière, au bout d'un sentier, à l'écart du hameau : la forêt l'entoure sur trois côtés. Lucien y vit depuis quarante ans.",
+  },
   brandes: {
     description:
       "Quelques maisons isolées en lisière de la forêt des Brandes, reliées au bourg par un seul chemin.",

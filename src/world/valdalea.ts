@@ -1,4 +1,4 @@
-import { inflate, rect, rectToPolygon, vec } from '../core/geometry';
+import { inflate, rect, rectToPolygon, smoothRing, vec } from '../core/geometry';
 import { doorPoint, WorldBuilder } from './builder';
 import type { Commune } from './model';
 
@@ -23,12 +23,15 @@ export function buildValDAlea(): Commune {
   b.ground('eboulis', [vec(0, 0), vec(420, 0), vec(470, 300), vec(440, 700), vec(490, 1100), vec(460, 1470), vec(320, 1600), vec(0, 1600)]);
   b.ground('falaise', [vec(0, 0), vec(380, 0), vec(430, 300), vec(400, 700), vec(450, 1100), vec(420, 1450), vec(300, 1560), vec(0, 1560)]);
 
+  const clearing = [vec(3694, 1176), vec(3694, 916), vec(3516, 916), vec(3516, 1062)];
   const forest = [
     vec(2980, 0),
     vec(4200, 0),
     vec(4200, 1200),
     vec(3950, 1280),
     vec(3700, 1180),
+    // La clairière de Lucien : la forêt l'entoure sur trois côtés, au ras de son jardin.
+    ...clearing,
     vec(3450, 1020),
     vec(3250, 820),
     vec(3080, 520),
@@ -71,6 +74,8 @@ export function buildValDAlea(): Commune {
   b.road('rue', [vec(1200, 300), vec(1200, 1660)], 'rue du Plateau');
   b.road('rue', [vec(2100, 1000), vec(2960, 1000)], 'rue de la Mairie');
   b.road('ruelle', [vec(2960, 1000), vec(3150, 1060), vec(3350, 1220), vec(3650, 1330), vec(3720, 1500), vec(3720, 1650)], 'chemin des Brandes');
+  // Le sentier qui monte chez Lucien, dans sa clairière.
+  b.road('chemin', [vec(3555, 1295), vec(3605, 1052)]);
 
   b.road('rue', [vec(1200, 1150), vec(2100, 1150)], 'rue des Carriers');
   b.road('rue', [vec(1200, 1430), vec(2100, 1430)], 'rue Basse');
@@ -171,19 +176,23 @@ export function buildValDAlea(): Commune {
   }
 
   // ---------------------------------------------------- Hameau des Brandes
-  for (const [x, y, w, h, door] of [
-    [3230, 930, 90, 70, 'S'],
-    [3440, 1090, 100, 70, 'S'],
-    [3620, 1190, 90, 70, 'S'],
-    [3820, 1330, 100, 80, 'W'],
-    [3480, 1370, 100, 70, 'N'],
-    [3260, 1290, 90, 70, 'N'],
-    [3780, 1520, 90, 70, 'W'],
-  ] as const) {
+  const hamlet = (
+    [
+      [3230, 930, 90, 70, 'S'],
+      [3555, 955, 100, 70, 'S'],
+      [3620, 1190, 90, 70, 'S'],
+      [3820, 1330, 100, 80, 'W'],
+      [3480, 1370, 100, 70, 'N'],
+      [3260, 1290, 90, 70, 'N'],
+      [3780, 1520, 90, 70, 'W'],
+    ] as const
+  ).map(([x, y, w, h, door]) => {
     const house = rect(x, y, w, h);
     b.groundRect('jardin', inflate(house, 25));
-    b.building('pavillon', house, { roof: 'tuile', door });
-  }
+    return b.building('pavillon', house, { roof: 'tuile', door });
+  });
+  // La maison de Lucien, à l'écart du hameau, dans une clairière que la forêt entoure sur trois côtés.
+  const lucien = hamlet[1];
 
   // --------------------------------------------------------------- Camping
   const camping = rect(1450, 2470, 620, 380);
@@ -219,6 +228,12 @@ export function buildValDAlea(): Commune {
   ] as const) {
     b.tree(x, y, 13);
   }
+  // Le camping : une haie d'arbres sur trois côtés, et deux arbres d'ombrage entre les emplacements.
+  for (let y = 2552; y <= 2830; y += 46) b.tree(1463, y, 11);
+  for (let x = 1500; x <= 2050; x += 46) b.tree(x, 2837, 11);
+  for (let y = 2630; y <= 2800; y += 46) b.tree(2057, y, 11);
+  b.tree(1593, 2670, 13);
+  b.tree(1937, 2670, 13);
 
   // ------------------------------------------------------------ Toponymie
   b.label('secteur', 'Sous-la-Roche', 800, 1420);
@@ -261,6 +276,7 @@ export function buildValDAlea(): Commune {
   b.place('argilieres', 'Lotissement des Argilières', 'quartier', 'argilieres', vec(1650, 300));
   b.place('sous-la-roche', 'Sous-la-Roche', 'quartier', 'sous-la-roche', vec(640, 820));
   b.place('brandes', 'Hameau des Brandes', 'quartier', 'brandes', vec(3500, 1275));
+  b.place('lucien', 'Chez Lucien', 'domicile', 'brandes', doorPoint(lucien));
   b.place('cite', 'Cité des Vannes', 'quartier', 'cite', vec(3120, 1900));
   b.place('usine', 'Usine Engrais du Val', 'usine', 'zone-industrielle', vec(3400, 1772));
   b.place('camping', 'Camping des Berges', 'camping', 'camping', doorPoint(accueil));
@@ -276,9 +292,36 @@ export function buildValDAlea(): Commune {
   b.hazardMark('cavites', vec(1880, 1250), 'entrée murée');
   b.hazardMark('cavites', vec(1700, 1530), 'galerie connue');
 
-  // Argiles : exposition forte sur le plateau, moyenne sur ses abords.
-  b.hazard('argiles', 'moyen', [vec(860, 0), vec(2940, 0), vec(2940, 640), vec(2150, 640), vec(2150, 950), vec(1090, 950), vec(860, 760)]);
-  b.hazard('argiles', 'fort', [vec(1140, 70), vec(2090, 70), vec(2090, 890), vec(1140, 890)]);
+  // Argiles : des zones aux limites souples, qui suivent la géologie et non les rues.
+  // L'exposition est moyenne sur le plateau et ses abords ; elle est forte sur une lentille
+  // d'argile qui ne prend que le nord et l'ouest du lotissement : des voisins de la même rue
+  // ne sont pas logés à la même enseigne.
+  b.hazard(
+    'argiles',
+    'moyen',
+    smoothRing([
+      vec(820, -120),
+      vec(1500, -160),
+      vec(2300, -140),
+      vec(2990, -100),
+      vec(3010, 260),
+      vec(2880, 540),
+      vec(2540, 630),
+      vec(2260, 620),
+      vec(2130, 760),
+      vec(2090, 930),
+      vec(1760, 1000),
+      vec(1340, 975),
+      vec(1040, 900),
+      vec(860, 660),
+      vec(790, 300),
+    ]),
+  );
+  b.hazard(
+    'argiles',
+    'fort',
+    smoothRing([vec(1110, 40), vec(1500, -10), vec(1860, 70), vec(1990, 290), vec(1900, 510), vec(1660, 590), vec(1520, 740), vec(1290, 790), vec(1130, 630), vec(1080, 320)]),
+  );
 
   // Feu de forêt : le massif, et la bande de 200 mètres où s'appliquent les obligations de débroussaillement.
   b.hazard('feu-foret', 'fort', forest);
@@ -301,6 +344,16 @@ export function buildValDAlea(): Commune {
   b.hazard('industriel', 'moyen', Array.from({ length: 48 }, (_, i) => vec(plant.x + 650 * Math.cos((i / 48) * Math.PI * 2), plant.y + 650 * Math.sin((i / 48) * Math.PI * 2))));
   b.hazard('industriel', 'fort', rectToPolygon(site));
   b.hazardMark('industriel', plant, 'Engrais du Val');
+
+  // Le feu de l'été : parti au nord-est, hors de la carte, il est poussé par le vent vers la clairière
+  // de Lucien et le hameau. Des braises allument un second foyer en avant du front, près de la clairière.
+  b.wildfire({
+    ignition: vec(4260, -60),
+    wind: vec(-0.5025, 0.8646),
+    reach: { head: 1400, flank: 540, back: 300 },
+    spot: { at: vec(3790, 790), from: 0.4, reach: { head: 420, flank: 260, back: 160 } },
+    clearing,
+  });
 
   b.spawn(doorPoint(home));
   return b.commune;

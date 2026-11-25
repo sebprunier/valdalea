@@ -1,10 +1,12 @@
 import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
+import { FireLayer } from '../render/fire';
 import { floodLayer, type WaterLayer } from '../render/flood';
 import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
 import { paintRisk } from '../render/riskmap';
 import { TILE_SIZE, TileCache } from '../render/tiles';
 import type { Elevation } from '../world/elevation';
+import type { FireField } from '../world/fire';
 import type { WalkGrid } from '../world/grid';
 import { sectorAt, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
@@ -19,6 +21,8 @@ const ROUTE_INTERVAL = 0.15;
 
 /** Vitesse de montée ou de descente de la crue à l'écran, en mètres par seconde. */
 const FLOOD_SPEED = 0.11;
+/** Vitesse à laquelle le feu gagne du terrain à l'écran, en avancée par seconde. */
+const FIRE_SPEED = 0.05;
 
 /** Temps consacré, par image, à préparer les tuiles manquantes (en millisecondes). */
 const BAKE_BUDGET = 7;
@@ -71,6 +75,8 @@ export class Game {
   private readonly elevation: Elevation;
   private readonly hooks: GameHooks;
   private readonly flood: WaterLayer;
+  /** Le feu de forêt, créé quand un chapitre en a besoin. */
+  private fire: FireLayer | null = null;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly tiles: TileCache;
@@ -97,6 +103,9 @@ export class Game {
   /** Niveau de la crue à l'écran, qui rejoint progressivement `floodTarget`. */
   private floodLevel = 0;
   private floodTarget = 0;
+  /** Avancée du feu à l'écran, qui rejoint progressivement `fireTarget`. */
+  private fireLevel = 0;
+  private fireTarget = 0;
   /** Point que la caméra regarde pendant une séquence (le joueur ne se déplace pas). */
   private focus: Vec | null = null;
 
@@ -207,13 +216,36 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Dessine la zone inondable et la crue sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
+  /**
+   * Fait avancer le feu de forêt jusqu'au niveau indiqué (0 : pas de feu ; 1 : il est arrivé au plus loin ;
+   * au-delà, il est fixé et ses flammes s'éteignent).
+   * @param field ce qui brûle : il change quand un terrain a été débroussaillé
+   */
+  setFire(level: number, field: FireField | null, immediate = false): void {
+    if (field) {
+      if (this.fire) this.fire.setField(field);
+      else this.fire = new FireLayer(field);
+    }
+    this.fireTarget = this.fire ? level : 0;
+    // Le feu ne recule pas : s'il doit disparaître ou repartir de plus bas, c'est d'un coup.
+    if (immediate || this.reducedMotion || this.fireTarget < this.fireLevel) this.fireLevel = this.fireTarget;
+    this.dirty = true;
+  }
+
+  /** Dessine la zone de risque, la crue et le feu sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
   paintWater(ctx: CanvasRenderingContext2D): void {
     if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.elevation);
     if (this.floodLevel > 0.02) {
       this.flood.setLevel(this.floodLevel);
       this.flood.draw(ctx);
     }
+    this.paintFire(ctx);
+  }
+
+  private paintFire(ctx: CanvasRenderingContext2D): void {
+    if (!this.fire || this.fireLevel <= 0) return;
+    this.fire.setLevel(this.fireLevel);
+    this.fire.draw(ctx);
   }
 
   /** Braque la caméra sur un point pendant une séquence ; `null` la rend au joueur. */
@@ -280,6 +312,12 @@ export class Game {
       const step = FLOOD_SPEED * dt;
       const gap = this.floodTarget - this.floodLevel;
       this.floodLevel = Math.abs(gap) <= step ? this.floodTarget : this.floodLevel + Math.sign(gap) * step;
+      this.dirty = true;
+    }
+    if (this.fireLevel !== this.fireTarget) {
+      const step = FIRE_SPEED * dt;
+      const gap = this.fireTarget - this.fireLevel;
+      this.fireLevel = gap <= step ? this.fireTarget : this.fireLevel + step;
       this.dirty = true;
     }
     if (this.paused && this.focus) {
@@ -535,6 +573,7 @@ export class Game {
       const view = { x: origin.x / scale, y: origin.y / scale, w: width / scale, h: height / scale };
       paintAboveWater(ctx, this.commune, view, (p) => this.elevation.isFlooded(p, this.floodLevel));
     }
+    this.paintFire(ctx);
     if (this.route.length > 0) paintRoute(ctx, this.player, this.route, this.clock, this.reducedMotion);
     const reach = Math.hypot(width, height) / scale / 2 + 80;
     for (const place of this.commune.places) {

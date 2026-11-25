@@ -1,4 +1,6 @@
 import { paintPlaceMarker, paintPlayer } from '../render/actors';
+import { paintFireSample } from '../render/fire';
+import { paintFloodSample } from '../render/flood';
 import { paintLegendSample, type LegendSample } from '../render/painter';
 import { legendOf, RISK_NAMES } from '../render/riskmap';
 import type { PlaceKind, RiskId } from '../world/model';
@@ -72,6 +74,13 @@ function marker(kind: PlaceKind, state: { todo: number; visited: boolean }): HTM
   });
 }
 
+/** Un morceau de carte, et par-dessus ce qu'une crise y ajoute : l'eau, le feu. */
+const overlay = (kind: LegendSample, draw: (ctx: CanvasRenderingContext2D, w: number, hh: number) => void): HTMLCanvasElement =>
+  sample(64, 40, 2, (ctx, w, hh) => {
+    paintLegendSample(ctx, kind, w, hh);
+    draw(ctx, w, hh);
+  });
+
 const row = (image: HTMLCanvasElement, label: string): HTMLElement => h('li', null, image, h('span', null, label));
 
 export function createMapLegend(deps: MapLegendDeps): MapLegend {
@@ -88,6 +97,14 @@ export function createMapLegend(deps: MapLegendDeps): MapLegend {
     dialog.body.append(
       layerBox,
       ...groups,
+      h('h3', null, 'Pendant une crise'),
+      h(
+        'ul',
+        { class: 'map-legend' },
+        row(overlay('maison', paintFloodSample), "Crue : l'eau qui a débordé"),
+        row(overlay('foret', (ctx, w, hh) => paintFireSample(ctx, 'front', w, hh)), 'Feu de forêt : le front des flammes'),
+        row(overlay('foret', (ctx, w, hh) => paintFireSample(ctx, 'brule', w, hh)), 'Feu de forêt : ce qui a brûlé'),
+      ),
       h('h3', null, 'Les repères'),
       h(
         'ul',

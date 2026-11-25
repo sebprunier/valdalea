@@ -82,6 +82,12 @@ export function distToPolyline(p: Vec, points: readonly Vec[]): number {
 }
 
 /** Distance d'un point à un rectangle (0 si le point est à l'intérieur). */
+/** Distance d'un point à une surface : nulle à l'intérieur du polygone. */
+export function distToPolygon(p: Vec, polygon: readonly Vec[]): number {
+  if (pointInPolygon(p, polygon)) return 0;
+  return distToPolyline(p, [...polygon, polygon[0]]);
+}
+
 export function distToRect(p: Vec, r: Rect): number {
   const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.w));
   const dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.h));
@@ -92,6 +98,33 @@ export function distToRect(p: Vec, r: Rect): number {
  * Lisse une ligne brisée avec une spline de Catmull-Rom : la courbe passe par
  * tous les points de contrôle. Sert au tracé de la rivière.
  */
+/**
+ * Contour fermé et lissé passant par les points donnés (spline de Catmull-Rom
+ * bouclée) : de quoi dessiner une zone aux limites souples, comme en trace la géologie.
+ */
+export function smoothRing(points: readonly Vec[], subdivisions = 8): Vec[] {
+  const n = points.length;
+  if (n < 3) return points.map((p) => ({ ...p }));
+  const at = (i: number): Vec => points[((i % n) + n) % n];
+  const out: Vec[] = [];
+  for (let i = 0; i < n; i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    for (let s = 0; s < subdivisions; s++) {
+      const t = s / subdivisions;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      out.push({
+        x: 0.5 * (2 * p1.x + (p2.x - p0.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (3 * p1.x - p0.x - 3 * p2.x + p3.x) * t3),
+        y: 0.5 * (2 * p1.y + (p2.y - p0.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (3 * p1.y - p0.y - 3 * p2.y + p3.y) * t3),
+      });
+    }
+  }
+  return out;
+}
+
 export function smoothPath(points: readonly Vec[], subdivisions = 10): Vec[] {
   if (points.length < 3) return points.map((p) => ({ ...p }));
   const at = (i: number): Vec => points[clamp(i, 0, points.length - 1)];

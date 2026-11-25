@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { clearGame, loadGame, memoryStorage, saveGame, type LoadContext } from '../src/core/save';
-import { markVisited, movePlayer, newGame, withNews, withoutNews } from '../src/core/state';
+import { markVisited, movePlayer, newGame, withNews, withoutNews, withRecord } from '../src/core/state';
 import { Store } from '../src/core/store';
 
 const context: LoadContext = {
   placeIds: new Set(['mairie', 'ecole']),
-  actionIds: new Set(['mairie-accueil', 'maison-kit']),
+  actionIds: new Set(['mairie-accueil', 'mairie-dicrim', 'maison-kit']),
+  chapterIds: new Set(['automne']),
+  legacy: { chapterId: 'automne', prologue: ['mairie-accueil', 'mairie-dicrim'] },
   situationChoices: new Map([['enfants', new Set(['ecole', 'a-pied'])]]),
   badgeIds: new Set(['kit']),
   riskIds: new Set(['inondation', 'cavites']),
@@ -54,15 +56,16 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.player).toEqual(context.spawn);
   });
 
-  it('reprend une partie de la version 1 avec un chapitre neuf', () => {
+  it('reprend une partie de la version 1 au prologue', () => {
     const storage = memoryStorage();
     storage.setItem('jcrm:partie', JSON.stringify({ version: 1, player: { x: 5, y: 5 }, visited: ['mairie'], settings: { reducedMotion: true } }));
     const state = loadGame(storage, context);
-    expect(state?.version).toBe(2);
+    expect(state?.version).toBe(3);
+    expect(state?.chapterId).toBeNull();
     expect(state?.visited).toEqual(['mairie']);
     expect(state?.chapter.phase).toBe('accueil');
     expect(state?.badges).toEqual([]);
-    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null, zoom: null });
+    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null, zoom: null, sound: true });
   });
 
   it('nettoie un chapitre sauvegardé : actions, réponses et badges inconnus sont écartés', () => {
@@ -77,8 +80,33 @@ describe('sauvegarde', () => {
       }),
     );
     const state = loadGame(storage, context);
-    expect(state?.chapter).toEqual({ phase: 'crise', minutesLeft: 0, done: ['maison-kit'], answers: { enfants: 'ecole' } });
+    // Partie de la version 2 : elle était dans le seul chapitre d'alors, et reçoit les acquis du prologue.
+    expect(state?.chapter).toEqual({ phase: 'crise', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim', 'maison-kit'], answers: { enfants: 'ecole' } });
+    expect(state?.chapterId).toBe('automne');
     expect(state?.badges).toEqual(['kit']);
+  });
+
+  it('reprend une partie de la version 2 restée à l’accueil sans lui prêter de chapitre', () => {
+    const storage = memoryStorage();
+    storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, chapter: { phase: 'accueil', minutesLeft: 0, done: [], answers: {} } }));
+    const state = loadGame(storage, context);
+    expect(state?.chapter.phase).toBe('accueil');
+    expect(state?.chapterId).toBeNull();
+  });
+
+  it('reprend le chapitre choisi et les indices obtenus, en écartant ce qui est inconnu', () => {
+    const storage = memoryStorage();
+    const write = (extra: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 3, player: { x: 5, y: 5 }, ...extra }));
+    write({ chapterId: 'automne', chapter: { phase: 'vigilance', minutesLeft: 90, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} }, record: { automne: 71.4, hiver: 50, ete: 'beaucoup' } });
+    let state = loadGame(storage, context);
+    expect(state?.chapterId).toBe('automne');
+    expect(state?.chapter.phase).toBe('vigilance');
+    expect(state?.record).toEqual({ automne: 71 });
+    // Un chapitre en cours qui n'existe plus : retour au choix, prologue acquis.
+    write({ chapterId: 'disparu', chapter: { phase: 'vigilance', minutesLeft: 90, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} } });
+    state = loadGame(storage, context);
+    expect(state?.chapterId).toBeNull();
+    expect(state?.chapter).toEqual({ phase: 'libre', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} });
   });
 
   it('repart d’un chapitre neuf si la phase sauvegardée est inconnue', () => {
@@ -114,6 +142,17 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.settings.zoom).toBeNull();
   });
 
+  it('garde le son actif tant que le joueur ne l’a pas coupé', () => {
+    const storage = memoryStorage();
+    const write = (settings: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, settings }));
+    write({});
+    expect(loadGame(storage, context)?.settings.sound).toBe(true);
+    write({ sound: false });
+    expect(loadGame(storage, context)?.settings.sound).toBe(false);
+    write({ sound: 'oui' });
+    expect(loadGame(storage, context)?.settings.sound).toBe(true);
+  });
+
   it('efface la partie', () => {
     const storage = memoryStorage();
     saveGame(storage, newGame({ x: 1, y: 1 }));
@@ -146,6 +185,13 @@ describe('état', () => {
     expect(withNews(state, 'bilan').news).toEqual(['alertes', 'bilan']);
     expect(withoutNews(state, 'alertes').news).toEqual([]);
     expect(withoutNews(state, 'dicrim')).toBe(state);
+  });
+
+  it('ne retient que le meilleur indice d’un chapitre', () => {
+    const state = withRecord(newGame({ x: 1, y: 1 }), 'automne', 57);
+    expect(state.record).toEqual({ automne: 57 });
+    expect(withRecord(state, 'automne', 43)).toBe(state);
+    expect(withRecord(state, 'automne', 86).record).toEqual({ automne: 86 });
   });
 
   it('prévient les abonnés uniquement en cas de changement', () => {
