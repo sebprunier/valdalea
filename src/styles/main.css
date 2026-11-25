@@ -967,7 +967,7 @@ kbd {
 .minimap {
   display: block;
   width: 100%;
-  aspect-ratio: 4200 / 3000;
+  aspect-ratio: 4500 / 3000;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #dfe8c9;

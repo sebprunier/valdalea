@@ -146,10 +146,12 @@ describe('propagation du feu sur la carte', () => {
   const garden = { x: lucien.x + lucien.w / 2, y: lucien.y + lucien.h + 60 };
 
   it('part du nord-est et gagne du terrain sans jamais reculer', () => {
-    const northEast = { x: 4150, y: 60 };
+    const northEast = { x: commune.width - 50, y: 60 };
     expect(arrivalAt(cleared, northEast)).toBeLessThan(FIRE.vigilance[1]);
-    let previous = 0;
-    for (const level of [...FIRE.vigilance, FIRE.onset, ...SITUATIONS.map((situation) => situation.hazard)]) {
+    // Au premier message, le feu est encore hors de la carte, ou tout juste à son bord ; ensuite, il ne cesse de gagner.
+    let previous = burntShare(cleared, FIRE.vigilance[0]);
+    expect(previous).toBeLessThan(0.02);
+    for (const level of [FIRE.vigilance[1], FIRE.onset, ...SITUATIONS.map((situation) => situation.hazard)]) {
       const share = burntShare(cleared, level);
       expect(share, String(level)).toBeGreaterThan(previous);
       previous = share;

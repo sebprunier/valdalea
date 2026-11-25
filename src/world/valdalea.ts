@@ -1,6 +1,11 @@
 import { inflate, rect, rectToPolygon, smoothRing, vec } from '../core/geometry';
 import { doorPoint, WorldBuilder } from './builder';
 import type { Commune } from './model';
+import { widenEast } from './widen';
+
+/** La ligne nord-sud le long de laquelle la commune a été élargie, et la largeur de la bande insérée. */
+const CUT = 2950;
+const WIDENING = 300;
 
 /**
  * Val-d'Aléa : commune fictive, dessinée pour réunir sur un petit territoire
@@ -10,7 +15,8 @@ import type { Commune } from './model';
  *   nord   : le plateau argileux et son lotissement, le Haut-Bourg (mairie, gymnase)
  *   centre : le Vieux-Bourg, bâti sur d'anciennes carrières souterraines
  *   sud    : le Bas-Bourg le long de la Follette, le camping sur l'autre rive
- *   est    : la forêt et le hameau des Brandes, la cité et la zone industrielle des Vannes
+ *   est    : la forêt et le hameau des Brandes, la cité et la zone industrielle des Vannes,
+ *            séparés du bourg par une bande de prés et de champs
  */
 export function buildValDAlea(): Commune {
   const b = new WorldBuilder("Val-d'Aléa", 4200, 3000, 2026);
@@ -356,5 +362,34 @@ export function buildValDAlea(): Commune {
   });
 
   b.spawn(doorPoint(home));
+
+  // La commune a été élargie après coup : une bande de prés sépare désormais le Haut-Bourg de la forêt,
+  // et le Bas-Bourg de la cité des Vannes. Les coordonnées ci-dessus sont celles du dessin d'origine ;
+  // tout ce qui est à l'est de la ligne de coupe se retrouve, en jeu, décalé de `WIDENING` unités.
+  widenEast(b.commune, CUT, WIDENING, ['feu-foret', 'industriel']);
+  dressGap(b);
   return b.commune;
+}
+
+/**
+ * La bande insérée à l'est du bourg : des champs et quelques arbres, pour qu'elle
+ * ne soit pas un vide. Ici, les coordonnées sont celles du jeu, élargissement compris.
+ */
+function dressGap(b: WorldBuilder): void {
+  const x = CUT + 25;
+  const w = WIDENING - 50;
+  // Du nord au sud : entre le Haut-Bourg et la forêt, puis entre le Bas-Bourg et la cité des Vannes.
+  b.groundRect('champ', rect(x, 60, w, 560), 1);
+  b.groundRect('champ', rect(x, 1070, w, 520), 3);
+  b.groundRect('champ', rect(x, 1730, w, 300), 0);
+  for (const [tx, ty, r] of [
+    [x + 40, 700, 17],
+    [x + 190, 760, 15],
+    [x + 110, 880, 19],
+    [x + 60, 2560, 18],
+    [x + 180, 2640, 16],
+    [x + 120, 2800, 20],
+  ] as const) {
+    b.tree(tx, ty, r);
+  }
 }
