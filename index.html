@@ -113,7 +113,7 @@
         <canvas id="weather" class="weather" aria-hidden="true"></canvas>
       </div>
       <p id="map-help" class="sr-only">
-        Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. T ouvre le
+        Déplacez-vous avec les flèches du clavier ; sur un écran tactile, avec la manette en bas à gauche de la carte, ou en touchant la carte. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. T ouvre le
         téléphone, la télécommande du jeu ; L y ouvre directement la liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. H ouvre l'aide, G la légende de la carte. Plus et moins changent le zoom.
       </p>
       <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -136,6 +136,11 @@
         <button type="button" class="zoom__button" id="zoom-out" aria-label="Dézoomer" aria-keyshortcuts="-">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14" /></svg>
         </button>
+      </div>
+      <!-- Manette de déplacement, montrée sur les écrans tactiles. C'est un raccourci au doigt : toucher la carte, le clavier et la liste des lieux mènent aux mêmes endroits. -->
+      <div class="stick" id="stick" aria-hidden="true">
+        <svg class="stick__arrows" viewBox="0 0 100 100" focusable="false"><path d="M50 7l8 10H42zM50 93l-8-10h16zM7 50l10-8v16zM93 50l-10 8V42z" /></svg>
+        <span class="stick__knob"></span>
       </div>
       <div class="prompt" id="prompt" hidden>
         <button type="button" class="prompt__button" id="prompt-button">

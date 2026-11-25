@@ -39,6 +39,10 @@ const ZOOM_KEYS: Record<string, Action> = { '+': 'zoom-in', '=': 'zoom-in', '-':
 const PINCH_STEP = 1.22;
 const WHEEL_STEP = 60;
 
+/** Manette tactile : en deçà de cette course (de 0 à 1), elle est au repos ; au-delà de la seconde, le personnage court. */
+const STICK_REST = 0.2;
+const STICK_RUN = 0.82;
+
 /**
  * Entrées du joueur sur la carte. Le clavier n'est écouté que lorsque la carte a
  * le focus : les raccourcis d'une seule lettre ne parasitent ni le reste de la
@@ -55,15 +59,21 @@ export class Input {
   private pinchSpan = 0;
   private wheel = 0;
   private wheelAt = 0;
+  /** Manette tactile : où le pouce la pousse (longueur de 0 à 1), et le doigt qui la tient. */
+  private stick: Vec = { x: 0, y: 0 };
+  private stickId: number | null = null;
 
   /**
    * @param onAction appelé dès qu'une touche d'action est enfoncée (sans attendre l'image suivante)
+   * @param stickElement la manette tactile, si la page en a une
    */
   constructor(
     private readonly surface: HTMLElement,
     canvas: HTMLCanvasElement,
     private readonly onAction: (action: Action) => void,
+    private readonly stickElement: HTMLElement | null = null,
   ) {
+    if (stickElement) this.bindStick(stickElement);
     surface.addEventListener('keydown', this.onKeyDown);
     surface.addEventListener('keyup', this.onKeyUp);
     surface.addEventListener('blur', () => this.clear());
@@ -75,7 +85,7 @@ export class Input {
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
   }
 
-  /** Direction demandée au clavier, normalisée (vecteur nul si aucune). */
+  /** Direction demandée au clavier ou à la manette tactile, normalisée (vecteur nul si aucune). */
   axis(): Vec {
     let x = 0;
     let y = 0;
@@ -86,12 +96,14 @@ export class Input {
         y += move[1];
       }
     }
+    if (x === 0 && y === 0 && Math.hypot(this.stick.x, this.stick.y) >= STICK_REST) ({ x, y } = this.stick);
     const length = Math.hypot(x, y);
     return length === 0 ? { x: 0, y: 0 } : { x: x / length, y: y / length };
   }
 
+  /** Maj enfoncée, ou manette poussée à fond. */
   get running(): boolean {
-    return this.shift;
+    return this.shift || Math.hypot(this.stick.x, this.stick.y) >= STICK_RUN;
   }
 
   /**
@@ -110,6 +122,62 @@ export class Input {
     this.pointerFresh = false;
     this.touches.clear();
     this.wheel = 0;
+    this.releaseStick();
+  }
+
+  /**
+   * La manette tactile : un disque que l'on pousse du pouce dans la direction
+   * voulue. Elle a ses propres événements : la toucher ne désigne pas de
+   * destination sur la carte.
+   */
+  private bindStick(element: HTMLElement): void {
+    const follow = (event: PointerEvent): void => {
+      const box = element.getBoundingClientRect();
+      const radius = box.width / 2;
+      let x = (event.clientX - box.left - radius) / radius;
+      let y = (event.clientY - box.top - radius) / radius;
+      const length = Math.hypot(x, y);
+      if (length > 1) {
+        x /= length;
+        y /= length;
+      }
+      this.stick = { x, y };
+      this.showStick(radius);
+    };
+    element.addEventListener('pointerdown', (event) => {
+      this.stickId = event.pointerId;
+      try {
+        element.setPointerCapture(event.pointerId);
+      } catch {
+        // Doigt déjà relevé : rien à suivre.
+      }
+      follow(event);
+      event.preventDefault();
+    });
+    element.addEventListener('pointermove', (event) => {
+      if (event.pointerId === this.stickId) follow(event);
+    });
+    const release = (event: PointerEvent): void => {
+      if (event.pointerId === this.stickId) this.releaseStick();
+    };
+    element.addEventListener('pointerup', release);
+    element.addEventListener('pointercancel', release);
+    element.addEventListener('contextmenu', (event) => event.preventDefault());
+  }
+
+  private releaseStick(): void {
+    this.stickId = null;
+    this.stick = { x: 0, y: 0 };
+    this.showStick(0);
+  }
+
+  /** Le bouton de la manette suit le pouce ; son état « course » se lit aussi à sa taille, pas seulement à sa couleur. */
+  private showStick(radius: number): void {
+    const element = this.stickElement;
+    if (!element) return;
+    const knob = element.querySelector<HTMLElement>('.stick__knob');
+    if (knob) knob.style.transform = `translate(${this.stick.x * radius * 0.6}px, ${this.stick.y * radius * 0.6}px)`;
+    element.dataset.running = String(Math.hypot(this.stick.x, this.stick.y) >= STICK_RUN);
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

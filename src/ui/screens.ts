@@ -21,13 +21,28 @@ function arrowKeys(): HTMLElement {
   return h('span', null, glyphs, h('span', { class: 'sr-only' }, 'les flèches du clavier'));
 }
 
+/** L'écran est d'abord tactile (téléphone, tablette) : les commandes se donnent au doigt, pas au clavier. */
+const isTouchScreen = (): boolean => window.matchMedia('(pointer: coarse)').matches;
+
 function controlsList(): HTMLElement {
   const row = (action: string, ...how: Array<Node | string>): HTMLElement[] => [h('dt', null, action), h('dd', null, ...how)];
+  if (isTouchScreen()) {
+    return h(
+      'dl',
+      { class: 'controls' },
+      ...row('Se déplacer', 'poussez la manette, en bas à gauche de la carte, dans la direction voulue ; ou touchez un point de la carte, et le personnage s’y rend'),
+      ...row('Courir', 'poussez la manette à fond ; vers un point éloigné, le personnage court de lui-même'),
+      ...row('Ouvrir un lieu', 'touchez son repère sur la carte, ou le bouton à son nom qui apparaît en bas quand vous êtes devant'),
+      ...row('Zoomer, dézoomer', 'écartez ou pincez deux doigts, ou utilisez les boutons en bas à droite de la carte'),
+      ...row('Carnet de mission, téléphone, aide', 'les boutons en haut de l’écran'),
+      ...row('Légende de la carte', 'le bouton au-dessus de la manette'),
+    );
+  }
   return h(
     'dl',
     { class: 'controls' },
     ...row('Se déplacer', arrowKeys(), ' ou ', keys('Z', 'Q', 'S', 'D'), ', ou désignez un point de la carte (clic ou doigt)'),
-    ...row('Courir', 'maintenir ', keys('Maj')),
+    ...row('Courir', 'maintenir ', keys('Maj'), ' ; vers un point éloigné, le personnage court de lui-même'),
     ...row('Ouvrir un lieu', keys('Entrée'), ' ou ', keys('E')),
     ...row('Zoomer, dézoomer', keys('+'), ' et ', keys('-'), ', la molette, ou les boutons en bas de la carte'),
     ...row('Légende de la carte', keys('G')),
