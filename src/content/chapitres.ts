@@ -71,6 +71,20 @@ export const GRANTS: ReadonlyMap<string, AssetId> = new Map(ALL_ACTIONS.flatMap(
 /** Toutes les situations de crise du jeu. */
 export const ALL_SITUATIONS: Situation[] = Object.values(CONTENTS).flatMap((content) => content.crisis?.situations ?? []);
 
+/**
+ * Les lieux qu'un chapitre concerne : ceux où il a des gestes, et ceux où sa crise
+ * se joue. Ailleurs, il n'y a rien à en dire une fois le chapitre terminé.
+ */
+export function placesOf(chapterId: string | null): Set<string> {
+  const content = (chapterId && CONTENTS[chapterId]) || null;
+  if (!content) return new Set();
+  const crisis = content.crisis;
+  return new Set([
+    ...content.actions.map((action) => action.place),
+    ...(crisis ? [crisis.places.vigilance, crisis.places.crise, ...crisis.situations.flatMap((situation) => (situation.at ? [situation.at] : []))] : []),
+  ]);
+}
+
 /** Un badge, tel qu'on l'affiche : ceux d'un chapitre comme ceux de toute la partie. */
 export type BadgeInfo = Pick<BadgeDef, 'id' | 'title' | 'description'>;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
-import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, playbookOf } from '../src/content/chapitres';
+import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, placesOf, playbookOf } from '../src/content/chapitres';
 import { STORY as FIRE_STORY } from '../src/content/feu';
 import { STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
@@ -122,6 +122,18 @@ describe('cohérence des contenus', () => {
         expect(info.note, info.id).toBeTruthy();
       }
     }
+  });
+
+  it('sait quels lieux un chapitre concerne : ceux de ses gestes et ceux de sa crise, pas les autres', () => {
+    const fire = placesOf('ete');
+    for (const id of ['domicile', 'brandes', 'lucien', 'camping', 'gymnase']) expect(fire.has(id), id).toBe(true);
+    for (const id of ['usine', 'ecole', 'pont', 'argilieres']) expect(fire.has(id), id).toBe(false);
+    const flood = placesOf('automne');
+    for (const id of ['domicile', 'jeanne', 'pont', 'ecole', 'camping', 'gymnase']) expect(flood.has(id), id).toBe(true);
+    for (const id of ['usine', 'lucien', 'brandes']) expect(flood.has(id), id).toBe(false);
+    for (const id of [...fire, ...flood]) expect(placeIds.has(id), id).toBe(true);
+    expect(placesOf(null).size).toBe(0);
+    expect(placesOf('inconnu').size).toBe(0);
   });
 
   it('donne à chaque chapitre complet de quoi jouer sa crise : lieux, récit, messages, bilan', () => {
