@@ -82,6 +82,12 @@ export function distToPolyline(p: Vec, points: readonly Vec[]): number {
 }
 
 /** Distance d'un point à un rectangle (0 si le point est à l'intérieur). */
+/** Distance d'un point à une surface : nulle à l'intérieur du polygone. */
+export function distToPolygon(p: Vec, polygon: readonly Vec[]): number {
+  if (pointInPolygon(p, polygon)) return 0;
+  return distToPolyline(p, [...polygon, polygon[0]]);
+}
+
 export function distToRect(p: Vec, r: Rect): number {
   const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.w));
   const dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.h));

@@ -3,8 +3,9 @@ import { SILENCE, type Mix } from './mix';
 
 /**
  * Le son du jeu, fabriqué de toutes pièces avec l'API Web Audio : aucun fichier
- * à charger, rien à télécharger. Une ambiance (pluie, vent, rivière) suit la
- * situation ; quelques signaux brefs ponctuent le récit.
+ * à charger, rien à télécharger. Une ambiance suit la situation : le temps qu'il
+ * fait (pluie, vent) et les lieux proches (rivière, forêt et ses oiseaux, usine).
+ * Quelques signaux brefs ponctuent le récit, et les cloches marquent l'heure du jeu.
  *
  * Le son est un décor : tout ce qu'il dit est aussi écrit à l'écran. Il se coupe
  * d'un bouton, et ne démarre jamais avant un premier geste du joueur.
@@ -73,13 +74,38 @@ export function buildAmbience(ctx: BaseAudioContext, out: AudioNode): Ambience {
   const downpour = gain(ctx, 0);
   source.connect(filter(ctx, 'bandpass', 380, 0.5)).connect(downpour).connect(out);
 
-  // Vent : un souffle grave, dont la couleur et la force ondulent lentement.
+  // Vent : un souffle grave, dont la couleur et la force ondulent lentement. Absent par temps calme.
   const breath = filter(ctx, 'lowpass', 420, 0.4);
   const gust = gain(ctx, 1);
   const wind = gain(ctx, 0);
   source.connect(breath).connect(gust).connect(wind).connect(out);
   sway(ctx, breath.frequency, 0.07, 170);
   sway(ctx, gust.gain, 0.13, 0.35);
+
+  // Feuillages : un froissement aigu et léger, qui va et vient.
+  const rustle = gain(ctx, 1);
+  const leaves = gain(ctx, 0);
+  source.connect(filter(ctx, 'bandpass', 3200, 0.5)).connect(filter(ctx, 'highpass', 1800)).connect(rustle).connect(leaves).connect(out);
+  sway(ctx, rustle.gain, 0.23, 0.4);
+  sway(ctx, rustle.gain, 0.09, 0.3);
+
+  // Usine : un ronronnement grave, une ventilation, et une cadence de machine.
+  const cadence = gain(ctx, 1);
+  const industry = gain(ctx, 0);
+  for (const [hertz, level] of [
+    [100, 0.5],
+    [150, 0.22],
+    [200, 0.12],
+  ] as const) {
+    const hum = ctx.createOscillator();
+    hum.type = 'sawtooth';
+    hum.frequency.value = hertz;
+    hum.connect(filter(ctx, 'lowpass', 420)).connect(gain(ctx, level)).connect(cadence);
+    hum.start();
+  }
+  source.connect(filter(ctx, 'bandpass', 270, 1.1)).connect(gain(ctx, 0.9)).connect(cadence);
+  cadence.connect(industry).connect(out);
+  sway(ctx, cadence.gain, 1.7, 0.22);
 
   // Rivière : un bruissement médium ; en crue, un grondement sourd s'y ajoute.
   const ripple = gain(ctx, 1);
@@ -98,9 +124,12 @@ export function buildAmbience(ctx: BaseAudioContext, out: AudioNode): Ambience {
       };
       to(patter, 0.2 * mix.rain);
       to(downpour, 0.3 * mix.rain * mix.rain);
-      to(wind, 0.5 * mix.wind);
+      // La rivière sert de repère : le vent, les feuillages et l'usine restent en dessous d'elle.
+      to(wind, 0.13 * mix.wind);
       to(stream, 0.22 * mix.water);
       to(rumble, 0.5 * mix.water * mix.water);
+      to(leaves, 0.07 * mix.leaves);
+      to(industry, 0.09 * mix.industry);
     },
   };
 }
@@ -151,6 +180,100 @@ export function playCue(ctx: BaseAudioContext, out: AudioNode, cue: Cue, at = ct
   return Math.max(...score.map((n) => n.start + n.length));
 }
 
+// --------------------------------------------------------------- Oiseaux
+
+/** Une note d'oiseau : un sifflement pur dont la hauteur glisse. */
+function chirp(ctx: BaseAudioContext, out: AudioNode, at: number, from: number, to: number, length: number, peak: number): void {
+  const oscillator = ctx.createOscillator();
+  oscillator.frequency.setValueAtTime(from, at);
+  oscillator.frequency.exponentialRampToValueAtTime(to, at + length);
+  const envelope = gain(ctx, 0);
+  envelope.gain.setValueAtTime(0, at);
+  envelope.gain.linearRampToValueAtTime(peak, at + Math.min(0.02, length / 3));
+  envelope.gain.linearRampToValueAtTime(0, at + length);
+  oscillator.connect(envelope).connect(out);
+  oscillator.start(at);
+  oscillator.stop(at + length + 0.02);
+}
+
+/** Trois chants, sans prétention ornithologique : deux notes alternées, une phrase flûtée, une ritournelle qui descend. */
+export const SONGS = ['deux-notes', 'flute', 'ritournelle'] as const;
+export type Song = (typeof SONGS)[number];
+
+/** Fait chanter un oiseau. `random` fournit les variations ; renvoie la durée de la phrase. */
+export function birdsong(ctx: BaseAudioContext, out: AudioNode, at: number, song: Song, level: number, random: () => number): number {
+  const peak = 0.05 * level * (0.5 + 0.5 * random());
+  let t = at;
+  if (song === 'deux-notes') {
+    const high = 3900 + random() * 500;
+    const repeats = 2 + Math.floor(random() * 2);
+    for (let i = 0; i < repeats; i++) {
+      chirp(ctx, out, t, high, high * 0.98, 0.09, peak);
+      chirp(ctx, out, t + 0.13, high * 0.8, high * 0.78, 0.11, peak);
+      t += 0.3;
+    }
+  } else if (song === 'flute') {
+    const notes = 3 + Math.floor(random() * 3);
+    for (let i = 0; i < notes; i++) {
+      const from = 1800 + random() * 900;
+      const length = 0.14 + random() * 0.12;
+      chirp(ctx, out, t, from, from * (0.85 + random() * 0.4), length, peak * 1.2);
+      t += length + 0.04 + random() * 0.08;
+    }
+  } else {
+    const notes = 6 + Math.floor(random() * 3);
+    for (let i = 0; i < notes; i++) {
+      const from = 4600 - i * 280;
+      chirp(ctx, out, t, from, from * 0.9, 0.055, peak);
+      t += 0.075;
+    }
+  }
+  return t - at;
+}
+
+// ---------------------------------------------------------------- Cloches
+
+/** Un coup de cloche : des partiels qui ne sont pas des harmoniques exacts, et qui s'éteignent chacun à son rythme. */
+function strike(ctx: BaseAudioContext, out: AudioNode, at: number, hertz: number, peak: number, ring: number): void {
+  const partials = [
+    [0.5, 0.45, 1],
+    [1, 1, 0.8],
+    [1.19, 0.55, 0.6],
+    [1.5, 0.3, 0.5],
+    [2, 0.45, 0.45],
+    [2.74, 0.18, 0.3],
+  ] as const;
+  for (const [ratio, level, life] of partials) {
+    const oscillator = ctx.createOscillator();
+    oscillator.frequency.value = hertz * ratio;
+    const envelope = gain(ctx, 0);
+    envelope.gain.setValueAtTime(0, at);
+    envelope.gain.linearRampToValueAtTime(peak * level, at + 0.004);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, at + ring * life);
+    oscillator.connect(envelope).connect(out);
+    oscillator.start(at);
+    oscillator.stop(at + ring * life + 0.05);
+  }
+}
+
+/** La cloche de l'église sonne l'heure : `strokes` coups espacés. Renvoie la durée totale. */
+export function toll(ctx: BaseAudioContext, out: AudioNode, at: number, strokes: number, level: number): number {
+  for (let i = 0; i < strokes; i++) strike(ctx, out, at + i * 1.5, 311, 0.2 * level, 2.6);
+  return (strokes - 1) * 1.5 + 2.6;
+}
+
+/** La sonnerie de l'école : un timbre électrique, frappé très vite. Renvoie sa durée. */
+export function schoolBell(ctx: BaseAudioContext, out: AudioNode, at: number, level: number): number {
+  const length = 1.6;
+  for (let t = 0; t < length; t += 1 / 15) strike(ctx, out, at + t, 1250, 0.07 * level, 0.12);
+  return length + 0.12;
+}
+
+/** Un choc métallique bref, de temps en temps, du côté de l'usine. */
+export function clank(ctx: BaseAudioContext, out: AudioNode, at: number, level: number): void {
+  strike(ctx, out, at, 620, 0.05 * level, 0.25);
+}
+
 /** Sortie commune : le volume général, puis un limiteur qui écarte toute saturation. */
 export function buildOutput(ctx: BaseAudioContext): { input: GainNode } {
   const input = gain(ctx, MASTER);
@@ -174,6 +297,24 @@ export class Sound {
 
   constructor(private enabled: boolean) {
     document.addEventListener('visibilitychange', () => this.refresh());
+    // Les sons épars (un oiseau, un choc à l'usine) sont tirés au sort, quelques fois par seconde.
+    window.setInterval(() => this.scatter(), 450);
+  }
+
+  private get live(): { ctx: AudioContext; out: GainNode } | null {
+    return this.enabled && this.ctx && this.output && this.ctx.state === 'running' ? { ctx: this.ctx, out: this.output } : null;
+  }
+
+  private scatter(): void {
+    const live = this.live;
+    if (!live) return;
+    const { birds, industry } = this.mix;
+    // En forêt, un chant toutes les deux secondes environ ; en lisière, de loin en loin.
+    if (birds > 0.05 && Math.random() < 0.24 * birds) {
+      const song = SONGS[Math.floor(Math.random() * SONGS.length)];
+      birdsong(live.ctx, live.out, live.ctx.currentTime + 0.05, song, birds, Math.random);
+    }
+    if (industry > 0.1 && Math.random() < 0.09) clank(live.ctx, live.out, live.ctx.currentTime + 0.05, industry);
   }
 
   get isEnabled(): boolean {
@@ -198,8 +339,20 @@ export class Sound {
   }
 
   play(cue: Cue): void {
-    if (!this.enabled || !this.ctx || !this.output || this.ctx.state !== 'running') return;
-    playCue(this.ctx, this.output, cue);
+    const live = this.live;
+    if (live) playCue(live.ctx, live.out, cue);
+  }
+
+  /** La cloche de l'église sonne l'heure. `level` : de 0 à 1, selon la distance. */
+  toll(strokes: number, level: number): void {
+    const live = this.live;
+    if (live && level > 0.02) toll(live.ctx, live.out, live.ctx.currentTime + 0.05, strokes, level);
+  }
+
+  /** La sonnerie de l'école. */
+  ringSchool(level: number): void {
+    const live = this.live;
+    if (live && level > 0.02) schoolBell(live.ctx, live.out, live.ctx.currentTime + 0.05, level);
   }
 
   /** Démarre, reprend ou suspend le son selon le réglage, le premier geste et la visibilité de la page. */

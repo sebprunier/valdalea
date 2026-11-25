@@ -28,7 +28,7 @@ Autour de ce chapitre :
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
 - **Le téléphone**, tableau de bord du jeu : une pastille y signale ce qui vient d'arriver (une alerte, le DICRIM, le bilan). On y rejoue le chapitre ou on y recommence la partie, dans les réglages.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
-- **Le son** : une ambiance (pluie, vent, rivière) qui suit le temps qu'il fait, la distance à la rivière et la crue, et quelques signaux (le téléphone qui vibre, l'alerte, un geste accompli). Il se coupe d'un bouton.
+- **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève) et les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) ; la cloche de l'église sonne les heures du jeu, l'école sa rentrée ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte, un geste accompli). Il se coupe d'un bouton.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
 - **Les vues rapprochées** des lieux, en fausse 3D, qui reflètent les gestes accomplis et la hauteur de l'eau.
 

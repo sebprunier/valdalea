@@ -354,7 +354,7 @@ export function createPhone(deps: PhoneDeps): Phone {
       { class: 'field' },
       soundBox,
       h('label', { for: 'reglage-son' }, 'Son du jeu'),
-      h('p', { class: 'fine-print' }, "Ambiance (pluie, vent, rivière) et signaux du récit. Tout ce que dit le son est aussi écrit à l'écran. Le signal d'alerte est inventé : ce n'est pas le vrai signal de FR-Alert."),
+      h('p', { class: 'fine-print' }, "Ambiance (pluie, rivière, forêt, cloches…) et signaux du récit. Tout ce que dit le son est aussi écrit à l'écran. Le signal d'alerte est inventé : ce n'est pas le vrai signal de FR-Alert."),
     ),
     h('h3', null, 'Partie'),
     h('p', null, 'La partie est enregistrée automatiquement dans ce navigateur. Aucune limite de temps réel : le temps du jeu n’avance que lorsque vous agissez ou vous déplacez.'),

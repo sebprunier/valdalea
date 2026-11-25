@@ -1,5 +1,6 @@
 import type { Mix } from './mix';
-import { buildAmbience, buildOutput, playCue, type Cue } from './sound';
+import { mulberry32 } from '../core/rng';
+import { birdsong, buildAmbience, buildOutput, playCue, schoolBell, SONGS, toll, type Cue } from './sound';
 
 /**
  * Banc de mesure, pour le développement uniquement : rend un son hors ligne et
@@ -31,4 +32,12 @@ async function measure(seconds: number, build: (ctx: OfflineAudioContext, out: A
 export const soundLab = {
   cue: (cue: Cue): Promise<Level> => measure(3, (ctx, out) => void playCue(ctx, out, cue, 0.05)),
   ambience: (mix: Mix): Promise<Level> => measure(6, (ctx, out) => buildAmbience(ctx, out).set(mix, 0)),
+  /** Les trois chants d'oiseaux, à la suite, au plus près de la forêt. */
+  birds: (): Promise<Level> =>
+    measure(6, (ctx, out) => {
+      const random = mulberry32(7);
+      SONGS.forEach((song, i) => void birdsong(ctx, out, 0.1 + i * 1.8, song, 1, random));
+    }),
+  church: (strokes: number): Promise<Level> => measure(strokes * 1.5 + 2, (ctx, out) => void toll(ctx, out, 0.05, strokes, 1)),
+  school: (): Promise<Level> => measure(2.2, (ctx, out) => void schoolBell(ctx, out, 0.05, 1)),
 };

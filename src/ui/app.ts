@@ -1,10 +1,12 @@
 import { ACTIONS, DUSK, OBJECTIVES, SITUATION } from '../content/inondation';
-import { mixOf } from '../audio/mix';
+import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
 import {
   clockLabel,
+  clockMinutes,
   formatDuration,
+  hourStruck,
   isTimed,
   MINUTES_PER_UNIT,
   newChapter,
@@ -17,6 +19,7 @@ import {
   type Phase,
 } from '../core/chapter';
 import { DEFAULT_SETTINGS, markVisited, newGame, withBadges, withChapter, withNews, withoutNews, type GameState, type NewsId } from '../core/state';
+import { distance, distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
 import type { Game } from '../game/game';
@@ -125,6 +128,7 @@ export function createUi(deps: UiDeps): Ui {
     }
 
     if (!isTimed(after.phase)) return;
+    ring(before, after);
     const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
     if (threshold === null) return;
     const left = formatDuration(after.minutesLeft);
@@ -150,12 +154,32 @@ export function createUi(deps: UiDeps): Ui {
     return SITUATION[current.phase].sky;
   }
 
+  // Ce que l'on entend dépend d'où l'on est : la forêt, l'usine, l'église, l'école.
+  const forest = commune.grounds.find((ground) => ground.kind === 'foret')?.poly ?? null;
+  const plant = commune.grounds.find((ground) => ground.kind === 'industrie')?.poly ?? null;
+  const church = findPlace(commune, 'vieux-bourg')?.pos ?? null;
+  const school = findPlace(commune, 'ecole')?.pos ?? null;
+  /** L'école sonne à 8 h 30, le lundi : c'est le seul jour d'école du chapitre. */
+  const SCHOOL_BELL = 8 * 60 + 30;
+
+  /** Fait sonner les cloches quand l'heure du jeu passe : l'église à chaque heure pleine, l'école à son heure. */
+  function ring(before: Chapter, after: Chapter): void {
+    const was = clockMinutes(before);
+    const now = clockMinutes(after);
+    if (was === null || now === null) return;
+    const player = game.position;
+    const hour = hourStruck(was, now);
+    // La cloche de l'église porte loin : on l'entend de presque tout le bourg.
+    if (hour !== null && church) sound.toll(hour % 12 || 12, nearness(distance(player, church), 2200));
+    if (after.phase === 'vigilance' && was < SCHOOL_BELL && now >= SCHOOL_BELL && school) sound.ringSchool(nearness(distance(player, school), 900));
+  }
+
   /**
    * Hauteur du joueur au-dessus de la rivière, pour le son. On regarde aussi de
    * part et d'autre : sur le pont, dont le tablier est haut, c'est l'eau juste à
    * côté que l'on entend.
    */
-  function heightAboveWater(p: { x: number; y: number }): number {
+  function heightAboveWater(p: Vec): number {
     return Math.min(elevation.at(p), elevation.at({ x: p.x - 70, y: p.y }), elevation.at({ x: p.x + 70, y: p.y }));
   }
 
@@ -442,7 +466,15 @@ export function createUi(deps: UiDeps): Ui {
       soundButton.setAttribute('aria-pressed', String(soundOn));
       soundIcon.replaceChildren(icon(soundOn ? 'son' : 'muet'));
     }
-    sound.setMix(mixOf(SKIES[now], heightAboveWater(state.player), flow.floodLevel()));
+    sound.setMix(
+      mixOf({
+        sky: SKIES[now],
+        height: heightAboveWater(state.player),
+        flood: flow.floodLevel(),
+        toForest: forest ? distToPolygon(state.player, forest) : Infinity,
+        toPlant: plant ? distToPolygon(state.player, plant) : Infinity,
+      }),
+    );
 
     // Le bandeau de mission : pendant un moment de récit, il dit où l'on en est ;
     // le reste du temps, quoi faire ensuite, avec l'heure et l'avancement.

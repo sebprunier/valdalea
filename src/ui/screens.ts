@@ -79,7 +79,7 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     { class: 'field' },
     sound,
     h('label', { for: 'accueil-son' }, 'Jouer avec le son'),
-    h('p', { class: 'fine-print' }, "Une ambiance (pluie, vent, rivière) et quelques signaux. Le bouton en haut à droite de l'écran coupe le son à tout moment."),
+    h('p', { class: 'fine-print' }, "Une ambiance (pluie, rivière, forêt, cloches…) et quelques signaux. Le bouton en haut à droite de l'écran coupe le son à tout moment."),
   );
 
   dialog.body.append(
@@ -150,7 +150,7 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "Le jeu fait entendre une ambiance (pluie, vent, rivière) et quelques signaux : le téléphone qui vibre, l'alerte, un geste accompli. Tout ce que dit le son est aussi écrit à l'écran. Le bouton en haut à droite le coupe à tout moment ; le réglage se retrouve dans le téléphone. Le signal d'alerte du jeu est inventé : ce n'est pas le vrai signal de FR-Alert.",
+      "Le jeu fait entendre une ambiance, selon le temps qu'il fait et l'endroit où vous êtes (la pluie, la rivière, la forêt, l'usine, la cloche de l'église qui sonne les heures du jeu), et quelques signaux : le téléphone qui vibre, l'alerte, un geste accompli. Tout ce que dit le son est aussi écrit à l'écran. Le bouton en haut à droite le coupe à tout moment ; le réglage se retrouve dans le téléphone. Le signal d'alerte du jeu est inventé : ce n'est pas le vrai signal de FR-Alert.",
     ),
     h('h3', null, 'Quitter le jeu'),
     h(

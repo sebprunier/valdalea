@@ -190,11 +190,27 @@ export function formatDuration(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, '0')}`;
 }
 
-/** Jour et heure de la partie, par exemple « Samedi, 15 h 20 ». `null` hors des phases où le temps est compté. */
-export function clockLabel(chapter: Chapter): string | null {
+/** Heure de la partie, en minutes depuis minuit. `null` hors des phases où le temps est compté. */
+export function clockMinutes(chapter: Chapter): number | null {
   if (!isTimed(chapter.phase)) return null;
   const phase = TIMED_PHASES[chapter.phase];
-  const now = phase.startsAt + Math.floor(phase.minutes - chapter.minutesLeft);
+  return phase.startsAt + Math.floor(phase.minutes - chapter.minutesLeft);
+}
+
+/**
+ * Heure pleine franchie entre deux instants (en minutes depuis minuit) : celle
+ * que sonne la cloche. La dernière, s'il y en a plusieurs ; `null` s'il n'y en a pas.
+ */
+export function hourStruck(before: number, after: number): number | null {
+  const hour = Math.floor(after / 60);
+  return hour > Math.floor(before / 60) ? hour : null;
+}
+
+/** Jour et heure de la partie, par exemple « Samedi, 15 h 20 ». `null` hors des phases où le temps est compté. */
+export function clockLabel(chapter: Chapter): string | null {
+  const now = clockMinutes(chapter);
+  if (now === null || !isTimed(chapter.phase)) return null;
+  const phase = TIMED_PHASES[chapter.phase];
   const h = Math.floor(now / 60);
   const m = now % 60;
   return `${phase.day}, ${h} h${m === 0 ? '' : ` ${String(m).padStart(2, '0')}`}`;
