@@ -34,6 +34,28 @@ function noise(ctx: BaseAudioContext, seconds: number): AudioBufferSourceNode {
   return source;
 }
 
+/**
+ * Crépitements : une boucle de petits claquements secs, irréguliers, chacun
+ * s'éteignant en quelques millisecondes. C'est le bois qui éclate dans le feu.
+ */
+function crackle(ctx: BaseAudioContext, seconds: number): AudioBufferSourceNode {
+  const buffer = ctx.createBuffer(1, Math.round(ctx.sampleRate * seconds), ctx.sampleRate);
+  const samples = buffer.getChannelData(0);
+  const random = mulberry32(2022);
+  let at = 0;
+  while (at < samples.length) {
+    const length = Math.round(ctx.sampleRate * (0.004 + random() * 0.018));
+    const level = 0.25 + random() * 0.75;
+    for (let i = 0; i < length && at + i < samples.length; i++) samples[at + i] += (random() * 2 - 1) * level * Math.exp((-6 * i) / length);
+    // Tantôt en rafale, tantôt espacés.
+    at += Math.round(ctx.sampleRate * (random() < 0.6 ? 0.02 + random() * 0.06 : 0.12 + random() * 0.3));
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
 function filter(ctx: BaseAudioContext, type: BiquadFilterType, frequency: number, q = 0.7): BiquadFilterNode {
   const node = ctx.createBiquadFilter();
   node.type = type;
@@ -115,6 +137,16 @@ export function buildAmbience(ctx: BaseAudioContext, out: AudioNode): Ambience {
   const rumble = gain(ctx, 0);
   source.connect(filter(ctx, 'lowpass', 190)).connect(rumble).connect(out);
 
+  // Feu de forêt : un souffle grave et continu, qui enfle par vagues, et le bois qui crépite.
+  const blaze = gain(ctx, 1);
+  const roar = gain(ctx, 0);
+  source.connect(filter(ctx, 'lowpass', 520, 0.5)).connect(filter(ctx, 'highpass', 60)).connect(blaze).connect(roar).connect(out);
+  sway(ctx, blaze.gain, 0.17, 0.3);
+  const sparks = gain(ctx, 0);
+  const pops = crackle(ctx, 5);
+  pops.connect(filter(ctx, 'highpass', 900)).connect(filter(ctx, 'lowpass', 6500)).connect(sparks).connect(out);
+  pops.start();
+
   return {
     set(mix, glide = GLIDE) {
       const now = ctx.currentTime;
@@ -130,6 +162,9 @@ export function buildAmbience(ctx: BaseAudioContext, out: AudioNode): Ambience {
       to(rumble, 0.5 * mix.water * mix.water);
       to(leaves, 0.07 * mix.leaves);
       to(industry, 0.09 * mix.industry);
+      // Au plus fort, le feu s'entend autant que la rivière en crue.
+      to(roar, 0.5 * mix.fire);
+      to(sparks, 0.26 * mix.fire);
     },
   };
 }

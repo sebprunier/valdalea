@@ -166,6 +166,23 @@ export interface HazardMark {
   label: string;
 }
 
+/**
+ * Le feu de forêt que raconte le chapitre de l'été : d'où il part, où le vent
+ * le pousse. La propagation qui en découle est calculée par `fire`.
+ */
+export interface Wildfire {
+  /** Départ du feu. */
+  ignition: Vec;
+  /** Direction vers laquelle souffle le vent (vecteur unitaire). */
+  wind: Vec;
+  /** Distance parcourue quand l'avancée du feu vaut 1 : dans le vent, sur les flancs, contre le vent. */
+  reach: { head: number; flank: number; back: number };
+  /** Saute de feu : des braises portées en avant du front allument un second foyer, à partir de l'avancée `from`. */
+  spot: { at: Vec; from: number; reach: { head: number; flank: number; back: number } };
+  /** La clairière au milieu du massif : elle ne brûle que si elle n'a pas été débroussaillée. */
+  clearing: Vec[];
+}
+
 export interface Commune {
   name: string;
   width: number;
@@ -187,6 +204,8 @@ export interface Commune {
   places: Place[];
   /** Position de départ du joueur. */
   spawn: Vec;
+  /** Le feu de forêt du chapitre de l'été, si la commune en raconte un. */
+  wildfire?: Wildfire;
 }
 
 export function findPlace(commune: Commune, id: string): Place | undefined {

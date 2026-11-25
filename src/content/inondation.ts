@@ -261,7 +261,7 @@ export const QUESTIONS: Question[] = [
 export const SITUATIONS: Situation[] = [
   {
     id: 'berges',
-    floodLevel: 0.75,
+    hazard: 0.75,
     context: "9 h 40. Il pleut à verse depuis l'aube. Par la fenêtre, vous voyez des voisins partir vers le pont : « Viens voir, la Follette est impressionnante ! »",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -273,7 +273,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'enfants',
-    floodLevel: 1.0,
+    hazard: 1.0,
     context: "10 h 15. Votre téléphone sonne d'une sonnerie que vous n'aviez jamais entendue : c'est une alerte FR-Alert. La Follette déborde, le maire déclenche le plan communal de sauvegarde. Vos deux enfants sont à l'école du Quai, à trois minutes d'ici.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -286,7 +286,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'voiture',
-    floodLevel: 1.15,
+    hazard: 1.15,
     context: "10 h 30. Votre voiture est garée sur le quai. L'eau commence à l'entourer.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -298,7 +298,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'cave',
-    floodLevel: 1.3,
+    hazard: 1.3,
     context: "10 h 45. De l'eau suinte sous la porte de la cave. Vos albums photo sont en bas, sur une étagère.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -310,7 +310,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'telephone',
-    floodLevel: 1.45,
+    hazard: 1.45,
     context: "11 h. Vous êtes à l'étage. Vous n'avez pas de nouvelles de votre sœur, qui habite de l'autre côté du bourg.",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -322,7 +322,7 @@ export const SITUATIONS: Situation[] = [
   },
   {
     id: 'evacuer',
-    floodLevel: 1.6,
+    hazard: 1.6,
     context: "11 h 30. L'eau a envahi la rue : près d'un mètre devant votre porte. Un voisin s'en va à pied, de l'eau jusqu'à la taille : « Venez, on va au gymnase ! »",
     prompt: 'Que faites-vous ?',
     choices: [
@@ -672,7 +672,7 @@ export const STORY = {
   },
 } satisfies Record<string, StoryCard>;
 
-/** Le chapitre, tel que le jeu le joue. Sa crue (bulletins, décisions, bilan) est mise en scène par `ui/flow`. */
+/** Le chapitre, tel que le jeu le joue : sa journée de préparation, puis sa crue, que `ui/flow` met en scène. */
 export const AUTOMNE: ChapterContent = {
   id: 'automne',
   actions: ACTIONS,
@@ -691,5 +691,25 @@ export const AUTOMNE: ChapterContent = {
   period: { preparation: 'la journée', vigilance: 'la matinée' },
   alerts: { preparation: 'Le temps presse : il vous reste {reste} avant la nuit.', vigilance: "L'eau monte : il vous reste {reste} pour vous mettre à l'abri." },
   hazardApp: 'alertes',
-  complete: true,
+  crisis: {
+    hazard: 'crue',
+    name: 'La crue',
+    places: { vigilance: 'domicile', crise: 'domicile' },
+    // On vise plus au sud que la maison : le quai et la rivière restent visibles au-dessus de la fenêtre du récit.
+    lookSouth: 170,
+    // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
+    vigilance: [{ tell: STORY.soir }, { bulletin: BULLETIN_JAUNE, vigilance: 'jaune' }, { tell: STORY.nuit }, { tell: STORY.matin, hazard: FLOOD.rising }, { bulletin: BULLETIN_ORANGE }],
+    ready: 'Vigilance orange. Vous êtes chez vous.',
+    // L'eau franchit le quai pendant que le joueur lit : il la voit avant que l'alerte ne sonne.
+    onset: [{ tell: STORY.abri, hazard: SITUATIONS[0].hazard }, { bulletin: BULLETIN_ROUGE }],
+    situations: SITUATIONS,
+    ending: STORY.decrue,
+    levels: { vigilance: [FLOOD.rising, FLOOD.rising], ending: FLOOD.receding, after: 0 },
+    stakes: STAKES,
+    badges: BADGES,
+    bilan: {
+      title: 'Bilan de la crue',
+      lead: 'En fin de journée, la Follette regagne son lit. Voici ce que la crue a laissé derrière elle, et ce que votre préparation a changé.',
+    },
+  },
 };

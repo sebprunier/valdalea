@@ -16,9 +16,11 @@ export interface Mix {
   birds: number;
   /** L'usine : ronronnement et ventilation. */
   industry: number;
+  /** Le feu de forêt : son souffle et ses crépitements. */
+  fire: number;
 }
 
-export const SILENCE: Mix = { rain: 0, wind: 0, water: 0, leaves: 0, birds: 0, industry: 0 };
+export const SILENCE: Mix = { rain: 0, wind: 0, water: 0, leaves: 0, birds: 0, industry: 0, fire: 0 };
 
 /** Ce dont dépend l'ambiance. */
 export interface Listening {
@@ -31,6 +33,8 @@ export interface Listening {
   /** Distance du joueur à la forêt et à l'usine, en mètres (0 : il y est). */
   toForest: number;
   toPlant: number;
+  /** Force du feu de forêt, de 0 (pas de feu, ou feu éteint) à 1. */
+  fire: number;
 }
 
 /** Hauteur au-dessus de l'eau à partir de laquelle on n'entend plus la rivière, en mètres (environ 200 m de la berge). */
@@ -40,6 +44,8 @@ const ROAR = 1.6;
 /** Distances, en mètres, au-delà desquelles on n'entend plus la forêt ni l'usine. */
 const FOREST_EARSHOT = 300;
 const PLANT_EARSHOT = 380;
+/** Un feu de forêt s'entend de plus loin que le massif lui-même. */
+const FIRE_EARSHOT = 900;
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
@@ -48,7 +54,7 @@ export function nearness(distance: number, earshot: number): number {
   return clamp01(1 - distance / earshot);
 }
 
-export function mixOf({ sky, height, flood, toForest, toPlant }: Listening): Mix {
+export function mixOf({ sky, height, flood, toForest, toPlant, fire }: Listening): Mix {
   // Plus on est près de l'eau, mieux on l'entend ; quand elle monte, elle se rapproche et elle gronde.
   const nearWater = clamp01(1 - (height - flood) / RIVER_EARSHOT);
   const swell = clamp01(flood / ROAR);
@@ -59,8 +65,10 @@ export function mixOf({ sky, height, flood, toForest, toPlant }: Listening): Mix
     water: nearWater * (0.35 + 0.65 * swell),
     // Les feuillages bruissent toujours un peu, davantage quand le vent se lève.
     leaves: forest * (0.45 + 0.55 * clamp01(sky.wind)),
-    // Les oiseaux se taisent sous la pluie et la nuit.
-    birds: forest * (1 - clamp01(sky.rain)) * clamp01(sky.daylight),
+    // Les oiseaux se taisent sous la pluie, la nuit, et quand la forêt brûle.
+    birds: forest * (1 - clamp01(sky.rain)) * clamp01(sky.daylight) * (1 - clamp01(fire)),
     industry: nearness(toPlant, PLANT_EARSHOT),
+    // Le feu est dans le massif : on l'entend d'autant mieux qu'on en est près.
+    fire: clamp01(fire) * nearness(toForest, FIRE_EARSHOT),
   };
 }

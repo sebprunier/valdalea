@@ -1,7 +1,7 @@
 import type { Phase } from '../core/chapter';
 import { ETE } from './feu';
 import { AUTOMNE } from './inondation';
-import type { ActionDef, ChapterContent, ChapterPhase, ChapterTiming, Question } from './model';
+import type { ActionDef, BadgeDef, ChapterContent, ChapterPhase, ChapterTiming, Question, Situation } from './model';
 import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
 
 /**
@@ -43,9 +43,8 @@ export const CHAPTERS: ChapterInfo[] = [
     season: 'Printemps et été',
     title: 'Le feu des Brandes',
     risk: 'Feu de forêt',
-    summary: "Débroussailler au printemps autour des maisons du hameau, à la lisière de la forêt ; l'été venu, un départ de feu.",
+    summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif.",
     playable: true,
-    note: "Première partie jouable : le printemps. L'été est en cours d'écriture.",
   },
 ];
 
@@ -63,6 +62,9 @@ const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE };
 /** Tous les gestes et toutes les questions du jeu, prologue compris : de quoi vérifier une sauvegarde. */
 export const ALL_ACTIONS: ActionDef[] = [...PROLOGUE, ...Object.values(CONTENTS).flatMap((content) => content.actions)];
 export const ALL_QUESTIONS: Question[] = Object.values(CONTENTS).flatMap((content) => content.questions);
+/** Toutes les situations de crise et tous les badges du jeu. */
+export const ALL_SITUATIONS: Situation[] = Object.values(CONTENTS).flatMap((content) => content.crisis?.situations ?? []);
+export const ALL_BADGES: BadgeDef[] = Object.values(CONTENTS).flatMap((content) => content.crisis?.badges ?? []);
 
 /**
  * Ce qui se joue en ce moment : le prologue, puis le chapitre choisi. C'est par

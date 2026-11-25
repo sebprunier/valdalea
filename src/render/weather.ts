@@ -30,6 +30,9 @@ export const SKIES: Record<SkyId, Sky> = {
   pluie: { label: 'Pluie', icon: 'pluie', rain: 0.6, wind: 0.2, daylight: 0.8, veil: 'rgb(52 64 84 / 22%)' },
   'forte-pluie': { label: 'Fortes pluies', icon: 'pluie', rain: 1, wind: 0.55, daylight: 0.7, veil: 'rgb(44 54 76 / 32%)' },
   eclaircie: { label: 'Éclaircies', icon: 'eclaircie', rain: 0, wind: 0.08, daylight: 0.9, veil: 'rgb(60 70 84 / 8%)' },
+  // L'été du feu : une lumière jaune et dure, puis la fumée qui obscurcit le ciel.
+  canicule: { label: 'Canicule, vent', icon: 'soleil', rain: 0, wind: 0.3, daylight: 1, veil: 'rgb(255 196 84 / 11%)' },
+  fumee: { label: 'Fumée', icon: 'nuage', rain: 0, wind: 0.5, daylight: 0.1, veil: 'rgb(124 74 38 / 36%)' },
 };
 
 interface Drop {

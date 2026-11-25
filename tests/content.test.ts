@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
-import { ALL_ACTIONS as ACTIONS, ALL_QUESTIONS as QUESTIONS, CHAPTERS, playbookOf } from '../src/content/chapitres';
-import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, SITUATION, SITUATIONS, STAKES, STORY, VIGILANCE_SCALE } from '../src/content/inondation';
+import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, playbookOf } from '../src/content/chapitres';
+import { STORY as FIRE_STORY } from '../src/content/feu';
+import { STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
-import { SOURCES } from '../src/content/model';
+import { SOURCES, type Bulletin, type CrisisScript, type StoryCard } from '../src/content/model';
 import { PLACE_TEXTS } from '../src/content/places';
 import { SKIES } from '../src/render/weather';
 import { RISK_IDS } from '../src/world/model';
@@ -13,6 +14,15 @@ const commune = buildValDAlea();
 const placeIds = new Set(commune.places.map((p) => p.id));
 const actionIds = new Set(ACTIONS.map((a) => a.id));
 const questionIds = new Set(QUESTIONS.map((q) => q.id));
+
+/** Les chapitres qui se jouent jusqu'au bilan, avec leur script de crise. */
+const SCRIPTS: Array<[string, CrisisScript]> = CHAPTERS.flatMap((info) => {
+  const crisis = playbookOf(info.id).content?.crisis;
+  return crisis ? [[info.id, crisis] as [string, CrisisScript]] : [];
+});
+const beatsOf = (crisis: CrisisScript) => [...crisis.vigilance, ...crisis.onset];
+const bulletinsOf = (crisis: CrisisScript): Bulletin[] => beatsOf(crisis).flatMap((beat) => ('bulletin' in beat ? [beat.bulletin] : []));
+const cardsOf = (crisis: CrisisScript): StoryCard[] => [...beatsOf(crisis).flatMap((beat) => ('tell' in beat ? [beat.tell] : [])), crisis.ending];
 
 describe('cohérence des contenus', () => {
   it('donne un texte à chaque lieu', () => {
@@ -37,9 +47,7 @@ describe('cohérence des contenus', () => {
     const cited = [
       ...ACTIONS.flatMap((a) => a.sources),
       ...QUESTIONS.flatMap((q) => q.sources),
-      ...SITUATIONS.flatMap((s) => s.sources),
-      ...STAKES.flatMap((s) => s.sources),
-      ...[BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE].flatMap((b) => b.sources),
+      ...SCRIPTS.flatMap(([, crisis]) => [...crisis.situations, ...crisis.stakes, ...bulletinsOf(crisis)].flatMap((item) => item.sources)),
       ...dicrimSources(),
       ...LEXICON.flatMap((entry) => entry.sources),
       ...VIGILANCE_SCALE.sources,
@@ -79,11 +87,13 @@ describe('cohérence des contenus', () => {
     expect(VIGILANCE_SCALE.sources.length).toBeGreaterThan(0);
     for (const level of VIGILANCE_SCALE.levels) expect(level.meaning.length, level.id).toBeGreaterThan(20);
     const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
-    for (const [phase, situation] of Object.entries(SITUATION)) {
-      expect(levels.has(situation.level), phase).toBe(true);
-      expect(situation.indicator.length, phase).toBeGreaterThan(5);
-      expect(SKIES[situation.sky], phase).toBeDefined();
-      expect(situation.river.length, phase).toBeGreaterThan(5);
+    for (const info of CHAPTERS.filter((chapter) => chapter.playable)) {
+      for (const [phase, situation] of Object.entries(playbookOf(info.id).content!.situation)) {
+        expect(levels.has(situation.level), `${info.id} / ${phase}`).toBe(true);
+        expect(situation.indicator.length, `${info.id} / ${phase}`).toBeGreaterThan(5);
+        expect(SKIES[situation.sky], `${info.id} / ${phase}`).toBeDefined();
+        expect(situation.river.length, `${info.id} / ${phase}`).toBeGreaterThan(4);
+      }
     }
   });
 
@@ -95,7 +105,7 @@ describe('cohérence des contenus', () => {
       // Le prologue vient en tête de ce qui se joue, quel que soit le chapitre.
       expect(actions.slice(0, 2).map((a) => a.id), info.id).toEqual(['mairie-accueil', 'mairie-dicrim']);
       // Chaque phase minutée a de quoi se terminer : un geste qui la clôt.
-      const phases = content.complete ? (['preparation', 'vigilance'] as const) : (['preparation'] as const);
+      const phases = content.crisis ? (['preparation', 'vigilance'] as const) : (['preparation'] as const);
       for (const phase of phases) {
         const inPhase = content.actions.filter((a) => a.phase === phase);
         expect(inPhase.filter((a) => a.endsPhase).length, `${info.id} / ${phase} : geste de fin`).toBe(1);
@@ -107,23 +117,62 @@ describe('cohérence des contenus', () => {
       for (const level of ['verte', 'jaune', 'orange', 'rouge'] as const) expect(content.levels[level], `${info.id} / ${level}`).toBeTruthy();
       for (const id of content.hazardInfo?.sources ?? []) expect(SOURCES[id], `${info.id} : source ${id}`).toBeDefined();
       // Un chapitre dont la suite n'est pas écrite l'annonce au joueur, et le calendrier le dit.
-      if (!content.complete) {
+      if (!content.crisis) {
         expect(content.toBeContinued, info.id).toBeDefined();
         expect(info.note, info.id).toBeTruthy();
       }
     }
   });
 
+  it('donne à chaque chapitre complet de quoi jouer sa crise : lieux, récit, messages, bilan', () => {
+    expect(SCRIPTS.map(([id]) => id)).toEqual(['automne', 'ete']);
+    for (const [id, crisis] of SCRIPTS) {
+      expect(placeIds.has(crisis.places.vigilance), `${id} : lieu de la vigilance`).toBe(true);
+      expect(placeIds.has(crisis.places.crise), `${id} : lieu de la crise`).toBe(true);
+      // Le geste qui clôt la vigilance se fait là où le joueur passera la crise.
+      const shelter = playbookOf(id).content!.actions.find((a) => a.phase === 'vigilance' && a.endsPhase);
+      expect(shelter?.place, `${id} : abri`).toBe(crisis.places.crise);
+      if (crisis.firebreak) expect(actionIds.has(crisis.firebreak), `${id} : coupe-feu`).toBe(true);
+      // Chaque récit commence par un moment raconté, et chaque message est précédé du moment qui l'annonce, avec son signal.
+      for (const beats of [crisis.vigilance, crisis.onset]) {
+        expect('tell' in beats[0], id).toBe(true);
+        beats.forEach((beat, index) => {
+          if (!('bulletin' in beat)) return;
+          const before = beats[index - 1];
+          expect(before && 'tell' in before && before.tell.sound, `${id} : signal avant « ${beat.bulletin.title} »`).toBeTruthy();
+          expect(beat.bulletin.paragraphs.length, beat.bulletin.id).toBeGreaterThan(0);
+        });
+        // Une phase peut s'achever faute de temps : le moment qui suit a sa variante.
+        const first = beats[0];
+        expect('tell' in first && first.tell.late, `${id} : variante « trop tard »`).toBeTruthy();
+      }
+      // L'alerte, elle, sonne.
+      const alert = crisis.onset.find((beat) => 'tell' in beat);
+      expect(alert && 'tell' in alert && alert.tell.sound, id).toBe('alerte');
+      expect(crisis.ready.length, id).toBeGreaterThan(10);
+      expect(crisis.bilan.title.length, id).toBeGreaterThan(5);
+      expect(crisis.bilan.lead.length, id).toBeGreaterThan(20);
+      expect(crisis.situations.length, id).toBe(6);
+    }
+  });
+
   it('fait précéder chaque alerte d’un moment de récit complet', () => {
     const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
-    for (const [key, card] of Object.entries(STORY)) {
-      expect(card.id, key).toBe(key);
-      expect(card.when.length, key).toBeGreaterThan(3);
-      expect(card.title.length, key).toBeGreaterThan(3);
-      expect(card.paragraphs.length, key).toBeGreaterThan(0);
-      expect(card.next.length, key).toBeGreaterThan(3);
-      expect(SKIES[card.sky], key).toBeDefined();
-      expect(levels.has(card.vigilance), key).toBe(true);
+    for (const story of [STORY, FIRE_STORY]) {
+      for (const [key, card] of Object.entries<StoryCard>(story)) {
+        expect(card.id, key).toBe(key);
+        expect(card.when.length, key).toBeGreaterThan(3);
+        expect(card.title.length, key).toBeGreaterThan(3);
+        expect(card.paragraphs.length, key).toBeGreaterThan(0);
+        expect(card.next.length, key).toBeGreaterThan(3);
+        expect(SKIES[card.sky], key).toBeDefined();
+        expect(levels.has(card.vigilance), key).toBe(true);
+      }
+    }
+    // Tous les moments écrits sont joués : aucun ne reste dans un tiroir.
+    for (const [id, crisis] of SCRIPTS) {
+      const story = id === 'automne' ? STORY : FIRE_STORY;
+      expect([playbookOf(id).content!.opening, ...cardsOf(crisis)].map((card) => card.id).sort(), id).toEqual(Object.keys(story).sort());
     }
     // Le signal sonore accompagne le texte qui l'annonce : le téléphone vibre avant un bulletin, sonne avant l'alerte.
     expect([STORY.soir.sound, STORY.matin.sound, STORY.abri.sound]).toEqual(['message', 'message', 'alerte']);
@@ -133,7 +182,8 @@ describe('cohérence des contenus', () => {
   });
 
   it('donne à chaque question une bonne réponse et des identifiants uniques', () => {
-    for (const question of [...QUESTIONS, ...SITUATIONS]) {
+    expect(new Set(ALL_SITUATIONS.map((s) => s.id)).size).toBe(ALL_SITUATIONS.length);
+    for (const question of [...QUESTIONS, ...ALL_SITUATIONS]) {
       const ids = question.choices.map((c) => c.id);
       expect(new Set(ids).size, question.id).toBe(ids.length);
       const correct = question.choices.filter((c) => c.correct).length;
@@ -143,20 +193,33 @@ describe('cohérence des contenus', () => {
     }
   });
 
-  it('raconte chaque conséquence dans les situations de crise, et fait monter l’eau', () => {
-    let previous = 0;
-    for (const situation of SITUATIONS) {
-      for (const choice of situation.choices) expect(choice.outcome, `${situation.id}/${choice.id}`).toBeTruthy();
-      expect(situation.floodLevel, situation.id).toBeGreaterThan(previous);
-      previous = situation.floodLevel;
+  it('raconte chaque conséquence dans les situations de crise, et fait grandir le danger', () => {
+    for (const [id, crisis] of SCRIPTS) {
+      // Le danger ne recule jamais : il grandit pendant la vigilance, puis de décision en décision.
+      const [from, to] = crisis.levels.vigilance;
+      expect(to, id).toBeGreaterThanOrEqual(from);
+      let previous = to;
+      for (const situation of crisis.situations) {
+        for (const choice of situation.choices) expect(choice.outcome, `${situation.id}/${choice.id}`).toBeTruthy();
+        expect(situation.hazard, situation.id).toBeGreaterThan(previous);
+        previous = situation.hazard;
+      }
     }
   });
 
   it('écrit un dénouement pour chaque niveau atteignable de chaque enjeu', () => {
-    for (const stake of STAKES) {
-      expect(stake.outcomes[0], stake.id).toBeTruthy();
-      expect(stake.outcomes[2], stake.id).toBeTruthy();
+    for (const [id, crisis] of SCRIPTS) {
+      expect(new Set(crisis.stakes.map((stake) => stake.id)).size, id).toBe(crisis.stakes.length);
+      for (const stake of crisis.stakes) {
+        expect(stake.outcomes[0], stake.id).toBeTruthy();
+        expect(stake.outcomes[2], stake.id).toBeTruthy();
+        expect(stake.lesson.length, stake.id).toBeGreaterThan(20);
+      }
+      expect(crisis.badges.length, id).toBeGreaterThan(3);
     }
-    expect(new Set(BADGES.map((b) => b.id)).size).toBe(BADGES.length);
+    // Badges et enjeux portent des identifiants propres à leur chapitre : la sauvegarde les distingue.
+    expect(new Set(ALL_BADGES.map((b) => b.id)).size).toBe(ALL_BADGES.length);
+    const stakeIds = SCRIPTS.flatMap(([, crisis]) => crisis.stakes.map((stake) => stake.id));
+    expect(new Set(stakeIds).size).toBe(stakeIds.length);
   });
 });

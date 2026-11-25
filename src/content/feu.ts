@@ -1,14 +1,31 @@
-import type { ActionDef, ChapterContent, Question, StoryCard } from './model';
+import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, StakeDef, StoryCard } from './model';
 
 /**
  * Chapitre « Le feu des Brandes » : le risque de feu de forêt.
  *
- * Il se joue sur deux saisons : au printemps, on prépare le hameau (c'est ce que
- * contient ce fichier) ; l'été, le feu arrive (à écrire). Les gestes et consignes
- * reprennent les pages de Géorisques citées dans `sources` : « Que faire en cas de
- * feu de forêt ? » et « Obligations légales de débroussaillement ». Les
- * personnages et le déroulé sont de la fiction.
+ * Il se joue sur deux saisons. Au printemps, on prépare le hameau : faire
+ * connaître l'obligation de débroussailler, aider Lucien, écarter les causes de
+ * départ de feu. L'été, un feu arrive par le massif : les derniers gestes, puis
+ * six décisions à l'abri chez Lucien. Le bilan dit ce que le printemps a changé.
+ *
+ * Les gestes et consignes reprennent les pages de Géorisques citées dans
+ * `sources` : « Que faire en cas de feu de forêt ? », « Feu de forêt ou de
+ * végétation » et « Obligations légales de débroussaillement ». Les personnages
+ * et le déroulé sont de la fiction.
  */
+
+/**
+ * Avancée du feu sur la carte, de 0 à 1 (voir `world/fire`) : loin dans le massif
+ * pendant l'après-midi, il atteint la clairière de Lucien pendant la crise.
+ */
+export const FIRE = {
+  /** Du premier message de la mairie à la fin de l'après-midi. */
+  vigilance: [0.08, 0.38] as const,
+  /** Quand l'alerte sonne : le feu a franchi la crête, des braises ont allumé un second foyer. */
+  onset: 0.44,
+  /** Le feu est fixé : il ne reste que la surface brûlée. */
+  out: 1.5,
+};
 
 export const ACTIONS: ActionDef[] = [
   {
@@ -96,6 +113,69 @@ export const ACTIONS: ActionDef[] = [
     done: 'Vous rentrez, les bras griffés et les chaussures pleines de brindilles.',
     sources: [],
   },
+
+  // ------------------------------------------------------ L'été : le feu approche
+  {
+    id: 'maison-kit-emporter',
+    lexicon: ['kit'],
+    place: 'domicile',
+    phase: 'vigilance',
+    minutes: 5,
+    title: "Emporter votre kit d'urgence",
+    why: "Le kit d'urgence 72 heures se garde à portée de main, prêt à être emporté. Il contient une radio à piles, avec des piles de rechange, pour suivre les consignes des autorités.",
+    who: 'Vous.',
+    done: 'Le sac est sur votre dos. Direction les Brandes.',
+    sources: ['georisques-kit', 'georisques-feu'],
+  },
+  {
+    id: 'brandes-tour',
+    place: 'brandes',
+    phase: 'vigilance',
+    minutes: 20,
+    questions: ['feu-approche'],
+    title: 'Faire le tour des maisons du hameau',
+    why: "En cas de départ de feu, quelques gestes se font tout de suite : éloigner les combustibles, rentrer le mobilier de jardin et le tuyau d'arrosage, laisser son portail ouvert pour faciliter l'accès des pompiers.",
+    who: 'Chaque habitant, chez lui. La réserve communale passe de maison en maison.',
+    done: 'Les bouteilles de gaz sont loin des murs, les salons de jardin rentrés, les portails grands ouverts. Chacun retourne chez soi, la radio allumée.',
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'lucien-abords',
+    place: 'lucien',
+    phase: 'vigilance',
+    minutes: 20,
+    // Si le terrain a été débroussaillé au printemps, le tas de bois et la bouteille de gaz sont déjà loin de la maison.
+    eased: { by: 'lucien-debroussailler', minutes: 10 },
+    title: 'Dégager les abords de la maison de Lucien',
+    why: "En cas de départ de feu, on éloigne les combustibles, comme les bouteilles de gaz, et l'on rentre le mobilier de jardin et le tuyau d'arrosage.",
+    who: 'Lucien, avec votre aide.',
+    done: "La bouteille de gaz est au bout de la clairière, loin des murs ; les chaises de jardin et le tuyau d'arrosage sont dans l'entrée.",
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'lucien-fermer',
+    place: 'lucien',
+    phase: 'vigilance',
+    minutes: 15,
+    title: 'Fermer la maison de Lucien',
+    why: "En cas de départ de feu, on ferme et on arrose volets, portes et fenêtres, et l'on occulte les aérations, avant de s'abriter dans un bâtiment en dur.",
+    who: 'Lucien, avec votre aide.',
+    done: 'Les volets sont fermés et arrosés, les grilles d’aération bouchées. Dans la maison, il fait sombre, et encore frais.',
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'lucien-rester',
+    place: 'lucien',
+    phase: 'vigilance',
+    minutes: 0,
+    endsPhase: true,
+    narrative: true,
+    title: 'Rester auprès de Lucien',
+    why: "Le feu approche. Une fois la porte refermée, vous ne ressortirez pas avant la fin : ce qui n'a pas été fait dehors ne le sera plus.",
+    who: 'Vous.',
+    done: 'Vous refermez la porte derrière vous.',
+    sources: [],
+  },
 ];
 
 export const QUESTIONS: Question[] = [
@@ -165,7 +245,355 @@ export const QUESTIONS: Question[] = [
       'Pour éviter les départs de feu : débroussailler autour de chez soi avant l’été, organiser les barbecues loin de la végétation, réaliser les travaux sources d’étincelles loin de la pelouse et des herbes sèches, jeter ses mégots dans un cendrier et faire attention aux cendres incandescentes.',
     sources: ['georisques-feu'],
   },
+  {
+    id: 'feu-approche',
+    context: 'Au hameau, tout le monde regarde la fumée. Nadia a déroulé son tuyau d’arrosage au milieu du jardin ; son voisin ferme son portail à clé avant de monter voir.',
+    prompt: 'Que demandez-vous aux habitants ? Cochez tout ce qui convient.',
+    multiple: true,
+    choices: [
+      { id: 'gaz', label: 'Éloigner des maisons les bouteilles de gaz et les autres combustibles', correct: true },
+      { id: 'mobilier', label: "Rentrer le mobilier de jardin et le tuyau d'arrosage", correct: true },
+      { id: 'portail', label: 'Laisser les portails ouverts', correct: true },
+      { id: 'ecoute', label: "Rester à l'écoute des consignes des autorités", correct: true },
+      { id: 'cle', label: 'Fermer les portails à clé, pour protéger les maisons', correct: false, outcome: 'Un portail fermé, ce sont des minutes perdues pour les pompiers : on le laisse ouvert pour faciliter leur accès.' },
+      { id: 'tuyau', label: "Laisser les tuyaux d'arrosage déroulés dans les jardins, prêts à servir", correct: false, outcome: "Le tuyau d'arrosage se rentre, comme le mobilier de jardin." },
+    ],
+    lesson:
+      "En cas de départ de feu : éloigner les combustibles (bouteilles de gaz, etc.), rentrer le mobilier de jardin et le tuyau d'arrosage, laisser son portail ouvert pour faciliter l'accès des pompiers, et rester à l'écoute des consignes des autorités.",
+    sources: ['georisques-feu'],
+  },
 ];
+
+// ---------------------------------------------------------------- La crise
+
+/**
+ * Six décisions, à l'abri chez Lucien, pendant que le feu traverse le massif.
+ * Chaque bonne réponse est une consigne de la page « Que faire en cas de feu de
+ * forêt ? » ; les conséquences racontées sont de la fiction.
+ */
+export const SITUATIONS: Situation[] = [
+  {
+    id: 'feu-alerte',
+    hazard: 0.5,
+    context:
+      'Par la fenêtre de Lucien, vous voyez une fumée monter tout près, à trois cents mètres de la clairière, bien en avant du grand feu : le vent a porté des braises, et des flammes courent déjà dans les fougères.',
+    prompt: 'Que faites-vous ?',
+    choices: [
+      {
+        id: 'appeler',
+        label: "J'appelle le 18 ou le 112, et je dis où se trouve ce nouveau feu",
+        correct: true,
+        outcome: "« Un second foyer, forêt des Brandes, à trois cents mètres au nord-est de la maison de la clairière. » L'opérateur vous fait répéter le lieu. « On envoie un groupe. Mettez-vous à l'abri. »",
+      },
+      {
+        id: 'eteindre',
+        label: "Je cours l'éteindre avec le tuyau d'arrosage",
+        correct: false,
+        outcome: "Le tuyau s'arrête au bout du jardin, et le feu a déjà gagné cinquante mètres. Vous rebroussez chemin à bout de souffle, et vous appelez enfin les secours : dix minutes de perdues.",
+      },
+      {
+        id: 'attendre',
+        label: "Je n'appelle pas : les pompiers sont déjà dans le massif, ils l'ont sûrement vu",
+        correct: false,
+        outcome: "Personne ne l'avait signalé : les pompiers luttaient deux kilomètres plus haut. Quand un voisin appelle enfin, le second foyer a rejoint le premier.",
+      },
+    ],
+    lesson: "En cas de départ de feu, on donne l'alerte en appelant le 112, le 18 ou le 114 (pour les personnes malentendantes).",
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'feu-abri',
+    hazard: 0.62,
+    context: 'Le feu grossit, et la fumée arrive sur la clairière. Lucien attrape les clés de sa vieille voiture : « On file par le chemin, on est au bourg dans cinq minutes ! »',
+    prompt: 'Que décidez-vous ?',
+    choices: [
+      {
+        id: 'maison',
+        label: 'Nous restons dans la maison : elle est en dur, et prête',
+        correct: true,
+        outcome: 'Lucien repose les clés en grommelant. Vous fermez la porte, et vous vous installez dans la pièce du fond, la radio sur la table.',
+      },
+      {
+        id: 'voiture',
+        label: 'Nous partons en voiture par le chemin des Brandes',
+        correct: false,
+        outcome: 'Au premier virage, la fumée est si épaisse que vous ne voyez plus le chemin. Vous faites demi-tour au pas, la gorge en feu, et vous regagnez la maison de justesse.',
+      },
+      {
+        id: 'pied',
+        label: 'Nous partons à pied par le sentier',
+        correct: false,
+        outcome: 'Dans la fumée, Lucien ne tient pas cent mètres. Vous le ramenez en le soutenant, et vous refermez la porte sur vous deux.',
+      },
+    ],
+    lesson: "En cas de départ de feu, on s'abrite dans un bâtiment en dur. On ne prend pas sa voiture, et l'on n'évacue son domicile que sur ordre des autorités.",
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'feu-aerations',
+    hazard: 0.74,
+    context: "Vous êtes à l'intérieur. La chaleur monte ; une odeur âcre passe par la grille d'aération de la cuisine et sous la porte d'entrée.",
+    prompt: 'Que faites-vous ?',
+    choices: [
+      {
+        id: 'occulter',
+        label: "J'occulte les aérations, et je vérifie que tout est fermé",
+        correct: true,
+        outcome: "Vous bouchez la grille de la cuisine et le bas de la porte. L'odeur ne grandit plus.",
+      },
+      {
+        id: 'ouvrir',
+        label: "J'ouvre une fenêtre, pour faire sortir la fumée",
+        correct: false,
+        outcome: "La fumée s'engouffre dans la pièce, et des braises avec elle : l'une d'elles roussit le rideau. Vous refermez tout, en toussant.",
+      },
+      {
+        id: 'regarder',
+        label: "J'entrouvre un volet, pour surveiller l'avancée du feu",
+        correct: false,
+        outcome: "Une bouffée brûlante vous fait reculer : la vitre, que le volet ne protège plus, se fend sous la chaleur. Vous le refermez aussitôt.",
+      },
+    ],
+    lesson: "En cas de départ de feu, on ferme et on arrose volets, portes et fenêtres, et l'on occulte les aérations.",
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'feu-fumee',
+    hazard: 0.85,
+    context: 'Le feu est à la lisière de la clairière. Malgré tout, un peu de fumée entre : Lucien tousse, les yeux vous piquent.',
+    prompt: 'Que faites-vous ?',
+    choices: [
+      {
+        id: 'linge',
+        label: 'Nous nous couvrons le nez et la bouche avec un linge humide',
+        correct: true,
+        outcome: 'Deux torchons passés sous le robinet. Lucien respire mieux, et vous aussi.',
+      },
+      {
+        id: 'sortir',
+        label: 'Nous sortons respirer dehors, du côté opposé au feu',
+        correct: false,
+        outcome: "Dehors, l'air est brûlant, et la fumée bien plus épaisse que dans la maison. Vous rentrez aussitôt, les poumons en feu.",
+      },
+      {
+        id: 'patienter',
+        label: "Nous attendons que ça passe : ce n'est que de la fumée",
+        correct: false,
+        outcome: 'Les quintes de toux se rapprochent. Lucien, pâle, doit s’asseoir. Vous finissez par mouiller deux torchons, bien tard.',
+      },
+    ],
+    lesson: 'En cas de feu, on se couvre le nez et la bouche avec un linge humide.',
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'feu-voiture',
+    hazard: 0.93,
+    context:
+      'Par une fente du volet, vous apercevez une voiture arrêtée au bout du sentier, à soixante mètres, dans la fumée : c’est Nadia, la voisine. Elle baisse sa vitre et crie : « Je ne vois plus rien ! Je cours jusque chez vous ? »',
+    prompt: 'Que lui répondez-vous ?',
+    choices: [
+      {
+        id: 'rester',
+        label: '« Ne sortez pas de la voiture ! Allez vous garer dans le pré fauché, en bas du chemin ! »',
+        correct: true,
+        outcome: 'Nadia remonte sa vitre et recule au pas jusqu’au pré, où rien ne peut brûler. Le feu passe au large ; les pompiers la retrouvent indemne.',
+      },
+      {
+        id: 'courir',
+        label: '« Oui, courez, je vous ouvre ! »',
+        correct: false,
+        outcome: 'Elle fait vingt mètres dans la fumée, tombe, se relève. Vous devez sortir la chercher. Vous rentrez tous les deux brûlés aux mains et au visage.',
+      },
+      {
+        id: 'foncer',
+        label: '« Faites demi-tour, et foncez jusqu’au bourg ! »',
+        correct: false,
+        outcome: 'Sans rien y voir, elle manque le virage et s’immobilise dans le fossé, au milieu des herbes sèches. Les pompiers la dégagent de justesse.',
+      },
+    ],
+    lesson: 'En cas de feu, si l’on se trouve dans son véhicule, on n’en sort pas, et l’on va se garer dans une zone dégagée.',
+    sources: ['georisques-feu'],
+  },
+  {
+    id: 'feu-evacuer',
+    hazard: 1,
+    context: 'Le front est passé. Dehors, tout est noir et fume encore ; des souches brûlent. Lucien veut sortir voir ce qu’il reste de son jardin, puis descendre au bourg.',
+    prompt: 'Que décidez-vous ?',
+    choices: [
+      {
+        id: 'rester',
+        label: "Nous restons à l'abri, à l'écoute des consignes",
+        correct: true,
+        outcome: 'Vingt minutes plus tard, un camion de pompiers remonte le sentier. « Vous pouvez sortir. On vous emmène au gymnase. »',
+      },
+      {
+        id: 'sortir',
+        label: 'Nous sortons : le feu est passé',
+        correct: false,
+        outcome: 'À dix pas de la porte, une souche se rallume et un arbre calciné s’abat en travers du jardin. Vous rentrez en hâte.',
+      },
+      {
+        id: 'partir',
+        label: 'Nous prenons la voiture pour rejoindre le bourg',
+        correct: false,
+        outcome: 'Au bas du sentier, le chemin est barré par les tuyaux et les camions : vous gênez la manœuvre, et un pompier vous renvoie à la maison.',
+      },
+    ],
+    lesson: "En attendant les secours : rester à l'écoute des consignes des autorités, rester à l'abri et n'évacuer son domicile que sur ordre des autorités, ne pas prendre sa voiture.",
+    sources: ['georisques-feu'],
+  },
+];
+
+// -------------------------------------------------------------------- Bilan
+
+const count = (view: ChapterView, ids: string[]): number => ids.filter((id) => view.did(id)).length;
+
+export const STAKES: StakeDef[] = [
+  {
+    id: 'maison-lucien',
+    title: 'La maison de Lucien',
+    // Le débroussaillement du printemps compte double : c'est lui qui prive le feu de son chemin.
+    assess: (view) => {
+      const points = (view.did('lucien-debroussailler') ? 2 : 0) + count(view, ['lucien-abords', 'lucien-fermer']);
+      return points >= 3 ? 2 : points >= 1 ? 1 : 0;
+    },
+    outcomes: [
+      "Les herbes hautes ont conduit le feu jusqu'au tas de bois, contre le mur, et des braises sont entrées par les aérations. La toiture a pris. Les pompiers vous ont sortis de là, Lucien et vous, juste à temps ; la maison est inhabitable.",
+      "La maison a tenu, mais de peu : la façade est noircie, un volet a brûlé, l'appentis est parti en fumée. Il a manqué une partie de la préparation : le débroussaillement du printemps, ou les derniers gestes de l'été.",
+      "Le feu a fait le tour de la clairière sans trouver de chemin jusqu'à la maison : plus d'herbes hautes, plus de bois contre le mur, des volets fermés et arrosés. À l'intérieur, vous étiez à l'abri.",
+    ],
+    lesson:
+      "Le débroussaillement autour des habitations est la meilleure des protections : 90 % des maisons détruites lors des feux de forêt se situent sur des terrains pas ou mal débroussaillés. En cas de départ de feu, on éloigne les combustibles, on ferme et on arrose volets, portes et fenêtres, et l'on occulte les aérations.",
+    sources: ['georisques-old', 'georisques-feu'],
+  },
+  {
+    id: 'hameau',
+    title: 'Le hameau des Brandes',
+    assess: (view) => {
+      const ready = count(view, ['brandes-old', 'brandes-acces', 'brandes-tour']);
+      return ready === 3 ? 2 : ready >= 1 ? 1 : 0;
+    },
+    outcomes: [
+      "Autour des maisons les plus proches de la forêt, rien n'avait été débroussaillé : le feu est descendu de jardin en jardin. Deux maisons sont détruites. Sur le chemin encombré de branches, devant des portails fermés à clé, les camions ont perdu de longues minutes.",
+      "Le hameau s'en sort avec des dégâts : une haie, un abri de jardin, une façade. Tout n'était pas prêt — les terrains, le chemin ou les portails — et les pompiers ont dû parer au plus pressé.",
+      'Les terrains étaient débroussaillés, le chemin dégagé, les portails ouverts : les pompiers se sont placés entre la forêt et les maisons, et le feu s’est arrêté au bord des jardins.',
+    ],
+    lesson:
+      "Le débroussaillement autour des constructions et le long des voies d'accès protège les habitations et facilite l'intervention des secours. En cas de départ de feu, on laisse son portail ouvert pour faciliter l'accès des pompiers.",
+    sources: ['georisques-old', 'georisques-feu'],
+  },
+  {
+    id: 'departs',
+    title: 'Les départs de feu',
+    assess: (view) => count(view, ['brandes-departs', 'camping-barbecue']) as 0 | 1 | 2,
+    outcomes: [
+      "Pendant que les pompiers luttaient aux Brandes, deux autres feux sont partis dans la commune : au camping, d'un barbecue resté au pied de la haie ; au hameau, d'une disqueuse sortie dans l'herbe sèche. Il a fallu détourner deux camions.",
+      "Un autre feu est parti dans la commune pendant l'incendie : au camping, d'un barbecue resté au pied de la haie, ou au hameau, d'une disqueuse sortie dans l'herbe sèche. Vite éteint, il a tout de même mobilisé un camion dont on avait besoin ailleurs.",
+      "Ce jour-là, aucun autre feu n'est parti dans la commune : le barbecue du camping était sur sa dalle, loin de la haie, et personne au hameau n'a sorti sa disqueuse dans l'herbe sèche.",
+    ],
+    lesson:
+      "En France, neuf feux sur dix sont d'origine humaine. Pour éviter les départs de feu : organiser les barbecues loin de la végétation, réaliser les travaux sources d'étincelles loin de la pelouse et des herbes sèches, jeter ses mégots dans un cendrier.",
+    sources: ['georisques-feu', 'georisques-risque-feu'],
+  },
+  {
+    id: 'kit-feu',
+    title: "Votre kit d'urgence",
+    assess: (view) => count(view, ['maison-kit-verifier', 'maison-kit-emporter']) as 0 | 1 | 2,
+    outcomes: [
+      "Votre kit, que vous n'aviez pas vérifié depuis longtemps, est resté chez vous. Quand le courant a sauté chez Lucien, vous n'aviez ni radio ni lampe : vous avez attendu dans le noir, sans rien savoir de ce qui se passait dehors.",
+      "Il vous a manqué la moitié du nécessaire : soit le kit, prêt, était resté chez vous ; soit vous l'aviez emporté sans l'avoir vérifié au printemps, et les piles de la radio étaient mortes.",
+      "Quand le courant a sauté chez Lucien, vous avez sorti du sac la radio et ses piles neuves : vous avez suivi les consignes de la préfecture jusqu'à l'arrivée des pompiers.",
+    ],
+    lesson: "Le kit d'urgence 72 heures se prépare à l'avance. Face au feu de forêt, une radio à piles permet de suivre l'évolution de la situation et les consignes des autorités.",
+    sources: ['georisques-feu', 'georisques-kit'],
+  },
+  {
+    id: 'reflexes-feu',
+    title: 'Vos réflexes pendant le feu',
+    assess: (view) => {
+      const right = SITUATIONS.filter((situation) => view.right(situation.id)).length;
+      return right === SITUATIONS.length ? 2 : right >= 4 ? 1 : 0;
+    },
+    outcomes: [
+      'Pendant le feu, vous avez pris plusieurs risques inutiles. Cette fois, tout finit bien ; mais chacun de ces gestes aurait pu très mal tourner.',
+      "Vous avez eu la plupart des bons réflexes. Revoyez ceux qui vous ont échappé : le jour venu, il n'y aura pas de seconde chance.",
+      "Vous avez eu les bons réflexes du début à la fin : donner l'alerte, rester à l'abri, à l'écoute des consignes.",
+    ],
+    lesson:
+      "Donner l'alerte (112, 18 ou 114), s'abriter dans un bâtiment en dur, occulter les aérations, se couvrir le nez et la bouche avec un linge humide, ne pas sortir de son véhicule, n'évacuer que sur ordre des autorités.",
+    sources: ['georisques-feu'],
+  },
+];
+
+export const BADGES: BadgeDef[] = [
+  { id: 'debroussailleur', title: 'Débroussailleur', description: "Aider Lucien à débroussailler son terrain avant l'été.", earned: (v) => v.did('lucien-debroussailler') },
+  {
+    id: 'hameau-pret',
+    title: 'Hameau prêt',
+    description: "Faire connaître l'obligation de débroussailler, vérifier le chemin, puis faire le tour des maisons quand le feu approche.",
+    earned: (v) => v.did('brandes-old') && v.did('brandes-acces') && v.did('brandes-tour'),
+  },
+  {
+    id: 'zero-etincelle',
+    title: 'Zéro étincelle',
+    description: 'Écarter les causes de départ de feu, au hameau comme au camping.',
+    earned: (v) => v.did('brandes-departs') && v.did('camping-barbecue'),
+  },
+  {
+    id: 'maison-close',
+    title: 'Maison close au feu',
+    description: 'Dégager les abords de la maison de Lucien, puis la fermer avant l’arrivée du feu.',
+    earned: (v) => v.did('lucien-abords') && v.did('lucien-fermer'),
+  },
+  {
+    id: 'sang-froid',
+    title: 'Sang-froid',
+    description: 'Faire le bon choix dans toutes les situations du feu.',
+    earned: (v) => SITUATIONS.every((situation) => v.right(situation.id)),
+  },
+];
+
+// ---------------------------------------------------------------- Messages
+
+export const MESSAGE_MAIRIE: Bulletin = {
+  id: 'feu-mairie',
+  from: "Mairie de Val-d'Aléa",
+  title: 'Un feu dans le massif',
+  paragraphs: [
+    "Jeudi, 13 h. Un feu s'est déclaré en fin de matinée de l'autre côté du massif. Les pompiers sont sur place ; le vent de nord-est le pousse vers le hameau des Brandes. La Météo des forêts place aujourd'hui le département au niveau de danger le plus haut : très élevé.",
+    'La réserve communale est mobilisée pour aider les habitants du hameau à se préparer. Lucien, dans sa clairière, ne répond pas au téléphone : passez le voir.',
+    "L'après-midi sera courte. Faites ce qui peut l'être, puis mettez-vous à l'abri avec lui.",
+  ],
+  advice: [
+    "J'éloigne les combustibles (bouteilles de gaz, etc.).",
+    "Je rentre le mobilier de jardin et le tuyau d'arrosage.",
+    "Je ferme et j'arrose volets, portes et fenêtres, et j'occulte les aérations.",
+    "Je laisse mon portail ouvert pour faciliter l'accès des pompiers.",
+    "Je reste à l'écoute des consignes des autorités.",
+  ],
+  sources: ['georisques-feu', 'georisques-risque-feu'],
+};
+
+export const ALERTE_FEU: Bulletin = {
+  id: 'feu-alerte',
+  from: 'FR-Alert',
+  title: 'Alerte : feu de forêt aux Brandes',
+  paragraphs: [
+    "Jeudi, 15 h. Votre téléphone émet un signal sonore que vous ne lui connaissiez pas, alors qu'il était en mode silencieux : vous êtes dans une zone de danger. Le feu a franchi la crête ; il descend vers le hameau des Brandes.",
+    'Vous êtes chez Lucien. Les prochaines heures vont se jouer sur quelques décisions.',
+  ],
+  advice: [
+    "Je m'abrite dans un bâtiment en dur.",
+    "Je ferme volets, portes et fenêtres, et j'occulte les aérations.",
+    'Je me couvre le nez et la bouche avec un linge humide.',
+    "Je reste à l'écoute des consignes des autorités.",
+    "J'évite de téléphoner, pour laisser les réseaux disponibles pour les secours.",
+    "Je reste à l'abri : je n'évacue que sur ordre des autorités, et je ne prends pas ma voiture.",
+  ],
+  sources: ['georisques-feu', 'fr-alert'],
+};
+
+// ------------------------------------------------------------------- Récit
 
 const OPENING: StoryCard = {
   id: 'debut',
@@ -180,36 +608,66 @@ const OPENING: StoryCard = {
   vigilance: 'verte',
 };
 
-const TO_BE_CONTINUED: StoryCard = {
-  id: 'a-suivre',
-  when: 'À suivre',
-  title: "L'été arrive",
-  paragraphs: [
-    'Le printemps passe. Le hameau est prêt, ou presque.',
-    "La suite de ce chapitre — l'été, la canicule, un départ de feu en lisière — est en cours d'écriture. Votre matinée aux Brandes y comptera.",
-  ],
-  next: 'Revenir au calendrier',
-  sky: 'sec',
-  vigilance: 'verte',
-};
+/** Le récit de l'été. Chaque moment précède un message ou un changement de décor : le joueur voit le feu avant de lire l'alerte. */
+export const STORY = {
+  debut: OPENING,
+  ete: {
+    id: 'ete',
+    when: "Un jeudi d'août, 13 h",
+    title: 'Trois mois plus tard',
+    paragraphs: [
+      "Le printemps a passé, puis juillet. Depuis dix jours, il fait plus de 35 degrés ; l'herbe est jaune, et le vent de nord-est s'est levé ce matin.",
+      "De votre fenêtre, vous apercevez une colonne de fumée, loin au-dessus de la forêt. Votre téléphone vibre : un message de la mairie.",
+    ],
+    late: "La matinée s'est achevée sans que vous ayez tout fait, puis le printemps a passé, et juillet. Depuis dix jours, il fait plus de 35 degrés ; l'herbe est jaune, et le vent de nord-est s'est levé ce matin.",
+    next: 'Lire le message',
+    sound: 'message',
+    sky: 'canicule',
+    vigilance: 'rouge',
+  },
+  abri: {
+    id: 'abri',
+    when: 'Jeudi, 15 h',
+    title: 'Le feu franchit la crête',
+    paragraphs: ['Vous êtes chez Lucien, la porte refermée. Dehors, le ciel a viré à l’orange ; des cendres tombent sur la clairière.', 'Votre téléphone se met à sonner.'],
+    late: 'Le feu avance plus vite que prévu : vous courez jusque chez Lucien, et vous refermez la porte sur vous deux. Dehors, le ciel a viré à l’orange ; des cendres tombent sur la clairière.',
+    next: "Lire l'alerte",
+    sound: 'alerte',
+    sky: 'fumee',
+    vigilance: 'rouge',
+  },
+  fixe: {
+    id: 'fixe',
+    when: 'Jeudi, 19 h',
+    title: 'Le feu est fixé',
+    paragraphs: [
+      'En fin d’après-midi, le vent tombe. Les avions bombardiers d’eau se relaient au-dessus du massif ; à la tombée du jour, les pompiers annoncent que le feu est fixé : il ne progresse plus.',
+      'Une centaine d’hectares de forêt ont brûlé. La mairie ouvre le gymnase pour la nuit.',
+    ],
+    next: 'Voir le bilan',
+    sky: 'fumee',
+    vigilance: 'rouge',
+  },
+} satisfies Record<string, StoryCard>;
 
-/** Le chapitre, tel que le jeu le joue : pour l'instant, sa préparation de printemps. */
+/** Le chapitre, tel que le jeu le joue : le printemps, puis l'été et son feu, que `ui/flow` met en scène. */
 export const ETE: ChapterContent = {
   id: 'ete',
   actions: ACTIONS,
   questions: QUESTIONS,
   objectives: {
     preparation: "Aidez le hameau des Brandes à se préparer avant l'été.",
-    vigilance: 'Danger de feu très élevé : faites les derniers gestes.',
-    crise: 'Un feu est parti en lisière : faites les bons choix.',
+    vigilance: 'Le feu approche des Brandes : aidez le hameau et Lucien à s’y préparer.',
+    crise: 'Le feu est là : faites les bons choix.',
     bilan: 'Le feu est fixé. Le bilan et vos badges sont dans votre téléphone.',
   },
   // La Météo des forêts n'est publiée que de juin à septembre : au printemps, l'indicateur le dit.
   situation: {
     preparation: { level: 'verte', indicator: 'Feux de forêt : hors saison', sky: 'sec', river: 'à son niveau de printemps' },
-    vigilance: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'sec', river: 'basse' },
-    crise: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'sec', river: 'basse' },
-    bilan: { level: 'orange', indicator: 'Danger de feu : élevé', sky: 'sec', river: 'basse' },
+    vigilance: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'canicule', river: 'très basse' },
+    crise: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'fumee', river: 'très basse' },
+    // Le feu est fixé, mais le temps n'a pas changé : le danger reste au plus haut.
+    bilan: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'canicule', river: 'très basse' },
   },
   levels: { verte: 'Danger de feu : faible', jaune: 'Danger de feu : modéré', orange: 'Danger de feu : élevé', rouge: 'Danger de feu : très élevé' },
   forecast: {
@@ -218,22 +676,56 @@ export const ETE: ChapterContent = {
       { when: 'Les semaines qui viennent', icon: 'soleil', text: 'Peu de pluie annoncée. La végétation commence à sécher.' },
       { when: 'Cet été', icon: 'soleil', text: 'Un été chaud est attendu.' },
     ],
+    vigilance: [
+      { when: 'Cet après-midi', icon: 'soleil', text: '37 °C. Vent de nord-est, en rafales.' },
+      { when: 'Ce soir', icon: 'soleil', text: 'Le vent faiblit à la tombée du jour.' },
+      { when: 'Vendredi', icon: 'soleil', text: 'Toujours très chaud et sec.' },
+    ],
+    crise: [
+      { when: 'Cet après-midi', icon: 'nuage', text: 'Fumée. Vent de nord-est, en rafales.' },
+      { when: 'Ce soir', icon: 'soleil', text: 'Le vent faiblit à la tombée du jour.' },
+    ],
+    bilan: [
+      { when: 'Cette nuit', icon: 'nuage', text: 'Vent faible. Odeur de fumée.' },
+      { when: 'Vendredi', icon: 'soleil', text: 'Très chaud. Aucune pluie annoncée.' },
+    ],
   },
   timing: {
     // Une matinée de travail : de quoi tout faire, trajets compris, avec une heure de marge.
     preparation: { minutes: 300, day: 'Samedi', startsAt: 9 * 60 },
+    // Une après-midi courte : le trajet jusqu'aux Brandes et quatre gestes, sans temps à perdre.
     vigilance: { minutes: 120, day: 'Jeudi', startsAt: 13 * 60 },
   },
   dusk: null,
-  opening: OPENING,
+  opening: STORY.debut,
   period: { preparation: 'la matinée', vigilance: "l'après-midi" },
-  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant 14 heures.', vigilance: 'Le feu approche : il vous reste {reste}.' },
+  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant 14 heures.', vigilance: 'Le feu approche : il vous reste {reste} pour vous mettre à l’abri.' },
   hazardApp: 'meteo',
   hazardInfo: {
     title: 'La Météo des forêts',
     text: "De juin à septembre, Météo-France publie chaque jour deux cartes du danger de feu de forêt et de végétation, pour le lendemain et le surlendemain. Le niveau de danger est précisé par département, sur une échelle à quatre niveaux : faible, modéré, élevé et très élevé, en vert, jaune, orange et rouge.",
     sources: ['georisques-risque-feu'],
   },
-  complete: false,
-  toBeContinued: TO_BE_CONTINUED,
+  crisis: {
+    hazard: 'feu',
+    name: 'Le feu',
+    // L'après-midi commence chez soi ; le feu se vit chez Lucien, dans sa clairière.
+    places: { vigilance: 'domicile', crise: 'lucien' },
+    // On vise le seuil de la maison : au-dessus de la fenêtre du récit, on voit la clairière, et au nord la forêt d'où vient le feu.
+    lookSouth: 0,
+    vigilance: [{ tell: STORY.ete, hazard: FIRE.vigilance[0] }, { bulletin: MESSAGE_MAIRIE }],
+    ready: 'Danger de feu très élevé. Vous êtes chez vous : rejoignez le hameau des Brandes, puis la maison de Lucien.',
+    // Le ciel se couvre de fumée et le feu apparaît en lisière pendant que le joueur lit : il le voit avant que l'alerte ne sonne.
+    onset: [{ tell: STORY.abri, hazard: FIRE.onset }, { bulletin: ALERTE_FEU }],
+    situations: SITUATIONS,
+    ending: STORY.fixe,
+    levels: { vigilance: FIRE.vigilance, ending: FIRE.out, after: FIRE.out },
+    firebreak: 'lucien-debroussailler',
+    stakes: STAKES,
+    badges: BADGES,
+    bilan: {
+      title: 'Bilan du feu',
+      lead: 'À la tombée du jour, le feu est fixé. Voici ce qu’il a laissé derrière lui, et ce que votre printemps aux Brandes a changé.',
+    },
+  },
 };

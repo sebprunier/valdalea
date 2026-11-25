@@ -1,4 +1,4 @@
-import { findChapter, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
+import { ALL_BADGES, findChapter, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
 import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -27,6 +27,7 @@ import type { Game } from '../game/game';
 import { RISK_NAMES } from '../render/riskmap';
 import { SKIES, type WeatherLayer } from '../render/weather';
 import type { Elevation } from '../world/elevation';
+import { buildFireField, FIRE_OUT, FIRE_SPENT, type FireField } from '../world/fire';
 import { exposuresAt, isExposed } from '../world/hazards';
 import { findPlace, RISK_IDS, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
@@ -119,7 +120,6 @@ export function createUi(deps: UiDeps): Ui {
     return book;
   }
   const dicrimRead = (): boolean => chapter().done.includes('mairie-dicrim');
-  const home = findPlace(commune, 'domicile')?.pos ?? commune.spawn;
 
   /** Nouveauté à signaler sur le téléphone quand le chapitre arrive dans une phase. */
   const NEWS_AT: Partial<Record<Phase, NewsId>> = { vigilance: 'alertes', crise: 'alertes', bilan: 'bilan' };
@@ -183,6 +183,52 @@ export function createUi(deps: UiDeps): Ui {
   const forest = commune.grounds.find((ground) => ground.kind === 'foret')?.poly ?? null;
   const plant = commune.grounds.find((ground) => ground.kind === 'industrie')?.poly ?? null;
   const school = findPlace(commune, 'ecole')?.pos ?? null;
+
+  // Le feu de forêt : ce qui brûle dépend de ce qui a été débroussaillé. Les maisons, elles, ne font pas partie du combustible.
+  const fireFields = new Map<boolean, FireField>();
+  function fireField(cleared: boolean): FireField | null {
+    const { wildfire } = commune;
+    if (!wildfire || !forest) return null;
+    let field = fireFields.get(cleared);
+    if (!field) {
+      field = buildFireField(
+        wildfire,
+        cleared ? [forest] : [forest, wildfire.clearing],
+        commune.buildings.map((building) => building.rect),
+      );
+      fireFields.set(cleared, field);
+    }
+    return field;
+  }
+
+  /** Niveau du danger montré sur la carte en ce moment : hauteur de la crue, ou avancée du feu. */
+  let hazardNow = 0;
+  const hazardKind = (): 'crue' | 'feu' | null => playbook().content?.crisis?.hazard ?? null;
+
+  /** Montre le danger du chapitre sur la carte : la crue, ou le feu. */
+  function showHazard(level: number, immediate = false): void {
+    const crisis = playbook().content?.crisis;
+    hazardNow = level;
+    if (crisis?.hazard === 'feu') {
+      // Une clairière débroussaillée ne brûle pas : le feu la contourne.
+      const cleared = !crisis.firebreak || chapter().done.includes(crisis.firebreak);
+      game.setFlood(0, true);
+      game.setFire(level, fireField(cleared), immediate);
+    } else {
+      game.setFire(0, null, true);
+      game.setFlood(level, immediate);
+    }
+  }
+
+  /** Hauteur de la crue en cours ; nulle dans les chapitres sans crue. */
+  const floodNow = (): number => (hazardKind() === 'crue' ? hazardNow : 0);
+
+  /** Force du feu, pour le son : il enfle en avançant, puis s'éteint une fois fixé. */
+  function fireNow(): number {
+    if (hazardKind() !== 'feu' || hazardNow <= 0) return 0;
+    if (hazardNow > FIRE_SPENT) return Math.max(0, (FIRE_OUT - hazardNow) / (FIRE_OUT - FIRE_SPENT));
+    return 0.35 + 0.65 * hazardNow;
+  }
   /** L'école sonne à 8 h 30, le lundi : c'est le seul jour d'école du chapitre. */
   const SCHOOL_BELL = 8 * 60 + 30;
 
@@ -235,16 +281,20 @@ export function createUi(deps: UiDeps): Ui {
     replay,
     openCalendar,
     closePlace: () => placeUi.close(),
-    goHome: () => game.moveTo(home),
+    goTo: (placeId) => {
+      const place = findPlace(commune, placeId);
+      if (place) game.moveTo(place.pos);
+    },
     stage: (next) => {
       scene = next;
       sync();
     },
     play: (cue) => sound.play(cue),
-    setFlood: (level, immediate) => game.setFlood(level, immediate),
-    setFocus: (point) => game.setFocus(point),
-    // La fenêtre du récit et des décisions occupe le bas de l'écran : on vise plus au sud, pour que le quai reste visible au-dessus.
-    crisisFocus: { x: home.x, y: home.y + 170 },
+    setHazard: showHazard,
+    setFocus: (placeId, south = 0) => {
+      const place = placeId ? findPlace(commune, placeId) : undefined;
+      game.setFocus(place ? { x: place.pos.x, y: place.pos.y + south } : null);
+    },
     focusTarget: map,
     announce,
   });
@@ -256,7 +306,7 @@ export function createUi(deps: UiDeps): Ui {
   function begin(chapterId: string): void {
     const next = playbookOf(chapterId);
     store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
-    game.setFlood(0, true);
+    showHazard(0, true);
     game.setFocus(null);
     flow.begin();
   }
@@ -296,7 +346,7 @@ export function createUi(deps: UiDeps): Ui {
   const placeUi = createPlaceUi({
     commune,
     getChapter: chapter,
-    getWater: (place) => ({ depth: elevation.depthAt(place.pos, flow.floodLevel()), flood: flow.floodLevel() }),
+    getWater: (place) => ({ depth: elevation.depthAt(place.pos, floodNow()), flood: floodNow() }),
     getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
     getActions: () => playbook().actions,
@@ -370,7 +420,7 @@ export function createUi(deps: UiDeps): Ui {
     if (confirmed) {
       const { reducedMotion, zoom, sound: soundOn } = store.get().settings;
       store.update(() => newGame(commune.spawn, { ...DEFAULT_SETTINGS, reducedMotion, zoom, sound: soundOn }));
-      game.setFlood(0, true);
+      showHazard(0, true);
       game.setFocus(null);
       game.moveTo(commune.spawn);
     }
@@ -401,6 +451,7 @@ export function createUi(deps: UiDeps): Ui {
     travel: goTo,
     startChapter: chooseChapter,
     getAssessment: () => flow.assessment(),
+    getBadgeDefs: () => (isUnderway(chapter().phase) ? playbook().content?.crisis?.badges : undefined) ?? ALL_BADGES,
     clearNews: (id) => store.update((state) => withoutNews(state, id)),
     isDicrimRead: dicrimRead,
     openDicrim: () => dicrim.open(null),
@@ -536,6 +587,12 @@ export function createUi(deps: UiDeps): Ui {
     // Pendant un moment de récit, l'indicateur suit le récit ; sinon, il dit l'état de la phase.
     vigilanceText.textContent = scene ? (playbook().content?.levels[scene.vigilance] ?? situation.indicator) : situation.indicator;
 
+    // Pendant la vigilance, le danger grandit avec l'heure : le feu gagne du terrain pendant que le joueur s'active.
+    if (current.phase === 'vigilance' && !scene && !flow.isBusy()) {
+      const level = flow.hazardLevel();
+      if (level !== hazardNow) showHazard(level);
+    }
+
     const now = sky();
     if (now !== shownSky) {
       shownSky = now;
@@ -556,9 +613,10 @@ export function createUi(deps: UiDeps): Ui {
       mixOf({
         sky: SKIES[now],
         height: heightAboveWater(state.player),
-        flood: flow.floodLevel(),
+        flood: floodNow(),
         toForest: forest ? distToPolygon(state.player, forest) : Infinity,
         toPlant: plant ? distToPolygon(state.player, plant) : Infinity,
+        fire: fireNow(),
       }),
     );
 

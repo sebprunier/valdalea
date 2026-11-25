@@ -79,10 +79,10 @@ export interface Question {
   sources: string[];
 }
 
-/** Situation de crise : une question, et le niveau de l'eau à ce moment-là. */
+/** Situation de crise : une question, et l'état du danger sur la carte à ce moment-là. */
 export interface Situation extends Question {
-  /** Hauteur de la crue, en mètres au-dessus du niveau normal de la rivière. */
-  floodLevel: number;
+  /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière, ou avancée du feu, de 0 à 1. */
+  hazard: number;
 }
 
 /** Ce que les règles du bilan peuvent lire du chapitre joué. */
@@ -118,7 +118,7 @@ export interface BadgeDef {
 export type VigilanceLevel = 'verte' | 'jaune' | 'orange' | 'rouge';
 
 /** Le temps qu'il fait, tel que la carte le montre. */
-export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie';
+export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie' | 'canicule' | 'fumee';
 
 /**
  * Un moment de récit entre deux phases : il laisse au joueur le temps de voir
@@ -150,6 +150,55 @@ export interface Bulletin {
   /** Consignes à puces, reprises de la source. */
   advice?: string[];
   sources: string[];
+}
+
+/** Un temps du récit qui ouvre une phase : un moment raconté, ou un message reçu. */
+export type Beat =
+  | {
+      tell: StoryCard;
+      /** Niveau du danger que la carte montre à partir de ce moment. */
+      hazard?: number;
+    }
+  | {
+      bulletin: Bulletin;
+      /** Niveau que prend l'indicateur pendant la lecture. Sans lui, la barre d'état montre déjà la phase qui commence. */
+      vigilance?: VigilanceLevel;
+    };
+
+/**
+ * La seconde moitié d'un chapitre : la vigilance, la crise et son bilan. Le
+ * déroulé (`ui/flow`) est le même pour tous les risques ; ce script lui dit quoi
+ * raconter, quoi montrer sur la carte et comment juger le résultat.
+ */
+export interface CrisisScript {
+  /** Ce que la carte met en scène : la crue de la rivière, ou le feu de forêt. */
+  hazard: 'crue' | 'feu';
+  /** Nom de la crise dans le titre des décisions : « La crue », « Le feu ». */
+  name: string;
+  /** Lieux où se trouve le joueur quand la vigilance commence, puis pendant la crise. */
+  places: { vigilance: string; crise: string };
+  /**
+   * Décalage vers le sud, en unités monde, du point que la caméra vise pendant les
+   * séquences. La fenêtre du récit occupe le bas de l'écran : on règle ainsi ce
+   * qui reste visible au-dessus d'elle (le quai et la rivière, ou la forêt).
+   */
+  lookSouth: number;
+  /** Récit d'entrée en vigilance. */
+  vigilance: Beat[];
+  /** Ce qui est annoncé quand le joueur reprend la main, au début de la vigilance. */
+  ready: string;
+  /** Récit d'entrée en crise, avant les décisions. */
+  onset: Beat[];
+  situations: Situation[];
+  /** Le dénouement, raconté avant le bilan. */
+  ending: StoryCard;
+  /** Niveau du danger sur la carte : du début à la fin de la vigilance, au dénouement, puis une fois le bilan établi. */
+  levels: { vigilance: readonly [number, number]; ending: number; after: number };
+  /** Pour le feu : le geste qui, accompli, épargne la clairière. Sans lui, elle brûle avec le reste. */
+  firebreak?: string;
+  stakes: StakeDef[];
+  badges: BadgeDef[];
+  bilan: { title: string; lead: string };
 }
 
 /** Horaires des phases où le temps est compté : durée, jour et heure de début. */
@@ -189,8 +238,8 @@ export interface ChapterContent {
   hazardApp: 'alertes' | 'meteo';
   /** Ce qu'est cet indicateur, d'après sa source officielle : affiché dans l'application Météo. */
   hazardInfo?: { title: string; text: string; sources: string[] };
-  /** Le chapitre se joue jusqu'au bilan. Sinon, seule sa préparation existe : la suite est en cours d'écriture. */
-  complete: boolean;
-  /** Pour un chapitre incomplet : le moment de récit qui annonce la suite. */
+  /** La vigilance, la crise et le bilan. Sans ce script, seule la préparation du chapitre existe : la suite est en cours d'écriture. */
+  crisis?: CrisisScript;
+  /** Pour un chapitre sans suite : le moment de récit qui l'annonce. */
   toBeContinued?: StoryCard;
 }

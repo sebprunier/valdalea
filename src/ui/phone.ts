@@ -1,8 +1,8 @@
 import type { ChapterInfo } from '../content/chapitres';
 import { CREDITS } from '../content/credits';
-import { BADGES, VIGILANCE_SCALE } from '../content/inondation';
+import { VIGILANCE_SCALE } from '../content/inondation';
 import { LEXICON } from '../content/lexique';
-import type { Bulletin, VigilanceLevel } from '../content/model';
+import type { BadgeDef, Bulletin, VigilanceLevel } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import type { Assessment } from '../core/chapter';
 import { distance, type Vec } from '../core/geometry';
@@ -38,7 +38,7 @@ export interface PhoneDeps {
   commune: Commune;
   /** Plan de la commune à petite échelle. */
   overview: HTMLCanvasElement;
-  /** Dessine la zone inondable et la crue par-dessus le plan (contexte en coordonnées monde). */
+  /** Dessine la zone de risque affichée, la crue et le feu par-dessus le plan (contexte en coordonnées monde). */
   paintWater(ctx: CanvasRenderingContext2D): void;
   getPlayer(): Vec;
   getSectorName(): string;
@@ -48,6 +48,8 @@ export interface PhoneDeps {
   getVigilance(): VigilanceLevel | null;
   getWeather(): WeatherNow;
   getAssessment(): Assessment | null;
+  /** Les badges à montrer : ceux du chapitre en cours, ou tous ceux du jeu quand aucun ne l'est. */
+  getBadgeDefs(): readonly BadgeDef[];
   /** Ce que la liste des lieux affiche de chacun. */
   getPlaceInfo(place: Place): PlaceInfo;
   /** Emmène le joueur dans un lieu et l'ouvre. */
@@ -398,9 +400,9 @@ export function createPhone(deps: PhoneDeps): Phone {
         deps.replay();
         dialog.close();
       });
-      bilanView.replaceChildren(bilanContent(assessment, BADGES, earned, []), again);
+      bilanView.replaceChildren(bilanContent(assessment, deps.getBadgeDefs(), earned, []), again);
     } else {
-      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan d’un chapitre est établi à la fin de celui-ci.'), h('h3', null, 'Badges'), badgeList(BADGES, earned));
+      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan d’un chapitre est établi à la fin de celui-ci.'), h('h3', null, 'Badges'), badgeList(deps.getBadgeDefs(), earned));
     }
   }
 
@@ -425,7 +427,7 @@ export function createPhone(deps: PhoneDeps): Phone {
       { class: 'field' },
       motion,
       h('label', { for: 'reglage-animations' }, 'Réduire les animations'),
-      h('p', { class: 'fine-print' }, 'La caméra suit le personnage sans glissement, les repères ne clignotent plus et la crue change de niveau sans transition. Par défaut, le jeu reprend le réglage de votre système.'),
+      h('p', { class: 'fine-print' }, 'La caméra suit le personnage sans glissement, les repères ne clignotent plus, et la crue comme le feu changent de niveau sans transition. Par défaut, le jeu reprend le réglage de votre système.'),
     ),
     h(
       'div',

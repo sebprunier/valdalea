@@ -23,6 +23,7 @@ export function buildValDAlea(): Commune {
   b.ground('eboulis', [vec(0, 0), vec(420, 0), vec(470, 300), vec(440, 700), vec(490, 1100), vec(460, 1470), vec(320, 1600), vec(0, 1600)]);
   b.ground('falaise', [vec(0, 0), vec(380, 0), vec(430, 300), vec(400, 700), vec(450, 1100), vec(420, 1450), vec(300, 1560), vec(0, 1560)]);
 
+  const clearing = [vec(3694, 1176), vec(3694, 916), vec(3516, 916), vec(3516, 1062)];
   const forest = [
     vec(2980, 0),
     vec(4200, 0),
@@ -30,10 +31,7 @@ export function buildValDAlea(): Commune {
     vec(3950, 1280),
     vec(3700, 1180),
     // La clairière de Lucien : la forêt l'entoure sur trois côtés, au ras de son jardin.
-    vec(3694, 1176),
-    vec(3694, 916),
-    vec(3516, 916),
-    vec(3516, 1062),
+    ...clearing,
     vec(3450, 1020),
     vec(3250, 820),
     vec(3080, 520),
@@ -346,6 +344,16 @@ export function buildValDAlea(): Commune {
   b.hazard('industriel', 'moyen', Array.from({ length: 48 }, (_, i) => vec(plant.x + 650 * Math.cos((i / 48) * Math.PI * 2), plant.y + 650 * Math.sin((i / 48) * Math.PI * 2))));
   b.hazard('industriel', 'fort', rectToPolygon(site));
   b.hazardMark('industriel', plant, 'Engrais du Val');
+
+  // Le feu de l'été : parti au nord-est, hors de la carte, il est poussé par le vent vers la clairière
+  // de Lucien et le hameau. Des braises allument un second foyer en avant du front, près de la clairière.
+  b.wildfire({
+    ignition: vec(4260, -60),
+    wind: vec(-0.5025, 0.8646),
+    reach: { head: 1400, flank: 540, back: 300 },
+    spot: { at: vec(3790, 790), from: 0.4, reach: { head: 420, flank: 260, back: 160 } },
+    clearing,
+  });
 
   b.spawn(doorPoint(home));
   return b.commune;
