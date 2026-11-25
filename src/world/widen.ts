@@ -49,6 +49,7 @@ export function widenEast(commune: Commune, fromX: number, by: number, eastern: 
     // Le portail d'une clôture nord ou sud est repéré par ses abscisses.
     if (moved && fence.gate && (fence.gate.side === 'N' || fence.gate.side === 'S')) fence.gate = { ...fence.gate, from: fence.gate.from + by, to: fence.gate.to + by };
   }
+  for (const row of commune.parkings) row.rect = box(row.rect);
   commune.tanks.forEach(moveXY);
   commune.trees.forEach(moveXY);
   commune.decors.forEach(moveXY);

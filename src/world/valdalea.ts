@@ -420,22 +420,29 @@ function dressSchoolyard(b: WorldBuilder): void {
 }
 
 /**
- * Le bourg, côté pratique : un petit parking au coin du square, d'où l'on va à pied aux commerces et au
- * Vieux-Bourg, et des passages piétons là où l'on traverse. Posés en dernier, comme le reste du décor.
+ * Le bourg, côté pratique : des places de stationnement et des passages piétons.
+ * Posés en dernier, comme le reste du décor ; ici, les coordonnées sont celles du jeu.
  */
 function dressBourg(b: WorldBuilder): void {
-  // Le parking prend le coin sud-ouest du square, contre l'avenue : les arbres qui s'y trouvaient s'en vont.
-  const lot = rect(2168, 1424, 154, 90);
-  b.commune.trees = b.commune.trees.filter((tree) => !rectContains(inflate(lot, tree.r + 6), tree));
+  // Un petit parking prend le coin sud-ouest du square : deux rangées de places de part et d'autre d'une allée,
+  // qui débouche sur l'avenue. On s'y gare pour aller à pied aux commerces et dans le Vieux-Bourg.
+  const lot = rect(2168, 1414, 154, 100);
   b.groundRect('parking', lot);
-  for (const [x, y] of [
-    [2190, 1448],
-    [2256, 1448],
-    [2300, 1448],
-    [2212, 1490],
-    [2278, 1490],
-  ] as const) {
-    b.decor('voiture', x, y, Math.PI / 2);
+  b.groundRect('parking', rect(2124, 1453, 46, 22));
+  b.parkingRow(rect(2172, 1416, 146, 36), 'S', [0, 2, 5]);
+  b.parkingRow(rect(2172, 1476, 146, 36), 'N', [1, 3, 4]);
+
+  // En face de l'école, de l'autre côté du quai : quelques places en épi, à deux pas du passage piéton.
+  const quay = rect(1668, 2122, 165, 34);
+  b.parkingRow(quay, 'N', [0, 2, 3], 0.5);
+
+  // Le parking du gymnase et celui de l'usine : une rangée de places au fond, l'allée devant.
+  b.parkingRow(rect(2646, 896, 220, 40), 'S', [0, 2, 3, 6, 8]);
+  b.parkingRow(rect(3450 + WIDENING + 6, 1746, 208, 40), 'N', [1, 2, 4, 5, 7, 8]);
+
+  // Plus d'arbre là où l'on se gare.
+  for (const area of [lot, quay]) {
+    b.commune.trees = b.commune.trees.filter((tree) => !rectContains(inflate(area, tree.r + 6), tree));
   }
 
   // Du parking vers le Vieux-Bourg : on traverse l'avenue en face de la rue Basse.
@@ -447,7 +454,7 @@ function dressBourg(b: WorldBuilder): void {
   b.crossing(vec(2520, 1660), 'departementale', false);
   // Au débouché de la rue de l'Église, vers le tabac-presse et la poste.
   b.crossing(vec(1700, 1660), 'departementale', false);
-  // Devant l'école : du portail à la passerelle du camping.
+  // Devant l'école : du portail à la passerelle du camping, et aux places du quai.
   b.crossing(vec(1650, 2100), 'rue', false);
   // Devant la mairie.
   b.crossing(vec(2400, 1000), 'rue', false);
