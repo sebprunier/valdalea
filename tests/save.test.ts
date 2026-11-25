@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clearGame, loadGame, memoryStorage, saveGame, type LoadContext } from '../src/core/save';
-import { markVisited, movePlayer, newGame, withNews, withoutNews, withRecord } from '../src/core/state';
+import { markVisited, movePlayer, newGame, withAsset, withNews, withoutNews, withRecord } from '../src/core/state';
 import { Store } from '../src/core/store';
 
 const context: LoadContext = {
@@ -10,6 +10,7 @@ const context: LoadContext = {
   legacy: { chapterId: 'automne', prologue: ['mairie-accueil', 'mairie-dicrim'] },
   situationChoices: new Map([['enfants', new Set(['ecole', 'a-pied'])]]),
   badgeIds: new Set(['kit']),
+  grants: new Map([['maison-kit', 'kit']]),
   riskIds: new Set(['inondation', 'cavites']),
   isFree: (pos) => pos.x >= 0,
   spawn: { x: 100, y: 100 },
@@ -21,6 +22,7 @@ describe('sauvegarde', () => {
     let state = newGame({ x: 10, y: 20 });
     state = markVisited(state, 'mairie');
     state = movePlayer(state, { x: 42, y: 43 });
+    state = withAsset(state, 'kit', 'automne');
     expect(saveGame(storage, state)).toBe(true);
     expect(loadGame(storage, context)).toEqual(state);
   });
@@ -109,6 +111,22 @@ describe('sauvegarde', () => {
     expect(state?.chapter).toEqual({ phase: 'libre', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} });
   });
 
+  it('reprend ce que le joueur garde d’un chapitre à l’autre, en écartant ce qui est inconnu', () => {
+    const storage = memoryStorage();
+    const write = (extra: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 3, player: { x: 5, y: 5 }, ...extra }));
+    write({ assets: { kit: 'automne', jetpack: 'automne' } });
+    expect(loadGame(storage, context)?.assets).toEqual({ kit: 'automne' });
+    write({ assets: { kit: 'disparu' } });
+    expect(loadGame(storage, context)?.assets).toEqual({});
+    write({ assets: ['kit'] });
+    expect(loadGame(storage, context)?.assets).toEqual({});
+    // Une partie d'avant les acquis, enregistrée en cours de chapitre : le kit déjà préparé est retenu.
+    write({ chapterId: 'automne', chapter: { phase: 'preparation', minutesLeft: 200, done: ['mairie-accueil', 'mairie-dicrim', 'maison-kit'], answers: {} } });
+    expect(loadGame(storage, context)?.assets).toEqual({ kit: 'automne' });
+    write({ chapterId: 'automne', chapter: { phase: 'preparation', minutesLeft: 200, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} } });
+    expect(loadGame(storage, context)?.assets).toEqual({});
+  });
+
   it('repart d’un chapitre neuf si la phase sauvegardée est inconnue', () => {
     const storage = memoryStorage();
     storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, chapter: { phase: 'hiver', done: ['maison-kit'] } }));
@@ -185,6 +203,12 @@ describe('état', () => {
     expect(withNews(state, 'bilan').news).toEqual(['alertes', 'bilan']);
     expect(withoutNews(state, 'alertes').news).toEqual([]);
     expect(withoutNews(state, 'dicrim')).toBe(state);
+  });
+
+  it('retient le premier chapitre où un acquis a été obtenu', () => {
+    const state = withAsset(newGame({ x: 1, y: 1 }), 'kit', 'ete');
+    expect(state.assets).toEqual({ kit: 'ete' });
+    expect(withAsset(state, 'kit', 'automne')).toBe(state);
   });
 
   it('ne retient que le meilleur indice d’un chapitre', () => {

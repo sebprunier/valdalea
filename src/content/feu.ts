@@ -1,3 +1,4 @@
+import { kitAction, KIT_QUESTIONS } from './kit';
 import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, StakeDef, StoryCard } from './model';
 
 /**
@@ -88,18 +89,12 @@ export const ACTIONS: ActionDef[] = [
     done: "Le barbecue du camping était posé au pied de la haie, à quelques mètres du champ voisin. Le gérant l'installe sur la dalle, près de l'allée, à l'écart de toute végétation ; il ajoute un point d'eau, des cendriers et une affiche à l'accueil.",
     sources: ['georisques-feu'],
   },
-  {
+  // Le kit se prépare ici si c'est le premier chapitre joué ; sinon, il se vérifie (d'où l'identifiant, gardé pour les parties en cours).
+  kitAction({
     id: 'maison-kit-verifier',
-    lexicon: ['kit'],
-    place: 'domicile',
-    phase: 'preparation',
-    minutes: 15,
-    title: "Vérifier votre kit d'urgence",
-    why: "Le kit d'urgence 72 heures sert pour tous les risques. Face au feu de forêt, il compte une radio à piles, pour suivre l'évolution de la situation et les consignes des autorités. Son contenu se vérifie une fois par an.",
-    who: 'Chaque foyer.',
-    done: 'Les piles de la radio sont changées, les bouteilles d’eau renouvelées. Le sac retrouve sa place, à portée de main.',
-    sources: ['georisques-feu', 'georisques-kit'],
-  },
+    sources: ['georisques-kit', 'ecologie-kit', 'georisques-feu'],
+    risk: "Face au feu de forêt, sa radio à piles permet de suivre l'évolution de la situation et les consignes des autorités.",
+  }),
   {
     id: 'maison-soir',
     place: 'domicile',
@@ -179,6 +174,7 @@ export const ACTIONS: ActionDef[] = [
 ];
 
 export const QUESTIONS: Question[] = [
+  ...KIT_QUESTIONS,
   {
     id: 'old-ou',
     prompt: 'Quelles constructions sont concernées par l’obligation de débroussailler ?',
@@ -500,11 +496,11 @@ export const STAKES: StakeDef[] = [
     title: "Votre kit d'urgence",
     assess: (view) => count(view, ['maison-kit-verifier', 'maison-kit-emporter']) as 0 | 1 | 2,
     outcomes: [
-      "Votre kit, que vous n'aviez pas vérifié depuis longtemps, est resté chez vous. Quand le courant a sauté chez Lucien, vous n'aviez ni radio ni lampe : vous avez attendu dans le noir, sans rien savoir de ce qui se passait dehors.",
-      "Il vous a manqué la moitié du nécessaire : soit le kit, prêt, était resté chez vous ; soit vous l'aviez emporté sans l'avoir vérifié au printemps, et les piles de la radio étaient mortes.",
+      "Votre kit d'urgence n'était pas prêt au printemps, et vous êtes parti sans lui. Quand le courant a sauté chez Lucien, vous n'aviez ni radio ni lampe : vous avez attendu dans le noir, sans rien savoir de ce qui se passait dehors.",
+      "Il vous a manqué la moitié du nécessaire : soit le kit, prêt, était resté chez vous ; soit vous aviez emporté un sac qui ne l'était pas, et la radio n'avait pas de piles en état de marche.",
       "Quand le courant a sauté chez Lucien, vous avez sorti du sac la radio et ses piles neuves : vous avez suivi les consignes de la préfecture jusqu'à l'arrivée des pompiers.",
     ],
-    lesson: "Le kit d'urgence 72 heures se prépare à l'avance. Face au feu de forêt, une radio à piles permet de suivre l'évolution de la situation et les consignes des autorités.",
+    lesson: "Le kit d'urgence 72 heures se prépare à l'avance, et sert pour tous les risques. Face au feu de forêt, une radio à piles permet de suivre l'évolution de la situation et les consignes des autorités.",
     sources: ['georisques-feu', 'georisques-kit'],
   },
   {

@@ -1,3 +1,4 @@
+import { kitAction, KIT_QUESTIONS } from './kit';
 import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
 
 /**
@@ -12,19 +13,7 @@ import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Questi
 // ------------------------------------------------------------------ Actions
 
 export const ACTIONS: ActionDef[] = [
-  {
-    id: 'maison-kit',
-    lexicon: ['kit'],
-    place: 'domicile',
-    phase: 'preparation',
-    minutes: 30,
-    questions: ['kit-contenu', 'kit-eau', 'kit-rangement'],
-    title: "Préparer votre kit d'urgence 72 h",
-    why: "Coupures d'électricité, de gaz et d'eau, routes impraticables : les premières 72 heures d'une catastrophe sont souvent les plus éprouvantes. Un sac préparé à l'avance permet de rester chez soi en attendant les secours, ou de partir sans rien oublier d'essentiel.",
-    who: 'Chaque foyer. Le citoyen est le premier acteur de sa sécurité.',
-    done: "Le sac est prêt, à portée de main en haut de l'escalier. Pensez à le vérifier une fois par an.",
-    sources: ['georisques-kit', 'ecologie-kit', 'georisques-acteurs'],
-  },
+  kitAction({ id: 'maison-kit', sources: ['georisques-kit', 'ecologie-kit', 'georisques-acteurs'] }),
   {
     id: 'maison-protections',
     lexicon: ['batardeau'],
@@ -210,50 +199,11 @@ export const ACTIONS: ActionDef[] = [
   },
 ];
 
-// ---------------------------------------------------- Questions du kit 72 h
+// ---------------------------------------------------------------- Questions
 
+/** Les questions du chapitre : celles du kit d'urgence, communes à tous les risques. */
 export const QUESTIONS: Question[] = [
-  {
-    id: 'kit-contenu',
-    prompt: 'Que mettez-vous dans le sac ?',
-    multiple: true,
-    choices: [
-      { id: 'radio', label: 'Une radio à piles, avec des piles de rechange', correct: true, outcome: 'Pour suivre les consignes des autorités, même sans courant.' },
-      { id: 'surgeles', label: 'Des plats surgelés', correct: false, outcome: "Sans électricité, ils sont perdus. Il faut de la nourriture non périssable, qui ne demande pas de cuisson." },
-      { id: 'eau', label: "De l'eau potable en bouteilles", correct: true },
-      { id: 'lampe', label: 'Une lampe de poche', correct: true, outcome: 'Avec des piles de rechange, ou à dynamo.' },
-      { id: 'bouilloire', label: 'La bouilloire électrique', correct: false, outcome: 'Inutile pendant une coupure de courant.' },
-      { id: 'medicaments', label: 'Vos médicaments et une trousse de premiers secours', correct: true },
-      { id: 'papiers', label: 'Les photocopies de vos papiers, dans une pochette étanche', correct: true },
-      { id: 'box', label: 'La box internet', correct: false, outcome: 'Sans courant ni réseau, elle ne sert à rien. Prenez plutôt le chargeur du téléphone.' },
-      { id: 'argent', label: "De l'argent liquide", correct: true, outcome: 'Les distributeurs peuvent ne pas fonctionner.' },
-      { id: 'conserves', label: 'Des conserves et un ouvre-boîte', correct: true },
-    ],
-    lesson: "La liste officielle compte une quinzaine d'objets : radio à piles, lampe de poche, eau, nourriture non périssable, médicaments, trousse de premiers secours, vêtements chauds, couverture de survie, argent liquide, photocopies des papiers, double des clés, chargeur de téléphone, lunettes de secours, outils de base, jeux pour occuper le temps.",
-    sources: ['georisques-kit'],
-  },
-  {
-    id: 'kit-eau',
-    prompt: "Combien d'eau potable prévoyez-vous par personne ?",
-    choices: [
-      { id: 'un-litre-et-demi', label: '1,5 litre', correct: false },
-      { id: 'trois-litres', label: '3 litres', correct: false },
-      { id: 'six-litres', label: '6 litres', correct: true },
-    ],
-    lesson: 'Il faut 6 litres par personne, en bouteilles.',
-    sources: ['georisques-kit'],
-  },
-  {
-    id: 'kit-rangement',
-    prompt: 'Où rangez-vous le sac ?',
-    choices: [
-      { id: 'cave', label: 'À la cave, avec les provisions', correct: false },
-      { id: 'accessible', label: "Dans un endroit facile d'accès, hors de portée de l'eau", correct: true },
-      { id: 'grenier', label: 'Tout au fond du grenier, derrière les cartons', correct: false },
-    ],
-    lesson: "Le kit doit pouvoir être récupéré le plus vite possible, tout en étant hors de portée de l'eau : jamais dans une cave ni en sous-sol.",
-    sources: ['ecologie-kit'],
-  },
+  ...KIT_QUESTIONS,
 ];
 
 // ------------------------------------------------------- Situations de crise
@@ -442,7 +392,7 @@ export const BADGES: BadgeDef[] = [
     description: "Compléter la lecture du DICRIM par deux visites au moins : le repère de crue, l'école, le diagnostic de la maison.",
     earned: (v) => count(v, ['pont-repere', 'ecole-plan', 'maison-diagnostic']) >= 2,
   },
-  { id: 'kit', title: 'Kit prêt', description: "Préparer son kit d'urgence 72 h.", earned: (v) => v.did('maison-kit') },
+  { id: 'kit', title: 'Kit prêt', description: "Avoir son kit d'urgence 72 h prêt avant la crue : préparé, ou vérifié s'il l'était déjà.", earned: (v) => v.did('maison-kit') },
   { id: 'memoire', title: 'Mémoire de crue', description: 'Retrouver le repère de crue de la commune.', earned: (v) => v.did('pont-repere') },
   {
     id: 'maison',

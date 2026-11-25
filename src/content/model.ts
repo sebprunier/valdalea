@@ -20,6 +20,14 @@ export const SOURCES: Record<string, Source> = sourcesData;
 
 export type ActionPhase = 'accueil' | 'preparation' | 'vigilance';
 
+/**
+ * Ce que le joueur garde d'un chapitre à l'autre. Le kit d'urgence sert pour
+ * tous les risques : on le prépare une fois, dans le premier chapitre joué, quel
+ * qu'il soit ; dans les suivants, on le vérifie.
+ */
+export const ASSET_IDS = ['kit'] as const;
+export type AssetId = (typeof ASSET_IDS)[number];
+
 /** Un geste de prévention que le joueur peut accomplir dans un lieu. */
 export interface ActionDef {
   id: string;
@@ -45,6 +53,10 @@ export interface ActionDef {
   figure?: 'repere' | 'debroussaillement';
   /** Libellé du bouton qui accomplit le geste, quand « Le faire » ne dit pas assez bien ce qui va se passer. */
   go?: string;
+  /** Ce que ce geste laisse au joueur pour la suite de la partie : le kit d'urgence, une fois préparé. */
+  grants?: AssetId;
+  /** Le même geste quand le joueur a déjà cet acquis, obtenu dans un autre chapitre : on ne prépare pas deux fois son kit, on le vérifie. */
+  owned?: Partial<Pick<ActionDef, 'title' | 'why' | 'who' | 'done' | 'minutes' | 'questions' | 'sources'>>;
   title: string;
   /** Pourquoi ce geste compte. */
   why: string;
