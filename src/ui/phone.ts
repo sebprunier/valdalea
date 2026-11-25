@@ -46,6 +46,8 @@ export interface PhoneDeps {
   openDicrim(): void;
   /** Ouvre la légende de la carte par-dessus le téléphone. */
   openLegend(): void;
+  /** Ouvre le calendrier, où se choisissent les chapitres. */
+  openCalendar(): void;
   /** Affiche une carte de risque sur le plan du jeu, ou aucune. */
   setLayer(risk: RiskId | null): void;
   isReducedMotion(): boolean;
@@ -113,6 +115,14 @@ export function createPhone(deps: PhoneDeps): Phone {
       return h('li', null, button);
     }),
   );
+
+  // Le calendrier n'est pas une vue du téléphone : c'est une fenêtre à part, que l'on ouvre aussi d'ici.
+  const calendarButton = h('button', { type: 'button', class: 'app' }, h('span', { class: 'app__icon' }, icon('calendrier')), 'Calendrier');
+  calendarButton.addEventListener('click', () => {
+    dialog.close();
+    deps.openCalendar();
+  });
+  home.prepend(h('li', null, calendarButton));
 
   function renderHome(): void {
     const { news } = deps.getState();
@@ -315,7 +325,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     const assessment = deps.getAssessment();
     const earned = deps.getState().badges;
     if (assessment) {
-      const again = h('button', { type: 'button', class: 'button' }, "Rejouer l'automne");
+      const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
       again.addEventListener('click', () => {
         deps.replay();
         dialog.close();
@@ -362,7 +372,7 @@ export function createPhone(deps: PhoneDeps): Phone {
       'dl',
       { class: 'restart' },
       h('dt', null, replayChapter),
-      h('dd', null, "Reprend l'automne au début, chez le maire. Vos badges et les lieux découverts sont conservés."),
+      h('dd', null, 'Reprend le chapitre en cours à son début. Vos badges et les lieux découverts sont conservés. Le calendrier permet de changer de chapitre.'),
       h('dt', null, restart),
       h('dd', null, 'Efface toute la partie : badges, lieux découverts et chapitre en cours.'),
     ),

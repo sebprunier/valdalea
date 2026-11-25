@@ -17,6 +17,7 @@ import {
   perform,
   remaining,
   spend,
+  startChapter,
   timeAlert,
   TIMED_PHASES,
   type Chapter,
@@ -39,7 +40,10 @@ function play(chapter: Chapter, ...ids: string[]): Chapter {
   return chapter;
 }
 
-const started = (): Chapter => play(newChapter(), 'mairie-accueil');
+/** Le prologue terminé : le maire rencontré, le DICRIM lu. */
+const free = (): Chapter => play(newChapter(), 'mairie-accueil', 'mairie-dicrim');
+/** Un chapitre tout juste commencé. */
+const started = (): Chapter => startChapter(free(), ACTIONS);
 const PREPARATION = ACTIONS.filter((a) => a.phase === 'preparation' && !a.endsPhase).map((a) => a.id);
 
 describe('phases du chapitre', () => {
@@ -50,16 +54,38 @@ describe('phases du chapitre', () => {
     expect(isTimeUp(chapter)).toBe(false);
   });
 
-  it('ne propose que la rencontre avec le maire avant le début de la préparation', () => {
+  it('ouvre le prologue par la rencontre du maire, puis la lecture du DICRIM', () => {
     const chapter = newChapter();
     expect(ACTIONS.filter((a) => actionStatus(a, chapter).state === 'possible').map((a) => a.id)).toEqual(['mairie-accueil']);
+    // Le DICRIM se lit après avoir vu le maire, pas avant.
+    expect(status('mairie-dicrim', chapter).state).toBe('verrouillee');
+    const met = play(chapter, 'mairie-accueil');
+    expect(met.phase).toBe('accueil');
+    expect(status('mairie-dicrim', met).state).toBe('possible');
   });
 
-  it('lance la préparation après la rencontre avec le maire', () => {
+  it('laisse le choix du chapitre une fois le prologue terminé, pas avant', () => {
+    // Tant que le prologue n'est pas fini, aucun chapitre ne commence.
+    const early = newChapter();
+    expect(startChapter(early, ACTIONS)).toBe(early);
+    const chapter = free();
+    expect(chapter.phase).toBe('libre');
+    expect(clockLabel(chapter)).toBeNull();
+    expect(ACTIONS.filter((a) => actionStatus(a, chapter).state === 'possible')).toEqual([]);
+  });
+
+  it('commence un chapitre avec tout son temps, en gardant les acquis du prologue', () => {
     const chapter = started();
     expect(chapter.phase).toBe('preparation');
     expect(chapter.minutesLeft).toBe(TIMED_PHASES.preparation.minutes);
     expect(clockLabel(chapter)).toBe('Samedi, 12 h');
+    expect(chapter.done).toEqual(['mairie-accueil', 'mairie-dicrim']);
+  });
+
+  it('recommence un chapitre de zéro, sans rejouer le prologue', () => {
+    const played = nextPhase(play(started(), 'maison-kit', 'maison-refuge'));
+    const again = startChapter({ ...played, answers: { berges: 'rester' } }, ACTIONS);
+    expect(again).toEqual(started());
   });
 
   it('enchaîne préparation, vigilance, crise et bilan', () => {
@@ -77,15 +103,15 @@ describe('phases du chapitre', () => {
 
 describe('temps et actions', () => {
   it("décompte la durée d'une action", () => {
-    const chapter = play(started(), 'mairie-dicrim');
-    expect(chapter.minutesLeft).toBe(TIMED_PHASES.preparation.minutes - 20);
-    expect(clockLabel(chapter)).toBe('Samedi, 12 h 20');
-    expect(status('mairie-dicrim', chapter).state).toBe('faite');
+    const chapter = play(started(), 'maison-refuge');
+    expect(chapter.minutesLeft).toBe(TIMED_PHASES.preparation.minutes - 30);
+    expect(clockLabel(chapter)).toBe('Samedi, 12 h 30');
+    expect(status('maison-refuge', chapter).state).toBe('faite');
   });
 
   it('ne refait pas une action déjà faite', () => {
-    const chapter = play(started(), 'mairie-dicrim');
-    expect(perform(chapter, action('mairie-dicrim'))).toBe(chapter);
+    const chapter = play(started(), 'maison-refuge');
+    expect(perform(chapter, action('maison-refuge'))).toBe(chapter);
   });
 
   it('fait passer le temps des trajets, sans descendre sous zéro', () => {
@@ -105,7 +131,7 @@ describe('temps et actions', () => {
     const chapter = spend(started(), TIMED_PHASES.preparation.minutes - 25);
     expect(status('maison-protections', chapter)).toEqual({ state: 'trop-longue', minutes: 40 });
     expect(perform(chapter, action('maison-protections'))).toBe(chapter);
-    expect(status('mairie-dicrim', chapter).state).toBe('possible');
+    expect(status('maison-diagnostic', chapter).state).toBe('possible');
   });
 
   it("verrouille l'installation des protections si elles n'ont pas été préparées", () => {

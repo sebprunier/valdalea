@@ -1,7 +1,7 @@
 import { newChapter, type Chapter } from './chapter';
 import type { Vec } from './geometry';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface Settings {
   /** `null` : suivre le réglage du système (prefers-reduced-motion). */
@@ -24,8 +24,12 @@ export interface GameState {
   player: Vec;
   /** Identifiants des lieux dont la fiche a été ouverte. */
   visited: string[];
-  /** Chapitre en cours. */
+  /** Où en est la partie : le prologue, puis le chapitre en cours. */
   chapter: Chapter;
+  /** Chapitre choisi : celui qui est en cours, ou le dernier joué. `null` tant qu'aucun n'a été choisi. */
+  chapterId: string | null;
+  /** Chapitres menés au bout : meilleur indice de préparation obtenu, de 0 à 100. */
+  record: Record<string, number>;
   /** Badges obtenus, conservés d'une partie à l'autre du chapitre. */
   badges: string[];
   /** Applications du téléphone où quelque chose de nouveau attend d'être regardé. */
@@ -36,7 +40,13 @@ export interface GameState {
 export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null, sound: true };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, news: [], settings };
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, badges, news: [], settings };
+}
+
+/** Retient l'indice de préparation d'un chapitre mené au bout, s'il est meilleur que le précédent. */
+export function withRecord(state: GameState, chapterId: string, score: number): GameState {
+  if ((state.record[chapterId] ?? -1) >= score) return state;
+  return { ...state, record: { ...state.record, [chapterId]: score } };
 }
 
 /** Signale une nouveauté dans une application du téléphone. */

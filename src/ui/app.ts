@@ -1,3 +1,4 @@
+import { findChapter } from '../content/chapitres';
 import { ACTIONS, DUSK, OBJECTIVES, SITUATION } from '../content/inondation';
 import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
@@ -8,17 +9,18 @@ import {
   formatDuration,
   hourStruck,
   isTimed,
+  isUnderway,
   MINUTES_PER_UNIT,
-  newChapter,
   pendingAt,
   perform,
   spend,
+  startChapter,
   timeAlert,
   TIMED_PHASES,
   type Chapter,
   type Phase,
 } from '../core/chapter';
-import { DEFAULT_SETTINGS, markVisited, newGame, withBadges, withChapter, withNews, withoutNews, type GameState, type NewsId } from '../core/state';
+import { DEFAULT_SETTINGS, markVisited, newGame, withBadges, withChapter, withNews, withoutNews, withRecord, type GameState, type NewsId } from '../core/state';
 import { distance, distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
@@ -28,6 +30,7 @@ import { SKIES, type WeatherLayer } from '../render/weather';
 import type { Elevation } from '../world/elevation';
 import { exposuresAt, isExposed } from '../world/hazards';
 import { findPlace, RISK_IDS, type Commune, type Place, type RiskId, type Sector } from '../world/model';
+import { createCalendar } from './calendar';
 import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
 import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, h, icon, requireElement } from './dom';
@@ -92,6 +95,8 @@ export function createUi(deps: UiDeps): Ui {
   const layerChip = requireElement<HTMLElement>('layer-chip');
   const layerName = requireElement<HTMLElement>('layer-name');
   const layerHide = requireElement<HTMLButtonElement>('layer-hide');
+  const chapterChip = requireElement<HTMLButtonElement>('hud-chapter');
+  const chapterText = requireElement<HTMLElement>('hud-chapter-text');
   const soundButton = requireElement<HTMLButtonElement>('button-sound');
   const soundIcon = requireElement<HTMLElement>('sound-icon');
   const prompt = requireElement<HTMLElement>('prompt');
@@ -124,6 +129,7 @@ export function createUi(deps: UiDeps): Ui {
     if (after.phase !== before.phase) {
       const news = NEWS_AT[after.phase];
       if (news) store.update((state) => withNews(state, news));
+      if (after.phase === 'bilan') keepRecord();
       return;
     }
 
@@ -139,6 +145,13 @@ export function createUi(deps: UiDeps): Ui {
   function shownLayer(): RiskId | null {
     const layer = store.get().settings.hazardLayer as RiskId | null;
     return layer && dicrimRead() && chapter().phase !== 'crise' && !scene ? layer : null;
+  }
+
+  /** Retient l'indice de préparation du chapitre qui vient de s'achever, s'il est meilleur que le précédent. */
+  function keepRecord(): void {
+    const result = flow.assessment();
+    const id = store.get().chapterId;
+    if (result && id) store.update((state) => withRecord(state, id, result.score));
   }
 
   let near: Place | null = null;
@@ -210,6 +223,7 @@ export function createUi(deps: UiDeps): Ui {
     getBadges: () => store.get().badges,
     addBadges: (ids) => store.update((state) => withBadges(state, ids)),
     replay,
+    openCalendar: () => calendar.open(map),
     closePlace: () => placeUi.close(),
     goHome: () => game.moveTo(home),
     stage: (next) => {
@@ -225,14 +239,44 @@ export function createUi(deps: UiDeps): Ui {
     announce,
   });
 
-  /** Recommence le chapitre : les badges, les lieux visités et les réglages sont conservés. */
-  function replay(): void {
-    store.update((state) => ({ ...withChapter(state, newChapter()), news: [] }));
+  /**
+   * Commence, ou recommence, un chapitre. Les acquis du prologue, les badges,
+   * les lieux visités et les réglages sont conservés ; le récit ouvre le chapitre.
+   */
+  function begin(chapterId: string): void {
+    store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, ACTIONS)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
     game.setFlood(0, true);
     game.setFocus(null);
-    game.moveTo(commune.spawn);
-    announce(`Nouveau départ. ${OBJECTIVES.accueil}`);
+    flow.begin();
   }
+
+  /** Recommence le chapitre en cours, ou le dernier joué. */
+  function replay(): void {
+    const id = store.get().chapterId;
+    if (id) begin(id);
+  }
+
+  const calendar = createCalendar({
+    getProgress: () => {
+      const state = store.get();
+      return { phase: state.chapter.phase, chapterId: state.chapterId, record: state.record };
+    },
+    start: async (info) => {
+      const { phase } = chapter();
+      if (!info.playable || phase === 'accueil') return false;
+      // Quitter un chapitre en cours le fait perdre : on le dit avant.
+      if (isUnderway(phase)) {
+        const confirmed = await confirm({
+          title: info.id === store.get().chapterId ? 'Recommencer ce chapitre ?' : 'Changer de chapitre ?',
+          message: 'Le chapitre en cours sera abandonné, et sa progression perdue. Vos badges et les lieux découverts sont conservés.',
+          confirmLabel: 'Commencer',
+        });
+        if (!confirmed) return false;
+      }
+      begin(info.id);
+      return true;
+    },
+  });
 
   // -------------------------------------------------------------- Fenêtres
   const confirm = createConfirm();
@@ -253,7 +297,15 @@ export function createUi(deps: UiDeps): Ui {
       setLayer('inondation');
       dicrim.open(null);
     },
-    afterAction: (action) => void flow.afterAction(action),
+    afterAction: (action) => {
+      // Le prologue s'achève avec la lecture du DICRIM : il reste à choisir une mission.
+      if (action.endsPhase && chapter().phase === 'libre') {
+        placeUi.close();
+        calendar.open(map);
+        return;
+      }
+      void flow.afterAction(action);
+    },
   });
 
   /** Emmène le joueur dans un lieu (le trajet compte), puis l'ouvre. */
@@ -274,6 +326,7 @@ export function createUi(deps: UiDeps): Ui {
     getPlayer: () => game.position,
     goTo,
     openBilan: () => openPhone(map, 'bilan'),
+    openCalendar: () => calendar.open(map),
     replay,
   });
 
@@ -284,9 +337,15 @@ export function createUi(deps: UiDeps): Ui {
 
   /** Rejoue le chapitre en cours de route : la progression du chapitre est perdue, d'où la confirmation. */
   async function replayChapter(): Promise<boolean> {
+    // Aucun chapitre choisi : il n'y a rien à rejouer, c'est le calendrier qu'il faut.
+    if (!store.get().chapterId || !isUnderway(chapter().phase)) {
+      if (chapter().phase === 'bilan') replay();
+      else calendar.open(map);
+      return true;
+    }
     const confirmed = await confirm({
       title: 'Rejouer le chapitre ?',
-      message: "L'automne reprend au début, chez le maire. Vos badges et les lieux découverts sont conservés.",
+      message: 'Le chapitre reprend à son début. Vos badges et les lieux découverts sont conservés.',
       confirmLabel: 'Rejouer le chapitre',
     });
     if (confirmed) replay();
@@ -326,6 +385,7 @@ export function createUi(deps: UiDeps): Ui {
     isDicrimRead: dicrimRead,
     openDicrim: () => dicrim.open(null),
     openLegend: () => legend.open(null),
+    openCalendar: () => calendar.open(map),
     setLayer,
     isReducedMotion: deps.isReducedMotion,
     setReducedMotion: deps.setReducedMotion,
@@ -412,6 +472,9 @@ export function createUi(deps: UiDeps): Ui {
     }),
   );
   // Le temps qu'il fait et la vigilance mènent au même endroit : la situation du moment, dans le téléphone.
+  onPress(chapterChip, (trigger) => {
+    if (!flow.isBusy()) calendar.open(trigger);
+  });
   onPress(weatherChip, (trigger) => openPhone(trigger, 'alertes'));
   onPress(vigilanceChip, (trigger) => openPhone(trigger, 'alertes'));
 
@@ -445,6 +508,14 @@ export function createUi(deps: UiDeps): Ui {
   function sync(): void {
     const state = store.get();
     const current = state.chapter;
+
+    // Le chapitre en cours : son nom, ou ce qui tient lieu de chapitre avant d'en avoir choisi un.
+    const info = current.phase === 'accueil' || current.phase === 'libre' ? undefined : findChapter(state.chapterId);
+    chapterText.replaceChildren(
+      ...(info
+        ? [info.season, h('span', { class: 'chip__extra' }, ` — ${info.title}`)]
+        : [current.phase === 'accueil' ? 'Prologue' : 'Choisir un chapitre']),
+    );
 
     const level = scene?.vigilance ?? SITUATION[current.phase].vigilance;
     vigilanceChip.dataset.level = level;
@@ -511,6 +582,8 @@ export function createUi(deps: UiDeps): Ui {
     if (layer) layerName.textContent = RISK_NAMES[layer].toLowerCase();
     game.invalidate();
   }
+  // Une partie terminée avant que les indices ne soient retenus : on rattrape le sien.
+  if (chapter().phase === 'bilan') keepRecord();
   store.subscribe(sync);
   sync();
 

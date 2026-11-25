@@ -21,6 +21,8 @@ export interface MissionDeps {
   goTo(place: Place): void;
   /** Ouvre le bilan de la crue, dans le téléphone. */
   openBilan(): void;
+  /** Ouvre le calendrier, où se choisissent les chapitres. */
+  openCalendar(): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
 }
@@ -56,15 +58,17 @@ export function createMission(deps: MissionDeps): Mission {
     const home = place('domicile') ?? null;
     switch (chapter.phase) {
       case 'accueil':
-        return { text: 'Le maire vous attend à la mairie.', place: place('mairie') ?? null };
+        return {
+          text: chapter.done.includes('mairie-accueil') ? 'Lisez le DICRIM, à la mairie : il vous dira où sont les risques de la commune.' : 'Le maire vous attend à la mairie.',
+          place: place('mairie') ?? null,
+        };
+      case 'libre':
+        return { text: OBJECTIVES.libre, place: null };
       case 'crise':
         return { text: OBJECTIVES.crise, place: null };
       case 'bilan':
         return { text: OBJECTIVES.bilan, place: null };
       default: {
-        if (chapter.phase === 'preparation' && !chapter.done.includes('mairie-dicrim')) {
-          return { text: 'Commencez par consulter le DICRIM, à la mairie : il vous dira où sont les risques.', place: place('mairie') ?? null };
-        }
         const pending = pendingPlaces(chapter);
         if (pending.length > 0) {
           const next = pending[0];
@@ -116,19 +120,30 @@ export function createMission(deps: MissionDeps): Mission {
       });
       hintBox.append(button);
     }
-    if (chapter.phase === 'bilan') {
+    const calendar = (label: string, primary: boolean): HTMLElement => {
+      const button = h('button', { type: 'button', class: primary ? 'button button--primary button--small' : 'button button--small' }, label);
+      button.addEventListener('click', () => {
+        dialog.close();
+        deps.openCalendar();
+      });
+      return button;
+    };
+    if (chapter.phase === 'libre') {
+      hintBox.append(h('div', { class: 'hint__actions' }, calendar('Ouvrir le calendrier', true)));
+      parts.push(hintBox, h('p', { class: 'fine-print' }, "Vous choisissez vos chapitres dans l'ordre que vous voulez. En attendant, la commune se visite librement."));
+    } else if (chapter.phase === 'bilan') {
       const bilan = h('button', { type: 'button', class: 'button button--primary button--small' }, 'Voir le bilan');
       bilan.addEventListener('click', () => {
         dialog.close();
         deps.openBilan();
       });
-      const again = h('button', { type: 'button', class: 'button button--small' }, "Rejouer l'automne");
+      const again = h('button', { type: 'button', class: 'button button--small' }, 'Rejouer ce chapitre');
       again.addEventListener('click', () => {
         dialog.close();
         deps.replay();
       });
-      hintBox.append(h('div', { class: 'hint__actions' }, bilan, again));
-      parts.push(hintBox, h('p', { class: 'fine-print' }, "Rejouer l'automne reprend le chapitre au début, chez le maire. Vos badges sont conservés."));
+      hintBox.append(h('div', { class: 'hint__actions' }, bilan, again, calendar('Autres chapitres', false)));
+      parts.push(hintBox, h('p', { class: 'fine-print' }, 'Rejouer reprend le chapitre à son début. Vos badges sont conservés.'));
     } else {
       parts.push(hintBox);
     }

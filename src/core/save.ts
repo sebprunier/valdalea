@@ -50,6 +50,14 @@ export interface LoadContext {
   placeIds: ReadonlySet<string>;
   /** Actions existantes. */
   actionIds: ReadonlySet<string>;
+  /** Chapitres existants. */
+  chapterIds: ReadonlySet<string>;
+  /**
+   * Chapitre des parties enregistrées avant que l'on puisse en choisir un, et
+   * acquis du prologue qu'elles sont réputées avoir : la lecture du DICRIM,
+   * devenue obligatoire, ne l'était pas.
+   */
+  legacy: { chapterId: string; prologue: readonly string[] };
   /** Choix valides de chaque situation de crise. */
   situationChoices: ReadonlyMap<string, ReadonlySet<string>>;
   badgeIds: ReadonlySet<string>;
@@ -65,7 +73,8 @@ export interface LoadContext {
  * Relit une partie sauvegardée. Le contenu du stockage n'est jamais considéré
  * comme fiable : toute donnée absente ou corrompue donne `null`, et tout
  * identifiant inconnu est écarté. Une partie de la version 1 (avant les
- * chapitres) est reprise avec un chapitre neuf.
+ * chapitres) est reprise au prologue ; une partie de la version 2 (un seul
+ * chapitre, sans prologue) est reprise où elle en était.
  */
 export function loadGame(storage: KeyValueStore, context: LoadContext): GameState | null {
   let raw: string | null;
@@ -82,7 +91,7 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
   } catch {
     return null;
   }
-  if (!isRecord(data) || (data.version !== SAVE_VERSION && data.version !== 1)) return null;
+  if (!isRecord(data) || ![1, 2, SAVE_VERSION].includes(data.version as number)) return null;
 
   const player = data.player;
   if (!isRecord(player) || !isFiniteNumber(player.x) || !isFiniteNumber(player.y)) return null;
@@ -90,11 +99,30 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
 
   const settings = isRecord(data.settings) ? data.settings : {};
 
+  let chapter = readChapter(data.chapter, context);
+  let chapterId = typeof data.chapterId === 'string' && context.chapterIds.has(data.chapterId) ? data.chapterId : null;
+  if (data.version === 2 && chapter.phase !== 'accueil') {
+    // Version 2 : la partie était déjà dans le seul chapitre d'alors, prologue non compris.
+    chapterId = context.legacy.chapterId;
+    chapter = { ...chapter, done: [...new Set([...context.legacy.prologue, ...chapter.done])] };
+  }
+  // Un chapitre en cours sans chapitre connu ne mène nulle part : retour au choix.
+  if (chapterId === null && chapter.phase !== 'accueil') chapter = { ...chapter, phase: 'libre', minutesLeft: 0, answers: {} };
+
+  const record: Record<string, number> = {};
+  if (isRecord(data.record)) {
+    for (const [id, score] of Object.entries(data.record)) {
+      if (context.chapterIds.has(id) && isFiniteNumber(score)) record[id] = Math.min(100, Math.max(0, Math.round(score)));
+    }
+  }
+
   return {
     version: SAVE_VERSION,
     player: context.isFree(pos) ? pos : { ...context.spawn },
     visited: knownIds(data.visited, context.placeIds),
-    chapter: readChapter(data.chapter, context),
+    chapter,
+    chapterId,
+    record,
     badges: knownIds(data.badges, context.badgeIds),
     news: knownIds(data.news, new Set<string>(NEWS_IDS)) as NewsId[],
     settings: {

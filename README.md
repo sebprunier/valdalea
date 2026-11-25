@@ -12,9 +12,11 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 ## État d'avancement
 
-Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**.
+La partie s'ouvre sur un **prologue** : rencontrer le maire, puis lire le DICRIM. Le joueur choisit ensuite ses **chapitres** dans le calendrier, un risque par saison, dans l'ordre qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est affiché en haut de l'écran.
 
-1. **Préparation.** Le maire confie sa première mission au joueur : consulter le DICRIM, préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, convenir d'un abri avec une voisine isolée, lire le repère de crue, vérifier les consignes du camping, préparer le centre d'hébergement. La journée se termine quand le joueur le décide — une confirmation lui rappelle les gestes encore faisables — ou à la tombée de la nuit.
+Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**. Le suivant, le feu de forêt (printemps et été), est en préparation.
+
+1. **Préparation.** Le maire confie sa mission au joueur : préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, convenir d'un abri avec une voisine isolée, lire le repère de crue, vérifier les consignes du camping, préparer le centre d'hébergement. La journée se termine quand le joueur le décide — une confirmation lui rappelle les gestes encore faisables — ou à la tombée de la nuit.
 2. **Vigilance orange.** Ce qui a été préparé peut être installé ; le reste, il est trop tard.
 3. **Crue.** Six décisions à prendre pendant que l'eau monte sur la carte.
 4. **Bilan.** Ce qui a tenu, ce qui a été touché, pourquoi, avec la source officielle de chaque consigne. Un indice de préparation et des badges.
@@ -60,7 +62,8 @@ En développement, `window.jcrm` donne accès au jeu depuis la console du naviga
 Toute consigne de sécurité affichée dans le jeu reprend une page officielle, relue à la source, et la cite. Les personnages, les dates et le déroulé de la crue sont de la fiction.
 
 - `src/content/sources.json` : les pages officielles citées, avec la date de leur dernière relecture.
-- `src/content/inondation.ts` : gestes, questions, situations de crise, bilan, bulletins. Chaque élément porte l'identifiant de ses sources.
+- `src/content/chapitres.ts` : la liste des chapitres, telle que le calendrier la présente.
+- `src/content/inondation.ts` : le prologue et le chapitre de l'inondation — gestes, questions, situations de crise, bilan, bulletins. Chaque élément porte l'identifiant de ses sources.
 - `src/content/dicrim.ts` : le DICRIM. Ce qui décrit la commune est inventé ; les phénomènes et les bons réflexes reprennent les pages officielles.
 - `src/content/lexique.ts` : les définitions du lexique.
 - `src/content/places.ts` : textes de présentation des lieux (aucune consigne).
@@ -77,7 +80,7 @@ Aucune dépendance à l'exécution : TypeScript, l'API Canvas 2D, SVG et le DOM.
 
 | Dossier | Rôle |
 |---|---|
-| `src/core` | Géométrie, état de la partie, sauvegarde, règles du chapitre (phases, temps, bilan). Sans DOM, testable seul. |
+| `src/core` | Géométrie, état de la partie, sauvegarde (avec reprise des parties des versions précédentes), règles du jeu : prologue, choix des chapitres, phases, temps, bilan. Sans DOM, testable seul. |
 | `src/world` | Plan de la commune (`valdalea.ts`), grille de franchissabilité, calcul d'itinéraire, relief et inondation, contour de la zone inondable, zones de risque. Sans DOM. |
 | `src/content` | Textes et contenus de prévention, séparés du code pour être relus facilement. |
 | `src/audio` | Son du jeu, synthétisé avec l'API Web Audio : aucun fichier sonore. Le mixage (`mix.ts`) est un calcul pur, testé ; `sound.ts` le fait entendre. |
@@ -111,7 +114,7 @@ Aucun audit de conformité n'a encore été réalisé.
 
 1. **Socle** : carte, déplacement, lieux, téléphone, sauvegarde. *Fait.*
 2. **Inondation, de bout en bout** : vues rapprochées, gestes de prévention, vigilance, crue, bilan, DICRIM complet, carnet de mission, récit et météo, premiers badges. *Fait.*
-3. **Autres risques naturels et technologiques** : rendre jouables le feu de forêt, l'accident industriel, les argiles, les cavités et les chutes de blocs, déjà cartographiés ; tempête ; calendrier des saisons.
+3. **Autres risques naturels et technologiques** : rendre jouables le feu de forêt, l'accident industriel, les argiles, les cavités et les chutes de blocs, déjà cartographiés ; tempête. *En cours : le prologue commun, le calendrier et le choix libre des chapitres sont faits ; le chapitre du feu de forêt suit.*
 4. **Finition** : tutoriel, son, page de ressources officielles, plan individuel de mise en sûreté.
 5. **Extensions** : risques sanitaires et sociétaux, mode hors ligne.
 

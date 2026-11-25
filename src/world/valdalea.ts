@@ -1,4 +1,4 @@
-import { inflate, rect, rectToPolygon, vec } from '../core/geometry';
+import { inflate, rect, rectToPolygon, smoothRing, vec } from '../core/geometry';
 import { doorPoint, WorldBuilder } from './builder';
 import type { Commune } from './model';
 
@@ -276,9 +276,36 @@ export function buildValDAlea(): Commune {
   b.hazardMark('cavites', vec(1880, 1250), 'entrée murée');
   b.hazardMark('cavites', vec(1700, 1530), 'galerie connue');
 
-  // Argiles : exposition forte sur le plateau, moyenne sur ses abords.
-  b.hazard('argiles', 'moyen', [vec(860, 0), vec(2940, 0), vec(2940, 640), vec(2150, 640), vec(2150, 950), vec(1090, 950), vec(860, 760)]);
-  b.hazard('argiles', 'fort', [vec(1140, 70), vec(2090, 70), vec(2090, 890), vec(1140, 890)]);
+  // Argiles : des zones aux limites souples, qui suivent la géologie et non les rues.
+  // L'exposition est moyenne sur le plateau et ses abords ; elle est forte sur une lentille
+  // d'argile qui ne prend que le nord et l'ouest du lotissement : des voisins de la même rue
+  // ne sont pas logés à la même enseigne.
+  b.hazard(
+    'argiles',
+    'moyen',
+    smoothRing([
+      vec(820, -120),
+      vec(1500, -160),
+      vec(2300, -140),
+      vec(2990, -100),
+      vec(3010, 260),
+      vec(2880, 540),
+      vec(2540, 630),
+      vec(2260, 620),
+      vec(2130, 760),
+      vec(2090, 930),
+      vec(1760, 1000),
+      vec(1340, 975),
+      vec(1040, 900),
+      vec(860, 660),
+      vec(790, 300),
+    ]),
+  );
+  b.hazard(
+    'argiles',
+    'fort',
+    smoothRing([vec(1110, 40), vec(1500, -10), vec(1860, 70), vec(1990, 290), vec(1900, 510), vec(1660, 590), vec(1520, 740), vec(1290, 790), vec(1130, 630), vec(1080, 320)]),
+  );
 
   // Feu de forêt : le massif, et la bande de 200 mètres où s'appliquent les obligations de débroussaillement.
   b.hazard('feu-foret', 'fort', forest);

@@ -1,5 +1,6 @@
 import './styles/main.css';
 import { Sound } from './audio/sound';
+import { CHAPTERS } from './content/chapitres';
 import { ACTIONS, BADGES, SITUATIONS } from './content/inondation';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
@@ -24,6 +25,8 @@ const { storage, persistent } = browserStorage();
 const saved = loadGame(storage, {
   placeIds: new Set(commune.places.map((place) => place.id)),
   actionIds: new Set(ACTIONS.map((action) => action.id)),
+  chapterIds: new Set(CHAPTERS.filter((chapter) => chapter.playable).map((chapter) => chapter.id)),
+  legacy: { chapterId: 'automne', prologue: ACTIONS.filter((action) => action.phase === 'accueil').map((action) => action.id) },
   situationChoices: new Map(SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
   badgeIds: new Set(BADGES.map((badge) => badge.id)),
   riskIds: new Set(RISK_IDS),

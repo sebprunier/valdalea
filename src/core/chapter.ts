@@ -1,16 +1,20 @@
 import type { ActionDef, BadgeDef, ChapterView, Situation, StakeDef, StakeLevel } from '../content/model';
 
 /**
- * Règles d'un chapitre du jeu, sans interface : phases, budget de temps,
- * gestes accomplis, réponses en situation de crise et bilan.
+ * Règles du jeu, sans interface : le prologue, puis les phases d'un chapitre,
+ * son budget de temps, ses gestes, les réponses en situation de crise et le bilan.
+ *
+ * La partie commence par un prologue commun (`accueil`) : rencontrer le maire,
+ * lire le DICRIM. Le joueur choisit ensuite librement ses chapitres (`libre`).
+ * Chaque chapitre suit le même déroulé : préparation, vigilance, crise, bilan.
  *
  * Le temps n'est jamais réel : il n'avance que lorsque le joueur agit ou se
  * déplace. Personne n'est pressé par un chronomètre.
  */
 
-export type Phase = 'accueil' | 'preparation' | 'vigilance' | 'crise' | 'bilan';
+export type Phase = 'accueil' | 'libre' | 'preparation' | 'vigilance' | 'crise' | 'bilan';
 
-export const PHASES: readonly Phase[] = ['accueil', 'preparation', 'vigilance', 'crise', 'bilan'];
+export const PHASES: readonly Phase[] = ['accueil', 'libre', 'preparation', 'vigilance', 'crise', 'bilan'];
 
 export interface Chapter {
   phase: Phase;
@@ -49,6 +53,22 @@ export function newChapter(): Chapter {
 
 export function isTimed(phase: Phase): phase is keyof typeof TIMED_PHASES {
   return phase === 'preparation' || phase === 'vigilance';
+}
+
+/** Un chapitre est-il en cours, avec quelque chose à perdre si l'on en change ? */
+export function isUnderway(phase: Phase): boolean {
+  return phase === 'preparation' || phase === 'vigilance' || phase === 'crise';
+}
+
+/**
+ * Commence, ou recommence, un chapitre : la préparation repart avec tout son
+ * temps. Seuls les acquis du prologue sont conservés. Sans effet tant que le
+ * prologue n'est pas terminé.
+ */
+export function startChapter(chapter: Chapter, actions: readonly ActionDef[]): Chapter {
+  if (chapter.phase === 'accueil') return chapter;
+  const prologue = new Set(actions.filter((action) => action.phase === 'accueil').map((action) => action.id));
+  return { phase: 'preparation', minutesLeft: TIMED_PHASES.preparation.minutes, done: chapter.done.filter((id) => prologue.has(id)), answers: {} };
 }
 
 /** Passe à la phase suivante et remet le budget de temps à zéro ou à plein. */

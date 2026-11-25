@@ -16,24 +16,26 @@ export const ACTIONS: ActionDef[] = [
     place: 'mairie',
     phase: 'accueil',
     minutes: 0,
-    endsPhase: true,
     title: 'Vous présenter au maire',
     why: "Le maire est responsable de la sécurité sur sa commune : il veille à l'information sur les risques et à l'organisation des secours en cas de crise.",
     who: 'Vous. Le maire vous attend pour votre première mission de réserviste.',
-    done: "« Bienvenue dans la réserve ! L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans. Commencez par lire notre DICRIM, puis faites le tour des lieux exposés : chez vous, chez votre voisine Jeanne, à l'école, au camping, au gymnase. Vous avez jusqu'à 18 heures ; votre carnet de mission vous dira ce qu'il reste à faire. »",
+    done: "« Bienvenue dans la réserve ! Avant toute chose, lisez notre DICRIM : il vous dira où sont les risques de la commune, et ce que chacun peut faire pour s'y préparer. Ensuite, vous choisirez votre première mission. »",
     sources: ['georisques-acteurs'],
   },
   {
     id: 'mairie-dicrim',
     lexicon: ['dicrim'],
     place: 'mairie',
-    phase: 'preparation',
-    minutes: 20,
+    phase: 'accueil',
+    minutes: 0,
+    requires: 'mairie-accueil',
+    locked: "Présentez-vous d'abord au maire : c'est lui qui vous remettra le document.",
+    endsPhase: true,
     title: 'Consulter le DICRIM',
     go: 'Ouvrir le DICRIM',
     why: "Le document d'information communal sur les risques majeurs présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Se renseigner en mairie est la première des mesures de prévention.",
     who: 'Le maire rédige le DICRIM et doit le faire connaître. À chacun de le lire.',
-    done: "Vous avez parcouru le DICRIM : vous savez maintenant où l'eau peut monter. La zone inondable s'affiche sur la carte, en hachures violettes. Le document reste disponible dans votre téléphone.",
+    done: "Vous avez parcouru le DICRIM : vous savez maintenant où sont les risques de la commune. La zone inondable s'affiche sur la carte, en hachures violettes ; les autres cartes sont dans le téléphone, comme le document lui-même. Il vous reste à choisir votre première mission.",
     sources: ['georisques-inondation', 'georisques-dicrim'],
   },
   {
@@ -444,14 +446,14 @@ export const STAKES: StakeDef[] = [
   {
     id: 'connaissance',
     title: 'Votre connaissance du risque',
+    // Le DICRIM est lu par tous, dès le prologue : ce qui compte ici, c'est d'être allé voir sur place.
     assess: (view) => {
-      const others = count(view, ['pont-repere', 'ecole-plan', 'maison-diagnostic']);
-      if (view.did('mairie-dicrim') && others >= 1) return 2;
-      return view.did('mairie-dicrim') || others >= 1 ? 1 : 0;
+      const visits = count(view, ['pont-repere', 'ecole-plan', 'maison-diagnostic']);
+      return visits >= 2 ? 2 : visits === 1 ? 1 : 0;
     },
     outcomes: [
-      "Vous avez agi sans vraiment connaître le risque : ni le DICRIM, ni l'histoire des crues de la Follette.",
-      "Vous vous êtes en partie informé. Le DICRIM, le repère de crue du pont, le plan de l'école : chaque source complète les autres.",
+      "Vous aviez lu le DICRIM, mais vous n'êtes pas allé voir sur place : ni le repère de crue du pont, ni le plan de l'école, ni le diagnostic de votre maison.",
+      "Vous vous êtes en partie informé sur place. Le repère de crue du pont, le plan de l'école, le diagnostic de la maison : chaque source complète le DICRIM.",
       "Vous saviez où l'eau pouvait monter, comment vous seriez alerté et où vous réfugier. C'est le point de départ de tout le reste.",
     ],
     lesson: "Se renseigner auprès de sa mairie sur le type d'inondation possible et sur les mesures de protection prévues, à commencer par le DICRIM.",
@@ -460,7 +462,12 @@ export const STAKES: StakeDef[] = [
 ];
 
 export const BADGES: BadgeDef[] = [
-  { id: 'informe', title: 'Bien informé', description: 'Consulter le DICRIM de la commune.', earned: (v) => v.did('mairie-dicrim') },
+  {
+    id: 'informe',
+    title: 'Bien informé',
+    description: "Compléter la lecture du DICRIM par deux visites au moins : le repère de crue, l'école, le diagnostic de la maison.",
+    earned: (v) => count(v, ['pont-repere', 'ecole-plan', 'maison-diagnostic']) >= 2,
+  },
   { id: 'kit', title: 'Kit prêt', description: "Préparer son kit d'urgence 72 h.", earned: (v) => v.did('maison-kit') },
   { id: 'memoire', title: 'Mémoire de crue', description: 'Retrouver le repère de crue de la commune.', earned: (v) => v.did('pont-repere') },
   {
@@ -549,7 +556,8 @@ export const FLOOD = {
 };
 
 export const OBJECTIVES = {
-  accueil: 'Présentez-vous à la mairie.',
+  accueil: 'Présentez-vous à la mairie, puis lisez le DICRIM.',
+  libre: 'Choisissez un chapitre dans le calendrier.',
   preparation: 'Accomplissez tous les gestes de prévention avant la tombée de la nuit.',
   vigilance: "L'eau monte : installez ce qui a été préparé, puis rentrez vous mettre à l'abri.",
   crise: 'La Follette déborde : faites les bons choix.',
@@ -561,6 +569,7 @@ export const OBJECTIVES = {
 /** Ce que la barre d'état et la carte montrent à chaque phase : vigilance, temps qu'il fait, état de la rivière. */
 export const SITUATION: Record<keyof typeof OBJECTIVES, { vigilance: VigilanceLevel; sky: SkyId; river: string }> = {
   accueil: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
+  libre: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
   preparation: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
   vigilance: { vigilance: 'orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
   crise: { vigilance: 'rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
@@ -604,6 +613,18 @@ export const VIGILANCE_SCALE: {
  * le bulletin qui l'annonce.
  */
 export const STORY = {
+  debut: {
+    id: 'debut',
+    when: 'Samedi, midi',
+    title: "L'automne arrive",
+    paragraphs: [
+      "« L'automne arrive, et avec lui les grosses pluies : la Follette sort de son lit à peu près tous les dix ans », vous a dit le maire.",
+      "Votre mission : faire le tour des lieux exposés avant la nuit. Chez vous, chez votre voisine Jeanne, au pont, à l'école, au camping, au gymnase. Vous avez jusqu'à 18 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
+    ],
+    next: 'Commencer',
+    sky: 'sec',
+    vigilance: 'verte',
+  },
   soir: {
     id: 'soir',
     when: 'Samedi, 18 h',

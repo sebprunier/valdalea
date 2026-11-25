@@ -112,7 +112,9 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       const message =
         chapter.phase === 'accueil'
           ? "Rien à faire ici pour l'instant : le maire vous attend à la mairie."
-          : chapter.phase === 'bilan'
+          : chapter.phase === 'libre'
+            ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans le calendrier : il vous confiera une mission."
+            : chapter.phase === 'bilan'
             ? 'La crue est passée. Le bilan est dans votre téléphone.'
             : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
       todo = h('p', { class: 'fine-print' }, message);

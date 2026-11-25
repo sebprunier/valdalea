@@ -152,3 +152,31 @@ describe("plan de Val-d'Aléa", () => {
     expect(reachable.has(cell)).toBe(false);
   });
 });
+
+describe('zonage des argiles', () => {
+  const commune = buildValDAlea();
+  const zone = (level: 'fort' | 'moyen') => commune.hazards.find((hazard) => hazard.risk === 'argiles' && hazard.level === level)!.poly;
+  const houses = commune.buildings.filter((b) => b.rect.x >= 1240 && b.rect.x + b.rect.w <= 2060 && b.rect.y >= 140 && b.rect.y + b.rect.h <= 830);
+  const centre = (b: (typeof houses)[number]) => ({ x: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2 });
+
+  it('a des limites souples, qui ne suivent pas les rues', () => {
+    for (const level of ['fort', 'moyen'] as const) {
+      const poly = zone(level);
+      expect(poly.length, level).toBeGreaterThan(40);
+      // Aucun long bord droit, horizontal ou vertical.
+      const straight = poly.filter((p, i) => {
+        const q = poly[(i + 1) % poly.length];
+        return (p.x === q.x || p.y === q.y) && Math.hypot(p.x - q.x, p.y - q.y) > 40;
+      });
+      expect(straight, level).toEqual([]);
+    }
+  });
+
+  it('ne met en exposition forte qu’une partie des maisons des Argilières, toutes restant en zone argileuse', () => {
+    expect(houses.length).toBeGreaterThanOrEqual(12);
+    const strong = houses.filter((b) => pointInPolygon(centre(b), zone('fort')));
+    expect(strong.length).toBeGreaterThan(houses.length * 0.3);
+    expect(strong.length).toBeLessThan(houses.length * 0.8);
+    for (const b of houses) expect(pointInPolygon(centre(b), zone('moyen')) || pointInPolygon(centre(b), zone('fort'))).toBe(true);
+  });
+});

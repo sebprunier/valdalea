@@ -161,20 +161,23 @@ kbd {
       'status mission actions';
   }
 
-  /* À côté des boutons, la mission tient sur deux lignes : le temps et l'avancement, puis le conseil. */
-  .mission-bar {
+  /*
+   * À côté des boutons, la mission tient sur deux lignes : le temps et l'avancement, puis le conseil.
+   * (Sélecteurs préfixés par .hud : ces règles doivent l'emporter sur celles du bandeau, écrites plus bas.)
+   */
+  .hud .mission-bar {
     justify-self: end;
     width: fit-content;
     max-width: min(100%, 38rem);
   }
 
-  .mission-bar__meta {
+  .hud .mission-bar__meta {
     order: 2;
   }
 
-  .mission-bar__text {
+  .hud .mission-bar__text {
     order: 3;
-    flex-basis: 100%;
+    flex: 1 1 100%;
   }
 }
 
@@ -1722,6 +1725,74 @@ meter {
   border-left: 0.4rem solid #ff9214;
   border-radius: var(--radius);
   background: var(--paper-2);
+}
+
+/* --------------------------------------------------------------- Calendrier */
+
+.chapters {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.chapter {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 0.4rem solid var(--accent);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+/* Chapitre annoncé, pas encore jouable : en retrait, et dit en toutes lettres. */
+.chapter--later {
+  border-left-color: var(--line);
+  background: var(--paper-2);
+  color: var(--ink-soft);
+}
+
+.chapter__season {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+  color: var(--accent-dark);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chapter--later .chapter__season {
+  color: var(--ink-soft);
+}
+
+.chapter__season .tag {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dialog__body .chapter h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.chapter__risk {
+  font-weight: 600;
+}
+
+.chapter__state {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.chapter__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
 }
 
 /* ------------------------------------------------------ Légende de la carte */

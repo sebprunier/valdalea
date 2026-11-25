@@ -31,6 +31,8 @@ export interface FlowDeps {
   addBadges(ids: readonly string[]): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
+  /** Ouvre le calendrier, où se choisissent les chapitres. */
+  openCalendar(): void;
   /** Ferme la fiche de lieu si elle est ouverte. */
   closePlace(): void;
   /** Ramène le joueur chez lui. */
@@ -48,7 +50,12 @@ export interface FlowDeps {
   announce(message: string): void;
 }
 
+/** Ce que le joueur choisit en refermant le bilan. */
+type AfterBilan = 'rejouer' | 'calendrier' | null;
+
 export interface Flow {
+  /** Le joueur vient de choisir un chapitre : le récit l'ouvre. */
+  begin(): void;
   /** Vérifie si le temps de la phase est écoulé et, si oui, lance la suite. Renvoie vrai si une séquence démarre. */
   check(): boolean;
   /** Une séquence du récit est en cours (bulletin, crise, bilan). */
@@ -144,9 +151,14 @@ export function createFlow(deps: FlowDeps): Flow {
   async function enter(phase: Phase, late = false): Promise<void> {
     if (busy) return;
     busy = true;
+    let then: AfterBilan = null;
     try {
       deps.closePlace();
-      if (phase === 'vigilance') {
+      if (phase === 'preparation') {
+        // Le chapitre s'ouvre sur la mission que confie le maire.
+        await tell(STORY.debut);
+        storyDialog.close();
+      } else if (phase === 'vigilance') {
         // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
         deps.goHome();
         deps.setFocus(deps.crisisFocus);
@@ -163,17 +175,20 @@ export function createFlow(deps: FlowDeps): Flow {
         deps.setFocus(null);
         deps.announce('Vigilance orange. Vous êtes chez vous.');
       } else if (phase === 'crise') {
-        await runCrisis(late);
+        then = await runCrisis(late);
       } else if (phase === 'bilan') {
-        await showBilan(true);
+        then = await showBilan(true);
       }
     } finally {
       busy = false;
       deps.stage(null);
     }
+    // Une fois la séquence refermée seulement : rejouer en ouvre une autre.
+    if (then === 'rejouer') deps.replay();
+    else if (then === 'calendrier') deps.openCalendar();
   }
 
-  async function runCrisis(late: boolean): Promise<void> {
+  async function runCrisis(late: boolean): Promise<AfterBilan> {
     deps.goHome();
     deps.setFocus(deps.crisisFocus);
     const first = currentSituation(deps.getChapter(), SITUATIONS);
@@ -213,10 +228,10 @@ export function createFlow(deps: FlowDeps): Flow {
     storyDialog.close();
     deps.setChapter(nextPhase);
     deps.stage(null);
-    await showBilan(true);
+    return showBilan(true);
   }
 
-  async function showBilan(firstTime: boolean): Promise<void> {
+  async function showBilan(firstTime: boolean): Promise<AfterBilan> {
     const result = assess(deps.getChapter(), content);
     const earned = result.badges.map((badge) => badge.id);
     const fresh = earned.filter((id) => !deps.getBadges().includes(id));
@@ -224,23 +239,28 @@ export function createFlow(deps: FlowDeps): Flow {
     deps.setFlood(0);
     deps.setFocus(firstTime ? deps.crisisFocus : null);
 
-    const again = h('button', { type: 'button', class: 'button' }, "Rejouer l'automne");
+    const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
+    const others = h('button', { type: 'button', class: 'button' }, 'Autres chapitres');
     const explore = h('button', { type: 'button', class: 'button button--primary' }, 'Continuer à explorer');
-    let replay = false;
+    let choice: AfterBilan = null;
     again.addEventListener('click', () => {
-      replay = true;
+      choice = 'rejouer';
+      bilanDialog.close();
+    });
+    others.addEventListener('click', () => {
+      choice = 'calendrier';
       bilanDialog.close();
     });
     explore.addEventListener('click', () => bilanDialog.close());
     bilanDialog.body.replaceChildren(
       h('p', { class: 'lead' }, "En fin de journée, la Follette regagne son lit. Voici ce que la crue a laissé derrière elle, et ce que votre préparation a changé."),
       bilanContent(result, BADGES, deps.getBadges(), fresh),
-      h('div', { class: 'dialog__actions' }, again, explore),
+      h('div', { class: 'dialog__actions' }, again, others, explore),
     );
     bilanDialog.open(deps.focusTarget);
     await closed(bilanDialog);
     deps.setFocus(null);
-    if (replay) deps.replay();
+    return choice;
   }
 
   function check(): boolean {
@@ -252,6 +272,7 @@ export function createFlow(deps: FlowDeps): Flow {
   }
 
   return {
+    begin: () => void enter('preparation'),
     check,
     floodLevel,
     isBusy: () => busy,

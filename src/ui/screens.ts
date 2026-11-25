@@ -92,7 +92,7 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     h(
       'p',
       null,
-      "Vous venez de rejoindre sa réserve communale de sécurité civile. L'automne arrive, et avec lui les crues de la Follette : le maire vous attend pour votre première mission.",
+      "Vous venez de rejoindre sa réserve communale de sécurité civile. Le maire vous attend : il vous remettra le DICRIM de la commune, puis vous choisirez vos missions, saison après saison.",
     ),
     actions,
     soundField,
@@ -128,6 +128,12 @@ export function createHelpDialog(): DialogHandle {
       null,
       "Rien n'est chronométré. L'heure affichée en haut de l'écran est celle du jeu : elle n'avance que lorsque vous accomplissez un geste ou que vous vous déplacez. Un geste « de 30 minutes » se fait d'un coup et retire 30 minutes à votre journée. Prenez tout le temps de lire.",
     ),
+    h('h3', null, 'Les chapitres'),
+    h(
+      'p',
+      null,
+      "La partie commence par un prologue : rencontrer le maire, lire le DICRIM. Ensuite, le calendrier (dans le téléphone, ou depuis le bouton qui affiche le chapitre en cours, en haut de l'écran) propose les chapitres, un risque par saison. Vous les jouez dans l'ordre que vous voulez ; un chapitre est conseillé pour commencer, aucun n'est imposé.",
+    ),
     h('h3', null, 'Savoir quoi faire'),
     h(
       'p',
@@ -144,7 +150,7 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend l'automne au début en gardant vos badges, « Tout recommencer » efface la partie. À la fin de la crue, le bilan et le carnet de mission proposent aussi de rejouer.",
+      "Le calendrier permet de rejouer un chapitre ou d'en changer. Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend le chapitre en cours à son début en gardant vos badges, « Tout recommencer » efface la partie, prologue compris.",
     ),
     h('h3', null, 'Le son'),
     h(
