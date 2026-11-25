@@ -27,13 +27,13 @@ export interface Chapter {
 }
 
 /** Durée des phases où le temps est compté, jour et heure où elles commencent. Chaque chapitre a les siennes. */
-export type Timing = Record<'preparation' | 'vigilance', { minutes: number; day: string; startsAt: number }>;
+export type Timing = Record<'preparation' | 'vigilance', { minutes: number; day: string; month: string; startsAt: number }>;
 
 /** Horaires du chapitre de l'inondation, et valeur par défaut des règles. */
 export const TIMED_PHASES: Timing = {
   // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
-  preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
-  vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
+  preparation: { minutes: 360, day: 'Samedi', month: 'octobre', startsAt: 12 * 60 },
+  vigilance: { minutes: 120, day: 'Lundi', month: 'octobre', startsAt: 7 * 60 + 30 },
 };
 
 /** Seuils, en minutes restantes, où le joueur est prévenu que le temps presse. */
@@ -236,12 +236,14 @@ export function clockMinutes(chapter: Chapter, timing: Timing = TIMED_PHASES): n
   return phase.startsAt + Math.floor(phase.minutes - chapter.minutesLeft);
 }
 
-/** Jour et heure de la partie, par exemple « Samedi, 15 h 20 ». `null` hors des phases où le temps est compté. */
+/** Jour, mois et heure de la partie, par exemple « Samedi d'octobre, 15 h 20 ». `null` hors des phases où le temps est compté. */
 export function clockLabel(chapter: Chapter, timing: Timing = TIMED_PHASES): string | null {
   const now = clockMinutes(chapter, timing);
   if (now === null || !isTimed(chapter.phase)) return null;
   const phase = timing[chapter.phase];
   const h = Math.floor(now / 60);
   const m = now % 60;
-  return `${phase.day}, ${h} h${m === 0 ? '' : ` ${String(m).padStart(2, '0')}`}`;
+  // « de mai », « d'août » : le mois situe la journée, une fois passé le récit qui ouvre le chapitre.
+  const month = /^[aeiouyhéèêâî]/i.test(phase.month) ? `d'${phase.month}` : `de ${phase.month}`;
+  return `${phase.day} ${month}, ${h} h${m === 0 ? '' : ` ${String(m).padStart(2, '0')}`}`;
 }

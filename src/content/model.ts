@@ -226,8 +226,8 @@ export interface CrisisScript {
   bilan: { title: string; lead: string };
 }
 
-/** Horaires des phases où le temps est compté : durée, jour et heure de début. */
-export type ChapterTiming = Record<'preparation' | 'vigilance', { minutes: number; day: string; startsAt: number }>;
+/** Horaires des phases où le temps est compté : durée, jour, mois et heure de début. */
+export type ChapterTiming = Record<'preparation' | 'vigilance', { minutes: number; day: string; month: string; startsAt: number }>;
 
 /** Phases d'un chapitre, une fois le prologue passé. */
 export type ChapterPhase = 'preparation' | 'vigilance' | 'crise' | 'bilan';

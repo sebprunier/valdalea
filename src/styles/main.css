@@ -607,8 +607,9 @@ kbd {
 
 /*
  * Manette de déplacement, sur les écrans tactiles : on la pousse du pouce dans la
- * direction voulue, à fond pour courir. Le bas de la carte s'organise autour d'elle :
- * la manette à gauche, le lieu à ouvrir au milieu, le zoom à droite ; la légende passe au-dessus.
+ * direction voulue, à fond pour courir. Elle est au milieu, en bas de la carte : le
+ * pouce droit comme le pouce gauche l'atteignent. Le reste s'organise autour d'elle :
+ * la légende à gauche, le zoom à droite, le lieu à ouvrir juste au-dessus.
  */
 .stick {
   display: none;
@@ -617,8 +618,9 @@ kbd {
 @media (pointer: coarse) {
   .stick {
     position: absolute;
-    left: 0.75rem;
+    left: 50%;
     bottom: 1.25rem;
+    transform: translateX(-50%);
     display: grid;
     place-items: center;
     width: 7rem;
@@ -663,24 +665,52 @@ kbd {
   }
 
   /* (Le sélecteur est renforcé : ces règles passent avant celles des petits écrans, écrites plus bas.) */
-  .stage .map-tools {
-    bottom: calc(1.25rem + 7.75rem);
+  /* Le lieu à ouvrir : juste au-dessus de la manette, sous le pouce. */
+  .stage .prompt {
+    bottom: calc(1.25rem + 7rem + 0.6rem);
+    max-width: calc(100% - 1.5rem);
   }
 
-  .stage .prompt {
-    left: calc(0.75rem + 7.5rem);
-    right: 4.25rem;
-    bottom: 1.25rem;
-    transform: none;
+  /*
+   * La carte de risque affichée passe en haut de la carte : en bas, elle se glisserait sous la manette
+   * ou sous le lieu à ouvrir, et au milieu elle cacherait le personnage. La légende, elle, reste en bas à gauche.
+   */
+  .stage .map-tools {
+    position: static;
     max-width: none;
-    display: flex;
-    justify-content: center;
+  }
+
+  .stage .map-tools .map-button {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 1.25rem;
+  }
+
+  .stage .layer-chip {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    max-width: calc(100% - 1.5rem);
+    margin-bottom: 0;
   }
 
   /* Au doigt, la touche Entrée n'a pas de sens. */
   .stage .prompt__hint kbd,
   .stage .map-button kbd {
     display: none;
+  }
+}
+
+/* Téléphone tenu en largeur : la carte est basse. Le lieu à ouvrir se range à droite de la manette, plutôt qu'au-dessus. */
+@media (pointer: coarse) and (max-height: 30rem) {
+  .stage .prompt {
+    left: calc(50% + 4rem);
+    right: 4.25rem;
+    bottom: 1.25rem;
+    transform: none;
+    max-width: none;
+    display: flex;
+    justify-content: flex-start;
   }
 }
 

@@ -82,7 +82,7 @@ describe('phases du chapitre', () => {
     const chapter = started();
     expect(chapter.phase).toBe('preparation');
     expect(chapter.minutesLeft).toBe(TIMED_PHASES.preparation.minutes);
-    expect(clockLabel(chapter)).toBe('Samedi, 12 h');
+    expect(clockLabel(chapter)).toBe("Samedi d'octobre, 12 h");
     expect(chapter.done).toEqual(['mairie-accueil', 'mairie-dicrim']);
   });
 
@@ -109,7 +109,7 @@ describe('temps et actions', () => {
   it("décompte la durée d'une action", () => {
     const chapter = play(started(), 'maison-refuge');
     expect(chapter.minutesLeft).toBe(TIMED_PHASES.preparation.minutes - 30);
-    expect(clockLabel(chapter)).toBe('Samedi, 12 h 30');
+    expect(clockLabel(chapter)).toBe("Samedi d'octobre, 12 h 30");
     expect(status('maison-refuge', chapter).state).toBe('faite');
   });
 

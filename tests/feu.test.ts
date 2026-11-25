@@ -49,7 +49,9 @@ describe('le feu des Brandes : du printemps à l’été', () => {
     let chapter = play(started(), 'maison-soir');
     expect(chapter.phase).toBe('vigilance');
     expect(chapter.minutesLeft).toBe(TIMING.vigilance.minutes);
-    expect(clockLabel(chapter, TIMING)).toBe('Jeudi, 13 h');
+    // Le jour et le mois restent affichés : on sait qu'on est passé du printemps à l'été.
+    expect(clockLabel(started(), TIMING)).toBe('Samedi de mai, 9 h');
+    expect(clockLabel(chapter, TIMING)).toBe("Jeudi d'août, 13 h");
     // L'après-midi commence chez soi : le kit d'abord, puis le hameau et la maison de Lucien.
     expect(pendingAt(ACTIONS, chapter, 'domicile')).toBe(1);
     expect(pendingAt(ACTIONS, chapter, 'brandes')).toBe(1);
