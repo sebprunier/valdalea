@@ -28,6 +28,8 @@
 html,
 body {
   height: 100%;
+  /* Un glissement horizontal sur la carte ne doit pas faire reculer le navigateur d'une page. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -131,19 +133,53 @@ kbd {
 
 /* ------------------------------------------------------------------ Barre */
 
+/*
+ * À gauche : la commune, et dessous l'état du moment (temps, vigilance).
+ * À droite : la mission, puis les autres boutons. Sur un écran moins large,
+ * la mission passe sur sa propre ligne.
+ */
 .hud {
   flex: none;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'where actions'
+    'status status'
+    'mission mission';
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
+  gap: 0.4rem 1rem;
   padding: 0.5rem 0.875rem;
   background: var(--ink);
   color: var(--paper);
 }
 
+@media (min-width: 68rem) {
+  .hud {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'where mission actions'
+      'status mission actions';
+  }
+
+  /* À côté des boutons, la mission tient sur deux lignes : le temps et l'avancement, puis le conseil. */
+  .mission-bar {
+    justify-self: end;
+    width: fit-content;
+    max-width: min(100%, 38rem);
+  }
+
+  .mission-bar__meta {
+    order: 2;
+  }
+
+  .mission-bar__text {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
 .hud__where {
+  grid-area: where;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -171,13 +207,166 @@ kbd {
   vertical-align: 0.08em;
 }
 
-.hud__actions {
+.hud__status {
+  grid-area: status;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid #8a97a3;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Les indicateurs de la barre sont des boutons : ils ouvrent le détail, dans le téléphone. */
+.chip--button {
+  min-height: 2.25rem;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.chip--button:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.chip__icon {
+  display: inline-flex;
+}
+
+/* Niveau de vigilance : la couleur est doublée par le texte et par la forme de la pastille. */
+.swatch {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: none;
+  background: #37b24d;
+  border-radius: 50%;
+}
+
+[data-level='jaune'] > .swatch,
+.swatch[data-level='jaune'] {
+  background: #f5cc00;
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+[data-level='orange'] > .swatch,
+.swatch[data-level='orange'] {
+  background: #ff9214;
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+[data-level='rouge'] > .swatch,
+.swatch[data-level='rouge'] {
+  background: #ff5247;
+  border-radius: 0;
+}
+
+.chip--vigilance[data-level='rouge'] {
+  border-color: #ff5247;
+}
+
+/*
+ * Bandeau de mission : ce qu'il faut faire maintenant, le temps qu'il reste et
+ * l'avancement. C'est un seul bouton, qui ouvre le carnet.
+ */
+.mission-bar {
+  grid-area: mission;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.9rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.7rem 0.35rem 0.4rem;
+  border: 1px solid #5d6b78;
+  border-radius: var(--radius);
+  background: #243241;
+  color: var(--paper);
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+.mission-bar:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.mission-bar__label {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.mission-bar__text {
+  flex: 1 1 16rem;
+  font-weight: 600;
+}
+
+.mission-bar__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.9rem;
+  margin-left: auto;
+  color: #d8d2c4;
+}
+
+.mission-bar__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.mission-bar__clock[data-urgent='true'] {
+  color: #ffb07c;
+  font-weight: 700;
+}
+
+.mission-bar__clock[data-urgent='true'] .chip__bar > span {
+  background: #ff9214;
+}
+
+.mission-bar__progress {
+  padding: 0.05rem 0.55rem;
+  border: 1px solid #8a97a3;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mission-bar kbd {
+  color: #d8d2c4;
+}
+
+.hud__actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .hud-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -197,6 +386,29 @@ kbd {
 
 .hud-button kbd {
   color: #d8d2c4;
+}
+
+/* Pastille de nouveauté, sur le téléphone et sur ses applications : un chiffre ou un point, doublé d'un texte lu à voix haute. */
+.news,
+.app__news {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #ff9214;
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.news {
+  top: -0.45rem;
+  right: -0.45rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.25rem;
 }
 
 /* ------------------------------------------------------------------ Carte */
@@ -224,6 +436,109 @@ kbd {
   height: 100%;
   touch-action: none;
   cursor: crosshair;
+}
+
+/* Le temps qu'il fait : un voile et la pluie, par-dessus la carte, sans gêner le pointeur. */
+.map .weather {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* En bas à gauche de la carte : la légende et, quand une carte de risque est affichée, son nom. */
+.map-tools {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  max-width: calc(100% - 5.5rem);
+}
+
+.map-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.9rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 35%);
+}
+
+.map-button:hover {
+  background: #2c3b49;
+}
+
+.map-button kbd {
+  color: #d8d2c4;
+}
+
+.layer-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  padding: 0.3rem 0.4rem 0.3rem 0.9rem;
+  border: 2px solid #4a37a8;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 25%);
+}
+
+.layer-chip__hide {
+  flex: none;
+  min-height: 2rem;
+  padding: 0.1rem 0.7rem;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.layer-chip__hide:hover {
+  background: var(--paper-2);
+}
+
+/* Zoom : deux boutons, en bas à droite de la carte. */
+.zoom {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.zoom__button {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 1.1rem;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 35%);
+}
+
+.zoom__button:hover {
+  background: #2c3b49;
+}
+
+/* En butée : le bouton reste là, mais se montre inactif. */
+.zoom__button[aria-disabled='true'] {
+  border-color: #b9c0c7;
+  background: #5d6b78;
+  color: #cfd5da;
+  cursor: default;
+  box-shadow: none;
 }
 
 .prompt {
@@ -508,6 +823,7 @@ kbd {
 }
 
 .app {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 0.4rem;
@@ -533,6 +849,14 @@ kbd {
 
 .app:hover .app__icon {
   background: var(--accent);
+}
+
+.app__news {
+  top: 0.1rem;
+  left: calc(50% + 1.25rem);
+  width: 1.1rem;
+  height: 1.1rem;
+  border-color: var(--paper);
 }
 
 .minimap {
@@ -618,7 +942,7 @@ kbd {
 /* ----------------------------------------------------------- Petits écrans */
 
 @media (max-width: 34rem) {
-  .hud-button span {
+  .hud-button__label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -628,8 +952,89 @@ kbd {
   }
 
   .hud-button kbd,
+  .mission-bar kbd,
   .prompt__hint kbd {
     display: none;
+  }
+
+  /* Barre resserrée : la carte doit garder l'essentiel de l'écran. */
+  .hud {
+    gap: 0.35rem 0.75rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .chip {
+    padding: 0.1rem 0.6rem;
+    font-size: 0.875rem;
+  }
+
+  .chip__extra,
+  .mission-bar .chip__bar {
+    display: none;
+  }
+
+  .mission-bar {
+    gap: 0.2rem 0.6rem;
+    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
+    font-size: 0.875rem;
+  }
+
+  .mission-bar__label {
+    padding: 0.3rem;
+  }
+
+  .mission-bar__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mission-bar__text {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .mission-bar__meta {
+    flex: 1 1 100%;
+    margin-left: 0;
+    padding-left: 2.2rem;
+  }
+
+  /* Le nom du lieu ne passe jamais sous les boutons de la carte ; la légende se réduit à son pictogramme. */
+  .prompt {
+    max-width: calc(100% - 8.5rem);
+  }
+
+  .map-button {
+    width: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .map-button__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .map-button kbd {
+    display: none;
+  }
+
+  /* Au-dessus du nom du lieu, qui occupe le bas de la carte. */
+  .map-tools {
+    bottom: 1.25rem;
+  }
+
+  .layer-chip {
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
   }
 
   .dialog__panel {
@@ -654,6 +1059,11 @@ kbd {
   }
 }
 
+/* Le ciel change en douceur, sauf si les animations sont réduites. */
+:root:not([data-motion='reduced']) .map .weather {
+  transition: background-color 1.8s ease;
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -663,9 +1073,1323 @@ kbd {
 
 @media (forced-colors: active) {
   .hud-button,
+  .map-button,
+  .mission-bar,
+  .chip--button,
+  .zoom__button,
   .button,
   .place-row,
   .prompt__button {
     border: 2px solid ButtonText;
+  }
+}
+
+/* ---------------------------------------------------- Chapitre : fenêtres */
+
+.dialog--wide {
+  width: min(46rem, calc(100vw - 1.5rem));
+}
+
+.dialog--alert {
+  border-top: 0.5rem solid var(--accent);
+}
+
+/* Fenêtre de la crise : ancrée en bas, pour laisser voir l'eau monter sur la carte. */
+.dialog--docked {
+  width: min(46rem, calc(100vw - 1.5rem));
+  max-height: min(62dvh, 36rem);
+  margin: auto auto 0.75rem;
+  border-top: 0.5rem solid #d62828;
+}
+
+.dialog--docked::backdrop {
+  background: rgb(16 22 30 / 14%);
+}
+
+/* Moment de récit : même place que la crise, sans le rouge de l'alerte. */
+.dialog--story {
+  width: min(38rem, calc(100vw - 1.5rem));
+  border-top-color: var(--ink);
+}
+
+.dialog--story::backdrop {
+  background: transparent;
+}
+
+.dialog__kicker .tag {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tag--alert {
+  color: #5b34a8;
+}
+
+.tag--todo {
+  color: var(--accent);
+}
+
+.sources {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.sources__label {
+  font-weight: 700;
+}
+
+.sources ul {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sources a,
+.document a {
+  color: #0a4aa8;
+}
+
+.bullets {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+/* ----------------------------------------------------------------- Scènes */
+
+.place-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 48rem) {
+  .place-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .dialog--wide:has(.place-layout) {
+    width: min(58rem, calc(100vw - 1.5rem));
+  }
+}
+
+.place-layout h3 {
+  margin-top: 1rem;
+}
+
+.scene {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(#e6f0f6, #f6f1e6 62%);
+  overflow: hidden;
+}
+
+.scene__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 3px 8px rgb(20 26 34 / 40%);
+}
+
+.pin:hover {
+  background: var(--accent-dark);
+}
+
+.pin--done {
+  background: var(--ok);
+}
+
+.pin .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 3;
+}
+
+/* ----------------------------------------------------------------- Gestes */
+
+.actions {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.action {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.9rem 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  text-align: left;
+}
+
+.action:hover {
+  border-color: var(--ink);
+  background: var(--paper-2);
+}
+
+.action__number {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.action__title {
+  font-weight: 600;
+}
+
+.action__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.action--faite .action__number {
+  background: var(--ok);
+}
+
+.action--faite .action__status {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.action--verrouillee .action__number,
+.action--trop-longue .action__number {
+  background: var(--ink-soft);
+}
+
+@media (max-width: 34rem) {
+  .action {
+    grid-template-columns: auto 1fr;
+  }
+
+  .action__status {
+    grid-column: 2;
+    white-space: normal;
+  }
+}
+
+/* -------------------------------------------------------------- Questions */
+
+.prompt-text {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+fieldset.choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+fieldset.choices legend {
+  margin-bottom: 0.6rem;
+  padding: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.choices {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.choice {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: #fff;
+  font-weight: 600;
+  text-align: left;
+}
+
+.choice:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.choice:disabled {
+  border-color: var(--line);
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.choice--picked:disabled {
+  border-color: var(--ink);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.choice__mark {
+  font-weight: 400;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.check input {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.feedback {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.feedback:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.feedback > * + * {
+  margin-top: 0.75rem;
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.verdict--ok {
+  color: var(--ok);
+}
+
+.verdict--ko {
+  color: #a12a12;
+}
+
+.verdict .icon {
+  stroke-width: 3;
+}
+
+.lesson {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+.corrections {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+/* ------------------------------------------------------------------ Bilan */
+
+.score {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 0.4rem;
+}
+
+.score__value {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.score__unit {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.score__label {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+meter {
+  display: block;
+  width: 100%;
+  height: 0.75rem;
+}
+
+.stakes {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.stake {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left-width: 0.4rem;
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.stake--2 {
+  border-left-color: var(--ok);
+}
+
+.stake--1 {
+  border-left-color: #b07400;
+}
+
+.stake--0 {
+  border-left-color: #a12a12;
+}
+
+.stake h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.0625rem;
+}
+
+.stake > * + * {
+  margin-top: 0.4rem;
+}
+
+.stake summary {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stake details > * + * {
+  margin-top: 0.4rem;
+}
+
+.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.level--2 {
+  color: var(--ok);
+}
+
+.level--1 {
+  color: #7d5200;
+}
+
+.level--0 {
+  color: #a12a12;
+}
+
+.badges {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge__medal {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+}
+
+.badge__how {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.badge--missing .badge__medal {
+  border: 2px dashed var(--line);
+  background: transparent;
+}
+
+.badge--missing strong,
+.badge__state {
+  color: var(--ink-soft);
+}
+
+.bulletin {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.bulletin > h3 {
+  margin: 0 0 0.4rem;
+}
+
+.dialog--phone .apps {
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 1.25rem;
+}
+
+/* ------------------------------------------------- Barre : temps et mission */
+
+.hud-button--main {
+  border-color: #ffb07c;
+  background: var(--accent);
+}
+
+.hud-button--main:hover {
+  border-color: #fff;
+  background: var(--accent-dark);
+}
+
+.hud-button--main kbd {
+  color: #fff;
+}
+
+.chip__bar {
+  display: inline-block;
+  width: 3.5rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #46535f;
+  overflow: hidden;
+}
+
+.chip__bar > span {
+  display: block;
+  height: 100%;
+  background: #8fd19e;
+}
+
+.toasts {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  gap: 0.5rem;
+  width: min(34rem, calc(100% - 1.5rem));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  padding: 0.6rem 1rem;
+  border: 2px solid #fff;
+  border-left: 0.5rem solid #ff9214;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 35%);
+}
+
+/* ------------------------------------------------------- Temps et conseils */
+
+.time-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  font-size: 0.9375rem;
+}
+
+.time-note .icon {
+  margin-top: 0.15em;
+}
+
+.timebox {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.timebox p:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.timebar {
+  display: block;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+
+.timebar__left {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+}
+
+.hint {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  padding: 0.75rem 0.9rem;
+  border-left: 0.4rem solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+.hint__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Avertissement avant de clore une phase en laissant des gestes faisables. */
+.warning {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 0.4rem solid #ff9214;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+/* ------------------------------------------------------ Légende de la carte */
+
+.map-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.map-legend li {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.map-legend--tall li {
+  grid-template-columns: 3rem 1fr;
+}
+
+.legend-sample {
+  justify-self: center;
+  border: 1px solid var(--ink-soft);
+  border-radius: 0.25rem;
+}
+
+/* -------------------------------------------- Téléphone : vigilance et partie */
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.facts dt {
+  font-weight: 700;
+}
+
+.level-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+/* Sur fond clair, un filet sombre détache les pastilles, la jaune surtout. */
+.dialog .swatch {
+  filter: drop-shadow(0 0 0.5px #1b2733) drop-shadow(0 0 0.5px #1b2733);
+}
+
+.scale {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.scale__level {
+  padding: 0.5rem 0.9rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.bulletin > h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1.0625rem;
+}
+
+.restart {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.restart dd {
+  margin-bottom: 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.mission-place {
+  padding: 0.6rem 0.9rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.mission-place__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.mission-place h4 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.mission-place__where {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 400;
+}
+
+.todos {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.todo {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.todo__mark {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--ink-soft);
+  border-radius: 0.3rem;
+}
+
+.todo__mark .icon {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 3;
+}
+
+.todo__status {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.todo--faite .todo__mark {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: #fff;
+}
+
+.todo--faite .todo__status {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------- Lexique et schémas */
+
+.wordbox {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 0.4rem solid #0a53c2;
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.wordbox__label {
+  color: #0a4aa8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.word > * + * {
+  margin-top: 0.5rem;
+}
+
+.word + .word {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.dialog__body .word__term {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.figure {
+  margin: 0;
+}
+
+.figure__image {
+  display: block;
+  width: 100%;
+  max-width: 26rem;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.figure figcaption,
+.risk-map figcaption {
+  margin-top: 0.35rem;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+/* ----------------------------------------------------------------- DICRIM */
+
+.dialog--document {
+  width: min(54rem, calc(100vw - 1rem));
+  height: calc(100dvh - 1rem);
+  max-height: none;
+  background: #6b7480;
+}
+
+.dialog--document .dialog__panel {
+  padding: 0;
+}
+
+.dialog--document .dialog__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-items: center;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.dialog--document .dialog__title {
+  font-size: 1.125rem;
+}
+
+.dialog--document .icon-button {
+  margin: 0;
+  color: var(--paper);
+}
+
+.dialog--document .icon-button:hover {
+  background: #2c3b49;
+}
+
+.dialog--document .dialog__head {
+  gap: 0.75rem;
+}
+
+.dialog--document .dialog__title {
+  margin-right: auto;
+}
+
+/* Bouton d'impression, dans le bandeau sombre du document. */
+.document-print {
+  min-height: 2.25rem;
+  border-color: #8a97a3;
+  color: var(--paper);
+}
+
+.document-print:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.document-hint {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  color: #eef1f4;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.dialog--document .dialog__body > * + * {
+  margin-top: 0;
+}
+
+.document {
+  display: grid;
+  gap: 1.25rem;
+  justify-content: center;
+  padding: 1rem 1rem 2rem;
+}
+
+/*
+ * Une page : une feuille A4 à 96 points par pouce (794 × 1123 px). Toutes ont
+ * la même taille, à l'écran comme à l'impression ; sur un écran plus étroit,
+ * le document entier est réduit en proportion (propriété zoom, posée par le script).
+ */
+.page {
+  position: relative;
+  width: 794px;
+  height: 1123px;
+  padding: 48px 64px 68px;
+  overflow: hidden;
+  background: #fffdf8;
+  box-shadow: 0 6px 20px rgb(10 14 20 / 35%);
+}
+
+.page__body {
+  height: 100%;
+}
+
+.page__body > * + * {
+  margin-top: 0.7rem;
+}
+
+/* Variante resserrée, retenue quand elle évite à un chapitre de déborder de quelques lignes sur une page de plus. */
+.page--tight .page__body > * + * {
+  margin-top: 0.45rem;
+}
+
+.page.page--tight h4 {
+  margin-top: 0.9rem;
+}
+
+.page--tight .reflexes {
+  padding: 0.5rem 1rem;
+}
+
+.page--tight .bullets {
+  gap: 0.15rem;
+}
+
+.dialog__body .page h3 {
+  margin-top: 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 3px solid var(--accent);
+  font-size: 1.625rem;
+  line-height: 1.2;
+}
+
+.page h4 {
+  margin: 1.25rem 0 0;
+  color: var(--accent-dark);
+  font-size: 1.0625rem;
+}
+
+.page h3:focus-visible,
+.page h4:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: 0 3px 0 var(--focus);
+}
+
+.page__kicker {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page__footer {
+  position: absolute;
+  right: 64px;
+  bottom: 22px;
+  left: 64px;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+/* Pendant la mise en pages, le document est mesuré à sa taille réelle, quel que soit l'écran. */
+.document--measuring {
+  width: max-content;
+}
+
+/*
+ * Écran étroit : lecture en continu. Chaque page garde son contenu et son
+ * numéro, mais prend la largeur de l'écran et la hauteur de son texte.
+ */
+.document--flow {
+  justify-content: stretch;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.document--flow .page {
+  width: auto;
+  height: auto;
+  padding: 1.25rem 1rem 1rem;
+  overflow: visible;
+}
+
+.document--flow .page__body {
+  height: auto;
+}
+
+.document--flow .page__footer {
+  position: static;
+  margin-top: 1.5rem;
+}
+
+.document--flow .page--cover {
+  min-height: 70dvh;
+}
+
+/* En lecture continue, les cartes reprennent toute la largeur, et leur légende une seule colonne. */
+.document--flow .risk-map__image {
+  width: 100%;
+}
+
+.document--flow .risk-map--compact .legend-list {
+  grid-template-columns: 1fr;
+}
+
+/* La couverture occupe toute sa page. */
+.page--cover {
+  display: grid;
+  align-content: center;
+}
+
+.cover {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 0 0 3rem;
+  text-align: center;
+}
+
+.cover__emblem {
+  width: 10rem;
+  height: auto;
+}
+
+.cover__commune {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.cover__title {
+  margin-top: 1rem;
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.cover__subtitle {
+  max-width: 22rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.cover__edition {
+  margin-top: 1rem;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cover__notice {
+  max-width: 30rem;
+  margin-top: 4rem;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.signature {
+  font-style: italic;
+  text-align: right;
+}
+
+/* Sommaire : un titre, des points de conduite, le numéro de la page. */
+.toc {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.toc li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.toc__dots {
+  flex: 1;
+  min-width: 1.5rem;
+  border-bottom: 2px dotted var(--line);
+}
+
+.toc__page {
+  min-width: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+.link-button {
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  color: #0a4aa8;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.risk-map {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  margin: 1rem 0 0;
+}
+
+.risk-map figcaption {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.risk-map .link-button {
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Carte réduite, pour tenir sur la page où commence le chapitre : la légende passe sur deux colonnes. */
+.risk-map--compact .legend-list {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.5rem;
+  width: 100%;
+}
+
+.risk-map__image {
+  display: block;
+  width: var(--map-width, 100%);
+  height: auto;
+  justify-self: center;
+  border: 1px solid var(--ink-soft);
+}
+
+.legend-list {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9375rem;
+}
+
+.legend-list li {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.legend-list__swatch {
+  display: block;
+  width: 1.75rem;
+  height: 1.1rem;
+}
+
+.legend-list__letter {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.reflexes {
+  padding: 0.75rem 1rem;
+  border-left: 0.4rem solid var(--ok);
+  background: #f1f6ee;
+}
+
+.reflexes__title {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+
+.risk-index {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.memo__numbers {
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+@media (min-width: 40rem) {
+  .bullets--columns {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 2rem;
+  }
+}
+
+@media (max-width: 34rem) {
+  .document--flow .cover__title {
+    font-size: 3rem;
+  }
+
+  .document-print__more {
+    display: none;
+  }
+
+  .dialog--document .dialog__title {
+    font-size: 1rem;
+  }
+
+  .todo {
+    grid-template-columns: 1.4rem 1fr;
+  }
+
+  .todo__status {
+    grid-column: 2;
+  }
+}
+
+/* -------------------------------------------------- Impression du DICRIM */
+
+/* Conteneur qui reçoit les pages le temps de l'impression : invisible à l'écran. */
+.print-root {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  /* L'impression lancée depuis le DICRIM ne montre que ses pages, une par feuille. */
+  html.printing,
+  html.printing body {
+    display: block;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  html.printing body > :not(.print-root) {
+    display: none !important;
+  }
+
+  html.printing .print-root {
+    display: block;
+    margin: 0;
+  }
+
+  html.printing .document {
+    display: block;
+    padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html.printing .page {
+    width: 210mm;
+    height: 296.5mm;
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  html.printing .page--cover {
+    display: grid;
+  }
+
+  html.printing .page:last-child {
+    break-after: auto;
+  }
+
+  /* Sans objet sur le papier ; la place est gardée, pour que la mise en pages ne bouge pas. */
+  html.printing .screen-only {
+    visibility: hidden;
+  }
+
+  html.printing .link-button {
+    color: inherit;
+    text-decoration: none;
   }
 }

@@ -19,8 +19,10 @@ import type {
   Decor,
   Fence,
   GroundKind,
+  HazardZone,
   MapLabel,
   PlaceKind,
+  RiskId,
   RoadKind,
   RoofKind,
   Side,
@@ -62,6 +64,9 @@ export class WorldBuilder {
       name,
       width,
       height,
+      relief: { northRun: 130, southRun: 200, eastRise: { fromX: width, run: 400 }, bridgeDeck: 2.6, referenceFlood: 1.8 },
+      hazards: [],
+      hazardMarks: [],
       river: { name: '', width: 0, path: [], bounds: rect(0, 0, 0, 0) },
       grounds: [],
       roads: [],
@@ -148,8 +153,27 @@ export class WorldBuilder {
     return this;
   }
 
-  decor(kind: Decor['kind'], x: number, y: number): this {
-    this.commune.decors.push({ kind, x, y, angle: this.between(-0.5, 0.5), tone: Math.floor(this.rng() * 4) });
+  /** Élément de décor non bloquant. Sans angle précisé, il est posé légèrement de travers. */
+  decor(kind: Decor['kind'], x: number, y: number, angle?: number): this {
+    // L'aléa est toujours consommé, pour que le reste de la commune ne dépende pas de ce paramètre.
+    const random = this.between(-0.5, 0.5);
+    this.commune.decors.push({ kind, x, y, angle: angle ?? random, tone: Math.floor(this.rng() * 4) });
+    return this;
+  }
+
+  /** Zone d'aléa d'une carte de risque. */
+  hazard(risk: HazardZone['risk'], level: HazardZone['level'], poly: Vec[]): this {
+    this.commune.hazards.push({ risk, level, poly, bounds: boundsOf(poly) });
+    return this;
+  }
+
+  hazardMark(risk: RiskId, pos: Vec, label: string): this {
+    this.commune.hazardMarks.push({ risk, pos, label });
+    return this;
+  }
+
+  relief(relief: Commune['relief']): this {
+    this.commune.relief = relief;
     return this;
   }
 

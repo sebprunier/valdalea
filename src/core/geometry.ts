@@ -1,4 +1,4 @@
-/** Outils de géométrie plane. Les coordonnées sont en unités « monde » (8 unités ≈ 1 mètre). */
+/** Outils de géométrie plane. Les coordonnées sont en unités « monde » (une unité vaut un mètre). */
 
 export interface Vec {
   x: number;

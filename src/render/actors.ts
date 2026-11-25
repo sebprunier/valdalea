@@ -14,12 +14,13 @@ export interface PlayerPose {
 }
 
 /** Le joueur vu de dessus : un réserviste en chasuble orange. */
-export function paintPlayer(ctx: CanvasRenderingContext2D, pose: PlayerPose): void {
+export function paintPlayer(ctx: CanvasRenderingContext2D, pose: PlayerPose, size = 1): void {
   const swing = pose.moving ? Math.sin(pose.phase) : 0;
   ctx.save();
   ctx.translate(pose.x, pose.y);
-  // Dessiné un peu plus grand que son emprise au sol, pour rester lisible sur le plan.
-  ctx.scale(1.2, 1.2);
+  // Dessiné un peu plus grand que son emprise au sol, pour rester lisible sur le plan,
+  // et grossi d'autant quand la carte est dézoomée (`size`).
+  ctx.scale(1.2 * size, 1.2 * size);
 
   ctx.fillStyle = 'rgba(30, 30, 20, 0.28)';
   ctx.beginPath();
@@ -108,6 +109,8 @@ export interface MarkerState {
   visited: boolean;
   /** Afficher le nom du lieu sous le repère. */
   named: boolean;
+  /** Nombre d'actions possibles ici : affiché dans une pastille. */
+  todo: number;
   /** Facteur de taille : sur petit écran, le repère est agrandi pour rester lisible. */
   size: number;
   clock: number;
@@ -187,6 +190,25 @@ export function paintPlaceMarker(ctx: CanvasRenderingContext2D, place: Place, st
     ctx.lineTo(cx - 0.8, cy + 2.4);
     ctx.lineTo(cx + 3.2, cy - 2.4);
     ctx.stroke();
+  }
+
+  // Actions possibles : une pastille chiffrée, à gauche du repère.
+  if (state.todo > 0) {
+    const cx = -radius * 0.85;
+    const cy = py - radius * 0.8;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b93d0a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 10px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(Math.min(9, state.todo)), cx, cy + 0.5);
   }
 
   if (state.named) {

@@ -1,11 +1,20 @@
+import { newChapter, type Chapter } from './chapter';
 import type { Vec } from './geometry';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface Settings {
   /** `null` : suivre le réglage du système (prefers-reduced-motion). */
   reducedMotion: boolean | null;
+  /** Carte de risque affichée par-dessus le plan (disponible une fois le DICRIM consulté) ; `null` : aucune. */
+  hazardLayer: string | null;
+  /** Niveau de zoom de la carte ; `null` : le niveau par défaut. */
+  zoom: number | null;
 }
+
+/** Applications du téléphone qui peuvent signaler une nouveauté. */
+export const NEWS_IDS = ['alertes', 'dicrim', 'bilan'] as const;
+export type NewsId = (typeof NEWS_IDS)[number];
 
 /** Tout ce qui est sauvegardé d'une partie. Aucune donnée personnelle. */
 export interface GameState {
@@ -13,11 +22,29 @@ export interface GameState {
   player: Vec;
   /** Identifiants des lieux dont la fiche a été ouverte. */
   visited: string[];
+  /** Chapitre en cours. */
+  chapter: Chapter;
+  /** Badges obtenus, conservés d'une partie à l'autre du chapitre. */
+  badges: string[];
+  /** Applications du téléphone où quelque chose de nouveau attend d'être regardé. */
+  news: NewsId[];
   settings: Settings;
 }
 
-export function newGame(spawn: Vec, settings: Settings = { reducedMotion: null }): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], settings };
+export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null };
+
+export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, news: [], settings };
+}
+
+/** Signale une nouveauté dans une application du téléphone. */
+export function withNews(state: GameState, id: NewsId): GameState {
+  return state.news.includes(id) ? state : { ...state, news: [...state.news, id] };
+}
+
+/** La nouveauté a été regardée. */
+export function withoutNews(state: GameState, id: NewsId): GameState {
+  return state.news.includes(id) ? { ...state, news: state.news.filter((other) => other !== id) } : state;
 }
 
 export function markVisited(state: GameState, placeId: string): GameState {
@@ -28,4 +55,13 @@ export function markVisited(state: GameState, placeId: string): GameState {
 export function movePlayer(state: GameState, pos: Vec): GameState {
   if (state.player.x === pos.x && state.player.y === pos.y) return state;
   return { ...state, player: { x: pos.x, y: pos.y } };
+}
+
+export function withChapter(state: GameState, chapter: Chapter): GameState {
+  return chapter === state.chapter ? state : { ...state, chapter };
+}
+
+export function withBadges(state: GameState, earned: readonly string[]): GameState {
+  const fresh = earned.filter((id) => !state.badges.includes(id));
+  return fresh.length === 0 ? state : { ...state, badges: [...state.badges, ...fresh] };
 }

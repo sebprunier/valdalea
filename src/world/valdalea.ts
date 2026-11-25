@@ -15,6 +15,10 @@ import type { Commune } from './model';
 export function buildValDAlea(): Commune {
   const b = new WorldBuilder("Val-d'Aléa", 4200, 3000, 2026);
 
+  // La rive nord monte vite vers le bourg ; la rive sud, plus plate, s'inonde largement.
+  // Le terrain remonte à l'est : la cité et la zone industrielle restent hors d'eau.
+  b.relief({ northRun: 130, southRun: 200, eastRise: { fromX: 2950, run: 400 }, bridgeDeck: 2.6, referenceFlood: 1.8 });
+
   // ---------------------------------------------------------------- Relief
   b.ground('eboulis', [vec(0, 0), vec(420, 0), vec(470, 300), vec(440, 700), vec(490, 1100), vec(460, 1470), vec(320, 1600), vec(0, 1600)]);
   b.ground('falaise', [vec(0, 0), vec(380, 0), vec(430, 300), vec(400, 700), vec(450, 1100), vec(420, 1450), vec(300, 1560), vec(0, 1560)]);
@@ -138,7 +142,7 @@ export function buildValDAlea(): Commune {
   b.townRow(rect(2140, 1700, 450, 75), 'N', 'commerce');
   b.groundRect('jardin', rect(2143, 1923, 164, 144));
   const home = b.building('pavillon', rect(2180, 1960, 100, 80), { id: 'domicile', roof: 'tuile', tone: 0, door: 'S' });
-  b.houseRow(rect(2320, 1920, 270, 150), 'S', { lot: 130 });
+  const [jeanne] = b.houseRow(rect(2320, 1920, 270, 150), 'S', { lot: 130 });
   b.houseRow(rect(2650, 1700, 290, 150), 'N', { lot: 140 });
   b.houseRow(rect(2650, 1920, 290, 150), 'S', { lot: 140 });
 
@@ -196,6 +200,9 @@ export function buildValDAlea(): Commune {
     }
   }
 
+  // Votre voiture, garée sur le quai devant la maison.
+  b.decor('voiture', 2292, 2093, 0);
+
   // ---------------------------------------------------------------- Arbres
   b.scatterTrees(forest, 58, 15, 24);
   b.scatterTrees(rectToPolygon(rect(2160, 1220, 400, 300)), 78, 14, 20);
@@ -247,6 +254,7 @@ export function buildValDAlea(): Commune {
   b.place('domicile', 'Chez vous', 'domicile', 'bas-bourg', doorPoint(home));
   b.place('mairie', 'Mairie', 'mairie', 'haut-bourg', doorPoint(mairie));
   b.place('gymnase', 'Gymnase des Hauts', 'gymnase', 'haut-bourg', doorPoint(gymnase));
+  b.place('jeanne', 'Chez Jeanne', 'domicile', 'bas-bourg', doorPoint(jeanne));
   b.place('ecole', 'École du Quai', 'ecole', 'bas-bourg', doorPoint(ecole));
   b.place('pont', 'Pont de la Follette', 'pont', 'bas-bourg', vec(2100, 2130));
   b.place('vieux-bourg', "Place de l'Église", 'quartier', 'vieux-bourg', doorPoint(eglise));
@@ -256,6 +264,43 @@ export function buildValDAlea(): Commune {
   b.place('cite', 'Cité des Vannes', 'quartier', 'cite', vec(3120, 1900));
   b.place('usine', 'Usine Engrais du Val', 'usine', 'zone-industrielle', vec(3400, 1772));
   b.place('camping', 'Camping des Berges', 'camping', 'camping', doorPoint(accueil));
+
+  // ------------------------------------------------------ Cartes de risques
+  // Chutes de blocs : au pied de la falaise, puis de l'autre côté de la rue.
+  b.hazard('mouvement-terrain', 'fort', [vec(430, 250), vec(620, 250), vec(620, 1500), vec(440, 1500), vec(460, 1300), vec(490, 1100), vec(440, 700), vec(470, 300)]);
+  b.hazard('mouvement-terrain', 'moyen', [vec(620, 250), vec(850, 250), vec(850, 1500), vec(620, 1500)]);
+
+  // Cavités : l'emprise connue des anciennes carrières souterraines, sous le Vieux-Bourg.
+  b.hazard('cavites', 'fort', [vec(1390, 1110), vec(1960, 1090), vec(2050, 1290), vec(1990, 1570), vec(1620, 1620), vec(1370, 1510), vec(1310, 1290)]);
+  b.hazardMark('cavites', vec(1420, 1290), 'ancien puits');
+  b.hazardMark('cavites', vec(1880, 1250), 'entrée murée');
+  b.hazardMark('cavites', vec(1700, 1530), 'galerie connue');
+
+  // Argiles : exposition forte sur le plateau, moyenne sur ses abords.
+  b.hazard('argiles', 'moyen', [vec(860, 0), vec(2940, 0), vec(2940, 640), vec(2150, 640), vec(2150, 950), vec(1090, 950), vec(860, 760)]);
+  b.hazard('argiles', 'fort', [vec(1140, 70), vec(2090, 70), vec(2090, 890), vec(1140, 890)]);
+
+  // Feu de forêt : le massif, et la bande de 200 mètres où s'appliquent les obligations de débroussaillement.
+  b.hazard('feu-foret', 'fort', forest);
+  b.hazard('feu-foret', 'moyen', [
+    vec(2780, 0),
+    forest[0],
+    // La lisière du massif, parcourue du nord-ouest vers l'est.
+    ...forest.slice(2).reverse(),
+    vec(4200, 1410),
+    vec(3940, 1490),
+    vec(3620, 1370),
+    vec(3330, 1180),
+    vec(3090, 940),
+    vec(2890, 590),
+    vec(2780, 270),
+  ]);
+
+  // Risque industriel : le site Seveso et le périmètre de son plan particulier d'intervention.
+  const plant = vec(3710, 2010);
+  b.hazard('industriel', 'moyen', Array.from({ length: 48 }, (_, i) => vec(plant.x + 650 * Math.cos((i / 48) * Math.PI * 2), plant.y + 650 * Math.sin((i / 48) * Math.PI * 2))));
+  b.hazard('industriel', 'fort', rectToPolygon(site));
+  b.hazardMark('industriel', plant, 'Engrais du Val');
 
   b.spawn(doorPoint(home));
   return b.commune;

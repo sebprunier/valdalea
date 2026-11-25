@@ -15,6 +15,10 @@ export const PLACE_TEXTS: Record<string, PlaceText> = {
     description:
       "Votre maison, à deux pas du quai et du pont. Vous y vivez depuis trois ans, et vous venez de vous engager dans la réserve communale de sécurité civile.",
   },
+  jeanne: {
+    description:
+      "La maison de Jeanne, votre voisine, 84 ans. Une petite maison de plain-pied, à deux portes de chez vous, au bord du quai.",
+  },
   mairie: {
     description:
       "Le siège de la commune, installé sur les hauteurs. C'est ici que travaillent les élus et les agents, et que la réserve communale a son local.",

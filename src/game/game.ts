@@ -1,12 +1,15 @@
 import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
-import { MAP_BACKGROUND, paintMap } from '../render/painter';
+import { floodLayer, type WaterLayer } from '../render/flood';
+import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
+import { paintRisk } from '../render/riskmap';
 import { TILE_SIZE, TileCache } from '../render/tiles';
+import type { Elevation } from '../world/elevation';
 import type { WalkGrid } from '../world/grid';
-import { sectorAt, type Commune, type Place, type Sector } from '../world/model';
+import { sectorAt, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
-import { INTERACT_RADIUS, PLAYER_RADIUS, RUN_SPEED, WALK_SPEED } from './constants';
-import { Input, type Action } from './input';
+import { DEFAULT_ZOOM, INTERACT_RADIUS, PLAYER_RADIUS, RUN_SPEED, WALK_SPEED, ZOOM_LEVELS } from './constants';
+import { Input, type Action, type Shortcut } from './input';
 
 /** Échelle de la vue d'ensemble (mini-carte, et repli tant qu'une tuile n'est pas prête). */
 const OVERVIEW_SCALE = 0.25;
@@ -14,16 +17,28 @@ const OVERVIEW_SCALE = 0.25;
 /** Délai minimal entre deux calculs d'itinéraire quand le pointeur glisse sur la carte. */
 const ROUTE_INTERVAL = 0.15;
 
+/** Vitesse de montée ou de descente de la crue à l'écran, en mètres par seconde. */
+const FLOOD_SPEED = 0.11;
+
+/** Temps consacré, par image, à préparer les tuiles manquantes (en millisecondes). */
+const BAKE_BUDGET = 7;
+
 export interface GameHooks {
   /** Le joueur entre à portée d'un lieu, ou s'en éloigne. */
   nearPlaceChanged(place: Place | null): void;
   sectorChanged(sector: Sector | null): void;
   /** Le joueur demande à ouvrir le lieu devant lequel il se trouve. */
   interact(place: Place): void;
-  shortcut(action: 'phone' | 'places' | 'help'): void;
+  shortcut(action: Shortcut): void;
+  /** Le niveau de zoom vient de changer. */
+  zoomChanged(level: number): void;
   /** Position du joueur, signalée au plus une fois par seconde et à chaque pause. */
   moved(pos: Vec): void;
+  /** Distance que le joueur vient de parcourir, en unités monde : le temps de jeu en dépend. */
+  walked(units: number): void;
   isVisited(placeId: string): boolean;
+  /** Nombre d'actions possibles dans un lieu, affiché sur son repère. */
+  pendingAt(placeId: string): number;
 }
 
 export interface GameOptions {
@@ -33,6 +48,7 @@ export interface GameOptions {
   commune: Commune;
   grid: WalkGrid;
   pathfinder: Pathfinder;
+  elevation: Elevation;
   start: Vec;
   hooks: GameHooks;
 }
@@ -52,15 +68,20 @@ export class Game {
   private readonly commune: Commune;
   private readonly grid: WalkGrid;
   private readonly pathfinder: Pathfinder;
+  private readonly elevation: Elevation;
   private readonly hooks: GameHooks;
+  private readonly flood: WaterLayer;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly tiles: TileCache;
   private readonly player: PlayerPose;
   private readonly camera: Vec;
   private scale = 1; // pixels écran par unité monde
-  /** Agrandissement des repères quand la carte est dézoomée (petits écrans). */
+  /** Niveau de zoom choisi par le joueur : indice dans `ZOOM_LEVELS`. */
+  private zoomIndex = DEFAULT_ZOOM;
+  /** Agrandissement des repères et du personnage quand la carte est dézoomée. */
   private markerSize = 1;
+  private playerSize = 1;
   private paused = true;
 
   /** Itinéraire en cours (déplacement au pointeur) : points de passage restants. */
@@ -70,6 +91,14 @@ export class Game {
   private pendingPointer: Vec | null = null;
   private sinceRoute = ROUTE_INTERVAL;
   private stuckFor = 0;
+
+  /** Carte de risque affichée par-dessus le plan, ou `null`. */
+  private hazardRisk: RiskId | null = null;
+  /** Niveau de la crue à l'écran, qui rejoint progressivement `floodTarget`. */
+  private floodLevel = 0;
+  private floodTarget = 0;
+  /** Point que la caméra regarde pendant une séquence (le joueur ne se déplace pas). */
+  private focus: Vec | null = null;
 
   private near: Place | null = null;
   private sector: Sector | null = null;
@@ -86,7 +115,9 @@ export class Game {
     this.commune = options.commune;
     this.grid = options.grid;
     this.pathfinder = options.pathfinder;
+    this.elevation = options.elevation;
     this.hooks = options.hooks;
+    this.flood = floodLayer(options.elevation);
     const { commune } = this;
 
     this.ctx = this.canvas.getContext('2d', { alpha: false })!;
@@ -132,9 +163,63 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Place le joueur devant un lieu (déplacement depuis la liste des lieux). */
+  /**
+   * Place le joueur devant un lieu (déplacement depuis la liste des lieux).
+   * Le trajet compte comme s'il avait été fait à pied.
+   */
   travelTo(place: Place): void {
+    const route = this.pathfinder.findPath(this.player, place.pos);
+    let length = 0;
+    let from: Vec = this.player;
+    for (const point of route) {
+      length += distance(from, point);
+      from = point;
+    }
+    this.hooks.walked(route.length > 0 ? length : distance(this.player, place.pos));
     this.moveTo(place.pos);
+  }
+
+  /** Niveau de zoom en cours : indice dans `ZOOM_LEVELS`. */
+  get zoomLevel(): number {
+    return this.zoomIndex;
+  }
+
+  /** Change de niveau de zoom ; la demande est ramenée dans les bornes. */
+  setZoom(level: number): void {
+    const next = clamp(Math.round(level), 0, ZOOM_LEVELS.length - 1);
+    if (next === this.zoomIndex) return;
+    this.zoomIndex = next;
+    this.layout(false);
+    this.hooks.zoomChanged(next);
+  }
+
+  /** Affiche une carte de risque par-dessus le plan, ou la retire (`null`). */
+  setHazardLayer(risk: RiskId | null): void {
+    if (risk === this.hazardRisk) return;
+    this.hazardRisk = risk;
+    this.dirty = true;
+  }
+
+  /** Fait monter ou descendre la crue jusqu'au niveau indiqué (0 : la rivière est dans son lit). */
+  setFlood(level: number, immediate = false): void {
+    this.floodTarget = level;
+    if (immediate || this.reducedMotion) this.floodLevel = level;
+    this.dirty = true;
+  }
+
+  /** Dessine la zone inondable et la crue sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
+  paintWater(ctx: CanvasRenderingContext2D): void {
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.elevation);
+    if (this.floodLevel > 0.02) {
+      this.flood.setLevel(this.floodLevel);
+      this.flood.draw(ctx);
+    }
+  }
+
+  /** Braque la caméra sur un point pendant une séquence ; `null` la rend au joueur. */
+  setFocus(point: Vec | null): void {
+    this.focus = point ? { ...point } : null;
+    this.dirty = true;
   }
 
   moveTo(pos: Vec): void {
@@ -157,7 +242,10 @@ export class Game {
 
   private handleAction(action: Action): void {
     if (this.paused) return;
-    if (action !== 'interact') this.hooks.shortcut(action);
+    if (action === 'zoom-in') this.setZoom(this.zoomIndex + 1);
+    else if (action === 'zoom-out') this.setZoom(this.zoomIndex - 1);
+    else if (action === 'halt') this.stop();
+    else if (action !== 'interact') this.hooks.shortcut(action);
     else if (this.near) this.hooks.interact(this.near);
   }
 
@@ -179,11 +267,32 @@ export class Game {
       this.update(dt);
       this.dirty = true;
     }
+    this.animate(dt);
     if (this.dirty) {
       this.dirty = false;
       this.render();
     }
   };
+
+  /** Animations qui continuent pendant les séquences, quand le joueur ne bouge pas : la crue et la caméra. */
+  private animate(dt: number): void {
+    if (this.floodLevel !== this.floodTarget) {
+      const step = FLOOD_SPEED * dt;
+      const gap = this.floodTarget - this.floodLevel;
+      this.floodLevel = Math.abs(gap) <= step ? this.floodTarget : this.floodLevel + Math.sign(gap) * step;
+      this.dirty = true;
+    }
+    if (this.paused && this.focus) {
+      const gap = distance(this.focus, this.camera);
+      if (gap > 0.5) {
+        const follow = this.reducedMotion ? 1 : 1 - Math.exp(-dt * 3);
+        this.camera.x += (this.focus.x - this.camera.x) * follow;
+        this.camera.y += (this.focus.y - this.camera.y) * follow;
+        this.clampCamera();
+        this.dirty = true;
+      }
+    }
+  }
 
   private update(dt: number): void {
     this.clock += dt;
@@ -225,6 +334,7 @@ export class Game {
       const moved = Math.hypot(next.x - p.x, next.y - p.y);
       p.x = next.x;
       p.y = next.y;
+      if (moved > 0) this.hooks.walked(moved);
       p.facing = turnToward(p.facing, Math.atan2(direction.y, direction.x), dt * 14);
       p.phase += moved * 0.1;
       p.moving = moved > step * 0.15;
@@ -305,17 +415,27 @@ export class Game {
   // ------------------------------------------------------------------ Caméra
 
   private resize(): void {
+    this.layout(true);
+  }
+
+  /**
+   * Cale l'échelle de la carte sur la taille de l'écran et le niveau de zoom.
+   * @param atOnce dessiner toutes les tuiles visibles d'un coup (premier affichage,
+   * redimensionnement) plutôt que de les laisser arriver en quelques images (zoom)
+   */
+  private layout(atOnce: boolean): void {
     const cssWidth = this.surface.clientWidth;
     const cssHeight = this.surface.clientHeight;
     if (cssWidth === 0 || cssHeight === 0) return;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    // Zoom : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
-    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6);
+    // Vue normale : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
+    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
     // L'échelle est arrondie pour qu'une tuile fasse un nombre entier de pixels :
     // les tuiles sont alors recopiées sans rééchantillonnage ni raccord visible.
     const tilePx = Math.max(64, Math.round(TILE_SIZE * zoom * pixelRatio));
     this.scale = tilePx / TILE_SIZE;
     this.markerSize = Math.max(1, 1 / zoom);
+    this.playerSize = Math.max(1, 0.85 / zoom);
     this.canvas.width = Math.round(cssWidth * pixelRatio);
     this.canvas.height = Math.round(cssHeight * pixelRatio);
     this.tiles.setTilePixels(tilePx);
@@ -323,7 +443,7 @@ export class Game {
     const rows = Math.ceil(this.canvas.height / tilePx) + 3;
     this.tiles.setCapacity(cols * rows + 8);
     this.clampCamera();
-    this.firstPaint = true;
+    if (atOnce) this.firstPaint = true;
     this.dirty = true;
   }
 
@@ -368,14 +488,16 @@ export class Game {
     const ty1 = Math.floor((origin.y + height - 1) / tilePx);
 
     // Au premier affichage, toutes les tuiles visibles sont dessinées d'un coup ;
-    // ensuite au plus deux par image, pour ne jamais faire sauter l'animation.
-    let budget = this.firstPaint ? Infinity : 2;
+    // ensuite quelques millisecondes par image (et au moins une tuile), pour ne
+    // jamais faire sauter l'animation, même après un changement de zoom.
+    const deadline = this.firstPaint ? Infinity : performance.now() + BAKE_BUDGET;
+    let budget = 1;
     let missing = false;
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         if (!this.tiles.inRange(tx, ty)) continue;
         let tile = this.tiles.peek(tx, ty);
-        if (!tile && budget > 0) {
+        if (!tile && (budget > 0 || performance.now() < deadline)) {
           tile = this.tiles.bake(tx, ty);
           budget--;
         }
@@ -390,8 +512,8 @@ export class Game {
         }
       }
     }
-    // Préparation d'une tuile de la couronne extérieure, tant qu'il reste du budget.
-    if (budget > 0) {
+    // Préparation d'une tuile de la couronne extérieure, s'il reste du temps.
+    if (!missing && (budget > 0 || performance.now() < deadline)) {
       prefetch: for (let ty = ty0 - 1; ty <= ty1 + 1; ty++) {
         for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
           if (this.tiles.inRange(tx, ty) && !this.tiles.peek(tx, ty)) {
@@ -406,6 +528,13 @@ export class Game {
     if (missing) this.dirty = true;
 
     ctx.setTransform(scale, 0, 0, scale, -origin.x, -origin.y);
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 13, this.elevation);
+    if (this.floodLevel > 0.02) {
+      this.flood.setLevel(this.floodLevel);
+      this.flood.draw(ctx);
+      const view = { x: origin.x / scale, y: origin.y / scale, w: width / scale, h: height / scale };
+      paintAboveWater(ctx, this.commune, view, (p) => this.elevation.isFlooded(p, this.floodLevel));
+    }
     if (this.route.length > 0) paintRoute(ctx, this.player, this.route, this.clock, this.reducedMotion);
     const reach = Math.hypot(width, height) / scale / 2 + 80;
     for (const place of this.commune.places) {
@@ -415,12 +544,66 @@ export class Game {
         active,
         visited: this.hooks.isVisited(place.id),
         named: active || distance(place.pos, this.player) < 320,
+        todo: this.hooks.pendingAt(place.id),
         size: this.markerSize,
         clock: this.clock,
         still: this.reducedMotion,
       });
     }
-    paintPlayer(ctx, this.player);
+    paintPlayer(ctx, this.player, this.playerSize);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.paintPointers(origin);
+  }
+
+  /**
+   * Flèches au bord de l'écran, vers les lieux où il reste un geste à faire et
+   * qui sont hors champ : le joueur sait toujours dans quelle direction aller.
+   */
+  private paintPointers(origin: Vec): void {
+    const { ctx, canvas, scale } = this;
+    const unit = canvas.width / Math.max(1, this.surface.clientWidth); // un pixel CSS, en pixels de l'image
+    const margin = 30 * unit;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    for (const place of this.commune.places) {
+      const todo = this.hooks.pendingAt(place.id);
+      if (todo === 0) continue;
+      const x = place.pos.x * scale - origin.x;
+      const y = place.pos.y * scale - origin.y;
+      if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) continue;
+      // Point du bord de l'écran dans la direction du lieu.
+      const dx = x - cx;
+      const dy = y - cy;
+      const reach = Math.min((cx - margin) / Math.abs(dx || 1e-6), (cy - margin) / Math.abs(dy || 1e-6));
+      const px = cx + dx * reach;
+      const py = cy + dy * reach;
+      const angle = Math.atan2(dy, dx);
+      const r = 13 * unit;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.fillStyle = '#b93d0a';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 * unit;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * (r + 9 * unit), Math.sin(angle) * (r + 9 * unit));
+      ctx.lineTo(Math.cos(angle + 0.55) * r, Math.sin(angle + 0.55) * r);
+      ctx.lineTo(Math.cos(angle - 0.55) * r, Math.sin(angle - 0.55) * r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${12 * unit}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(Math.min(9, todo)), 0, 0.5 * unit);
+      ctx.restore();
+    }
   }
 }
 

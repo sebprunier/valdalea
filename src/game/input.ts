@@ -1,6 +1,9 @@
 import type { Vec } from '../core/geometry';
 
-export type Action = 'interact' | 'phone' | 'places' | 'help';
+export type Shortcut = 'phone' | 'places' | 'help' | 'mission' | 'legend';
+
+/** `halt` : le joueur pose un second doigt pour pincer ; le déplacement en cours s'arrête. */
+export type Action = 'interact' | Shortcut | 'zoom-in' | 'zoom-out' | 'halt';
 
 /**
  * Les touches sont lues par position physique (`event.code`) : ZQSD sur un clavier
@@ -25,7 +28,16 @@ const ACTION_KEYS: Record<string, Action> = {
   KeyT: 'phone',
   KeyL: 'places',
   KeyH: 'help',
+  KeyM: 'mission',
+  KeyG: 'legend',
 };
+
+/** Le zoom se lit par caractère, lui : « + » et « - » ne sont pas au même endroit sur tous les claviers. */
+const ZOOM_KEYS: Record<string, Action> = { '+': 'zoom-in', '=': 'zoom-in', '-': 'zoom-out', _: 'zoom-out' };
+
+/** Écartement des doigts, ou cumul de molette, qui fait changer d'un niveau de zoom. */
+const PINCH_STEP = 1.22;
+const WHEEL_STEP = 60;
 
 /**
  * Entrées du joueur sur la carte. Le clavier n'est écouté que lorsque la carte a
@@ -38,6 +50,11 @@ export class Input {
   private pointerPos: Vec | null = null;
   private pointerFresh = false;
   private shift = false;
+  /** Doigts posés sur la carte (pincement). */
+  private readonly touches = new Map<number, Vec>();
+  private pinchSpan = 0;
+  private wheel = 0;
+  private wheelAt = 0;
 
   /**
    * @param onAction appelé dès qu'une touche d'action est enfoncée (sans attendre l'image suivante)
@@ -54,6 +71,7 @@ export class Input {
     canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerup', this.onPointerEnd);
     canvas.addEventListener('pointercancel', this.onPointerEnd);
+    canvas.addEventListener('wheel', this.onWheel, { passive: false });
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
   }
 
@@ -90,6 +108,8 @@ export class Input {
     this.down.clear();
     this.shift = false;
     this.pointerFresh = false;
+    this.touches.clear();
+    this.wheel = 0;
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -100,7 +120,7 @@ export class Input {
       event.preventDefault();
       return;
     }
-    const action = ACTION_KEYS[event.code];
+    const action = ACTION_KEYS[event.code] ?? ZOOM_KEYS[event.key];
     if (action) {
       event.preventDefault();
       if (!event.repeat) this.onAction(action);
@@ -115,6 +135,18 @@ export class Input {
   private readonly onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
     this.surface.focus({ preventScroll: true });
+    if (event.pointerType === 'touch') {
+      this.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.touches.size === 2) {
+        // Deux doigts : on pince pour zoomer, on ne désigne plus de destination.
+        this.pinchSpan = this.span();
+        this.pointerId = null;
+        this.pointerFresh = false;
+        this.onAction('halt');
+        event.preventDefault();
+        return;
+      }
+    }
     this.pointerId = event.pointerId;
     this.trackPointer(event);
     try {
@@ -127,12 +159,42 @@ export class Input {
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
+    if (this.touches.has(event.pointerId)) {
+      this.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.touches.size === 2 && this.pinchSpan > 0) {
+        const ratio = this.span() / this.pinchSpan;
+        if (ratio >= PINCH_STEP || ratio <= 1 / PINCH_STEP) {
+          this.onAction(ratio > 1 ? 'zoom-in' : 'zoom-out');
+          this.pinchSpan = this.span();
+        }
+        return;
+      }
+    }
     if (event.pointerId === this.pointerId) this.trackPointer(event);
   };
 
   private readonly onPointerEnd = (event: PointerEvent): void => {
+    this.touches.delete(event.pointerId);
     if (event.pointerId === this.pointerId) this.pointerId = null;
   };
+
+  /** Molette, ou pincement sur un pavé tactile : un niveau de zoom par cran franc. */
+  private readonly onWheel = (event: WheelEvent): void => {
+    event.preventDefault();
+    const now = event.timeStamp;
+    if (now - this.wheelAt > 400) this.wheel = 0;
+    this.wheelAt = now;
+    this.wheel += event.deltaMode === 0 ? event.deltaY : event.deltaY * 30;
+    if (Math.abs(this.wheel) < WHEEL_STEP) return;
+    this.onAction(this.wheel < 0 ? 'zoom-in' : 'zoom-out');
+    this.wheel = 0;
+  };
+
+  /** Écartement des deux doigts posés. */
+  private span(): number {
+    const [a, b] = [...this.touches.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  }
 
   private trackPointer(event: PointerEvent): void {
     const box = (event.currentTarget as HTMLElement).getBoundingClientRect();

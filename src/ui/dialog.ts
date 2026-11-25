@@ -24,7 +24,8 @@ export interface DialogHandle {
   setTitle(title: string): void;
   /** Replace le focus sur le titre (changement de vue à l'intérieur de la fenêtre). */
   focusTitle(): void;
-  onClose(listener: () => void): void;
+  /** Appelle `listener` à chaque fermeture, ou seulement à la prochaine avec `once`. */
+  onClose(listener: () => void, options?: { once?: boolean }): void;
 }
 
 type ModalListener = (anyOpen: boolean) => void;
@@ -62,7 +63,7 @@ export function createDialog(options: DialogOptions): DialogHandle {
   );
   document.body.append(element);
 
-  const closeListeners = new Set<() => void>();
+  const closeListeners = new Set<{ listener: () => void; once: boolean }>();
   let returnFocus: HTMLElement | null = null;
 
   closeButton?.addEventListener('click', () => element.close());
@@ -75,7 +76,10 @@ export function createDialog(options: DialogOptions): DialogHandle {
   });
   element.addEventListener('close', () => {
     openCount = Math.max(0, openCount - 1);
-    for (const listener of closeListeners) listener();
+    for (const entry of [...closeListeners]) {
+      if (entry.once) closeListeners.delete(entry);
+      entry.listener();
+    }
     if (openCount === 0) {
       const target = returnFocus?.isConnected ? returnFocus : fallbackFocus;
       target?.focus({ preventScroll: true });
@@ -109,14 +113,23 @@ export function createDialog(options: DialogOptions): DialogHandle {
       heading.focus({ preventScroll: true });
       element.scrollTop = 0;
     },
-    onClose(listener) {
-      closeListeners.add(listener);
+    onClose(listener, options = {}) {
+      closeListeners.add({ listener, once: options.once ?? false });
     },
   };
 }
 
+export interface ConfirmQuestion {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  /** Mettre en avant le refus plutôt que la confirmation, quand refuser est le choix sans risque. */
+  preferCancel?: boolean;
+}
+
 /** Demande de confirmation. La promesse vaut `true` si l'action est confirmée. */
-export function createConfirm(): (question: { title: string; message: string; confirmLabel: string }) => Promise<boolean> {
+export function createConfirm(): (question: ConfirmQuestion) => Promise<boolean> {
   const dialog = createDialog({ id: 'confirmation', title: '', className: 'dialog--narrow' });
   const message = h('p');
   const cancel = h('button', { type: 'button', class: 'button' }, 'Annuler');
@@ -139,6 +152,9 @@ export function createConfirm(): (question: { title: string; message: string; co
     dialog.setTitle(question.title);
     message.textContent = question.message;
     confirm.textContent = question.confirmLabel;
+    cancel.textContent = question.cancelLabel ?? 'Annuler';
+    cancel.classList.toggle('button--primary', question.preferCancel === true);
+    confirm.classList.toggle('button--primary', question.preferCancel !== true);
     confirmed = false;
     return new Promise<boolean>((done) => {
       resolve = done;
