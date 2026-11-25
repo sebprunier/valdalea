@@ -85,6 +85,11 @@ export function placesOf(chapterId: string | null): Set<string> {
   ]);
 }
 
+/** Parmi les chapitres menés au bout, ceux qui concernaient ce lieu, dans l'ordre où le téléphone les présente. */
+export function finishedAt(placeId: string, finished: readonly string[]): ChapterInfo[] {
+  return CHAPTERS.filter((chapter) => finished.includes(chapter.id) && placesOf(chapter.id).has(placeId));
+}
+
 /** Un badge, tel qu'on l'affiche : ceux d'un chapitre comme ceux de toute la partie. */
 export type BadgeInfo = Pick<BadgeDef, 'id' | 'title' | 'description'>;
 

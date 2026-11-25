@@ -29,8 +29,8 @@ export interface PlaceUiDeps {
   getExposures(place: Place): string[] | null;
   /** Le kit d'urgence du joueur est-il prêt ? `null` ailleurs que chez lui, où il ne se range pas. */
   hasKit(place: Place): boolean | null;
-  /** Titre du chapitre qui vient de s'achever, si ce lieu en faisait partie ; `null` sinon. */
-  getEndedChapter(place: Place): string | null;
+  /** Titres des chapitres menés au bout dont ce lieu faisait partie. */
+  getFinishedChapters(place: Place): string[];
   /** Accomplit l'action. */
   perform(action: ActionDef): void;
   /** L'action vient d'être accomplie et son résultat est affiché : c'est le moment d'ouvrir ce qu'elle donne à voir. */
@@ -80,12 +80,16 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
   const leftBehind = (action: ActionDef): ActionDef[] => (action.endsPhase ? remaining(deps.getActions(), deps.getChapter()) : []);
 
   /**
-   * Une fois le chapitre terminé : dans un lieu qui en faisait partie, on dit pourquoi il n'y a plus rien à y faire ;
-   * ailleurs, le chapitre n'a rien à voir avec le lieu, et l'on n'en parle pas.
+   * Hors chapitre, dans un lieu où il n'y a rien à faire. Si des chapitres déjà terminés passaient par ce lieu,
+   * on le rappelle, tous autant qu'ils sont ; sinon on n'en parle pas : ils n'ont rien à voir avec lui.
+   * @param choosing aucun chapitre n'est en cours ni tout juste achevé : on invite à en choisir un
    */
-  function ended(current: Place): string {
-    const title = deps.getEndedChapter(current);
-    return title ? `Plus rien à faire ici : le chapitre « ${title} » est terminé. Son bilan est dans votre téléphone.` : "Rien à faire ici pour l'instant.";
+  function idle(current: Place, choosing: boolean): string {
+    const titles = deps.getFinishedChapters(current).map((title) => `« ${title} »`);
+    if (titles.length === 0) return choosing ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans votre téléphone : il vous confiera une mission." : "Rien à faire ici pour l'instant.";
+    if (titles.length === 1) return `Rien à faire ici pour l'instant. Ce lieu a compté dans le chapitre ${titles[0]}, que vous avez terminé : son bilan est dans votre téléphone.`;
+    const list = `${titles.slice(0, -1).join(', ')} et ${titles[titles.length - 1]}`;
+    return `Rien à faire ici pour l'instant. Ce lieu a compté dans les chapitres ${list}, que vous avez terminés : leurs bilans sont dans votre téléphone.`;
   }
 
   /** Rappel du temps de jeu restant, en tête des listes de gestes. */
@@ -139,11 +143,9 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
       const message =
         chapter.phase === 'accueil'
           ? "Rien à faire ici pour l'instant : le maire vous attend à la mairie."
-          : chapter.phase === 'libre'
-            ? "Rien à faire ici pour l'instant. Choisissez un chapitre dans votre téléphone : il vous confiera une mission."
-            : chapter.phase === 'bilan'
-              ? ended(current)
-              : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
+          : chapter.phase === 'libre' || chapter.phase === 'bilan'
+            ? idle(current, chapter.phase === 'libre')
+            : 'Rien à faire ici pour le moment. Votre carnet de mission indique où aller.';
       todo = h('p', { class: 'fine-print' }, message);
     } else {
       todo = h(

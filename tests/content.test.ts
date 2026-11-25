@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
-import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, placesOf, playbookOf } from '../src/content/chapitres';
+import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, finishedAt, placesOf, playbookOf } from '../src/content/chapitres';
 import { STORY as FIRE_STORY } from '../src/content/feu';
 import { STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
@@ -134,6 +134,18 @@ describe('cohérence des contenus', () => {
     for (const id of [...fire, ...flood]) expect(placeIds.has(id), id).toBe(true);
     expect(placesOf(null).size).toBe(0);
     expect(placesOf('inconnu').size).toBe(0);
+  });
+
+  it('retrouve, pour un lieu, tous les chapitres terminés qui passaient par lui', () => {
+    const titles = (placeId: string, finished: string[]) => finishedAt(placeId, finished).map((chapter) => chapter.id);
+    // Le gymnase accueille les évacués de la crue comme ceux du feu.
+    expect(titles('gymnase', ['ete', 'automne'])).toEqual(['automne', 'ete']);
+    expect(titles('gymnase', ['ete'])).toEqual(['ete']);
+    expect(titles('gymnase', [])).toEqual([]);
+    // L'école n'a compté que pour la crue, la maison de Lucien que pour le feu, l'usine pour aucun des deux.
+    expect(titles('ecole', ['ete', 'automne'])).toEqual(['automne']);
+    expect(titles('lucien', ['ete', 'automne'])).toEqual(['ete']);
+    expect(titles('usine', ['ete', 'automne'])).toEqual([]);
   });
 
   it('donne à chaque chapitre complet de quoi jouer sa crise : lieux, récit, messages, bilan', () => {
