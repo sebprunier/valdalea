@@ -8,6 +8,8 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 > Projet indépendant, sans lien avec les services de l'État. Il n'en reprend ni la charte ni les logos.
 
+**Jouer : <https://sebprunier.github.io/valdalea/>** (version de travail, mise à jour à chaque évolution).
+
 ## État d'avancement
 
 Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**.
@@ -45,6 +47,10 @@ npm run liens      # vérifie que les pages officielles citées répondent toujo
 ```
 
 Le dossier `dist/` se dépose tel quel sur n'importe quel hébergement statique. Les chemins sont relatifs : il fonctionne aussi dans un sous-dossier.
+
+### Mise en ligne
+
+Chaque poussée sur la branche `main` lance les tests, construit le site et le publie sur GitHub Pages (`.github/workflows/publier.yml`). Si un test échoue, rien n'est publié. Le développement se fait sur une branche par jalon : seule la fusion dans `main` met en ligne.
 
 En développement, `window.jcrm` donne accès au jeu depuis la console du navigateur.
 
