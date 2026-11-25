@@ -104,7 +104,7 @@ export function paintMap(
   const buildings = commune.buildings.filter((b) => seen(b.rect, 14));
   ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
   for (const b of buildings) ctx.fillRect(b.rect.x + 4, b.rect.y + 6, b.rect.w, b.rect.h);
-  for (const b of buildings) paintBuilding(ctx, b);
+  for (const b of buildings) paintBuilding(ctx, b, options.details);
 
   for (const tank of commune.tanks) {
     if (seen({ x: tank.x - tank.r, y: tank.y - tank.r, w: tank.r * 2, h: tank.r * 2 }, 10)) paintTank(ctx, tank);
@@ -335,7 +335,8 @@ function paintFence(ctx: CanvasRenderingContext2D, fence: Fence): void {
 
 // ---------------------------------------------------------------- Bâtiments
 
-function paintBuilding(ctx: CanvasRenderingContext2D, b: Building): void {
+/** @param signs écrire les enseignes des commerces ; inutile sur un plan à petite échelle, où elles seraient illisibles */
+function paintBuilding(ctx: CanvasRenderingContext2D, b: Building, signs = true): void {
   const [light, dark, edge] = ROOFS[b.roof][b.tone % 4];
   const { x, y, w, h } = b.rect;
 
@@ -399,7 +400,7 @@ function paintBuilding(ctx: CanvasRenderingContext2D, b: Building): void {
   ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
 
   if (b.kind === 'mairie') paintPorch(ctx, b, 64, 14, '#e9e2d3', edge);
-  else if (b.kind === 'commerce') paintAwning(ctx, b);
+  else if (b.kind === 'commerce') paintAwning(ctx, b, signs);
   else if (b.door && b.kind !== 'mobil-home') paintPorch(ctx, b, 14, 5, '#efe7d6', edge);
 }
 
@@ -436,23 +437,66 @@ function paintPorch(ctx: CanvasRenderingContext2D, b: Building, length: number, 
   ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
 }
 
-/** Store rayé d'un commerce, le long de la façade sur rue. */
-function paintAwning(ctx: CanvasRenderingContext2D, b: Building): void {
+/** Couleurs des stores : la toile, et son liseré. */
+const AWNINGS = [
+  ['#b5432b', '#7d2a19'],
+  ['#2f6f8f', '#1d4a61'],
+  ['#4f7a3a', '#34542a'],
+  ['#8a5a8c', '#5d3b5f'],
+] as const;
+const SIGN_FONT = `700 8px ${FONT}`;
+
+/**
+ * Le store d'un commerce, déroulé sur le trottoir le long de la façade : une toile
+ * de couleur, à larges rayures, bordée d'un liseré. Au-dessus, sur la façade,
+ * l'enseigne dit ce qu'on y vend.
+ */
+function paintAwning(ctx: CanvasRenderingContext2D, b: Building, signs: boolean): void {
   const { x, y, w, h } = b.rect;
-  const depth = 7;
-  const colors = [['#b5432b', '#f4ede1'], ['#2f6f8f', '#f4ede1'], ['#4f7a3a', '#f4ede1'], ['#8a5a8c', '#f4ede1']][b.tone % 4];
+  const depth = 11;
+  const [canvas, edge] = AWNINGS[b.tone % 4];
   const horizontal = b.door === 'N' || b.door === 'S' || !b.door;
-  const length = (horizontal ? w : h) - 12;
-  const stripes = Math.max(2, Math.round(length / 8));
+  const length = (horizontal ? w : h) - 10;
+  const box = horizontal
+    ? { x: x + 5, y: b.door === 'N' ? y - depth : y + h, w: length, h: depth }
+    : { x: b.door === 'W' ? x - depth : x + w, y: y + 5, w: depth, h: length };
+
+  // L'ombre du store sur le trottoir, puis la toile et ses rayures.
+  ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
+  ctx.fillRect(box.x + 2, box.y + 2, box.w, box.h);
+  ctx.fillStyle = canvas;
+  ctx.fillRect(box.x, box.y, box.w, box.h);
+  const stripes = Math.max(3, Math.round(length / 11) | 1);
   const step = length / stripes;
-  for (let i = 0; i < stripes; i++) {
-    ctx.fillStyle = colors[i % 2];
-    if (horizontal) {
-      ctx.fillRect(x + 6 + i * step, b.door === 'N' ? y - depth : y + h, step, depth);
-    } else {
-      ctx.fillRect(b.door === 'W' ? x - depth : x + w, y + 6 + i * step, depth, step);
-    }
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+  for (let i = 1; i < stripes; i += 2) {
+    if (horizontal) ctx.fillRect(box.x + i * step, box.y, step, box.h);
+    else ctx.fillRect(box.x, box.y + i * step, box.w, step);
   }
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(box.x + 0.6, box.y + 0.6, box.w - 1.2, box.h - 1.2);
+
+  // L'enseigne : une plaque claire sur la façade, au-dessus du store.
+  if (!signs || !b.sign || !horizontal) return;
+  const text = b.sign.toUpperCase();
+  ctx.save();
+  ctx.font = SIGN_FONT;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const plateW = Math.min(w - 6, ctx.measureText(text).width + 10);
+  const plateH = 11;
+  const plateX = x + w / 2 - plateW / 2;
+  const plateY = b.door === 'N' ? y + 2 : y + h - plateH - 2;
+  ctx.fillStyle = '#fbf8f1';
+  ctx.strokeStyle = '#3f392f';
+  ctx.lineWidth = 1;
+  ctx.fillRect(plateX, plateY, plateW, plateH);
+  ctx.strokeRect(plateX + 0.5, plateY + 0.5, plateW - 1, plateH - 1);
+  ctx.fillStyle = '#2a2620';
+  // Sur une façade étroite, le texte se resserre pour tenir dans la plaque.
+  ctx.fillText(text, x + w / 2, plateY + plateH / 2 + 0.5, plateW - 6);
+  ctx.restore();
 }
 
 function paintChurch(ctx: CanvasRenderingContext2D, b: Building): void {
@@ -894,6 +938,7 @@ export type LegendSample =
   | 'rue'
   | 'chemin'
   | 'maison'
+  | 'commerce'
   | 'public'
   | 'activite';
 
@@ -975,6 +1020,14 @@ export function paintLegendSample(ctx: CanvasRenderingContext2D, sample: LegendS
       ground('jardin', 6);
       building('pavillon', 'tuile', 0);
       break;
+    case 'commerce': {
+      // Une boutique : la maison, son store sur le trottoir et son enseigne.
+      const shop = { x: w * 0.14, y: h * 0.12, w: w * 0.72, h: h * 0.56 };
+      ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
+      ctx.fillRect(shop.x + 4, shop.y + 6, shop.w, shop.h);
+      paintBuilding(ctx, { kind: 'commerce', roof: 'ardoise', tone: 1, rect: shop, door: 'S', sign: 'Café' });
+      break;
+    }
     case 'public':
       building('mairie', 'ardoise', 0);
       break;

@@ -75,6 +75,8 @@ export interface Building {
   tone: number;
   /** Côté de l'entrée. */
   door?: Side;
+  /** Enseigne d'un commerce : ce qu'on y vend, écrit au-dessus de son store. */
+  sign?: string;
 }
 
 export interface Tank {

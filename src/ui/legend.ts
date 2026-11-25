@@ -40,6 +40,7 @@ const GROUPS: Array<{ title: string; entries: Array<[LegendSample, string]> }> =
     title: 'La commune',
     entries: [
       ['maison', 'Maison et son jardin'],
+      ['commerce', 'Commerce : son store sur le trottoir, et son enseigne'],
       ['activite', "Zone d'activité : hangars et ateliers"],
       ['camping', 'Camping'],
       ['place', 'Place ou cour'],

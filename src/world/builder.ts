@@ -29,6 +29,9 @@ import type {
   Wildfire,
 } from './model';
 
+/** Les commerces du bourg, dans l'ordre où leurs enseignes sont posées. */
+export const SHOP_SIGNS = ['Boulangerie', 'Épicerie', 'Tabac-presse', 'Poste', 'Pharmacie', 'Café', 'Boucherie', 'Coiffeur', 'Fleuriste'] as const;
+
 export const ROAD_WIDTH: Record<RoadKind, number> = {
   departementale: 64,
   avenue: 52,
@@ -58,6 +61,8 @@ interface HouseRowOptions {
 export class WorldBuilder {
   readonly commune: Commune;
   private readonly rng: Rng;
+  /** Nombre de boutiques déjà posées : la suivante prend l'enseigne suivante. */
+  private shops = 0;
 
   constructor(name: string, width: number, height: number, seed: number) {
     this.rng = mulberry32(seed);
@@ -277,7 +282,11 @@ export class WorldBuilder {
     this.tree(zone.x + this.rng() * zone.w, zone.y + this.rng() * zone.h, this.between(11, 15));
   }
 
-  /** Front bâti continu de maisons de ville (ou de commerces), façade alignée sur la rue. */
+  /**
+   * Front bâti continu de maisons de ville, façade alignée sur la rue. Dans une rue commerçante
+   * (`kind` : `commerce`), une maison sur trois a une boutique au rez-de-chaussée, avec son store
+   * et son enseigne ; les autres restent des maisons.
+   */
   townRow(area: Rect, door: Side, kind: BuildingKind = 'maison-ville'): Building[] {
     const alongX = door === 'N' || door === 'S';
     const end = alongX ? area.x + area.w : area.y + area.h;
@@ -303,7 +312,11 @@ export class WorldBuilder {
           house = rect(area.x + recess, at, area.w - recess, length);
           break;
       }
-      houses.push(this.building(kind, house, { door, roof: this.rng() < 0.7 ? 'tuile' : 'ardoise' }));
+      // Le choix des boutiques ne tire rien au sort : le reste de la commune n'en dépend pas.
+      const shop = kind === 'commerce' && houses.length % 3 === 1;
+      const built = this.building(kind === 'commerce' && !shop ? 'maison-ville' : kind, house, { door, roof: this.rng() < 0.7 ? 'tuile' : 'ardoise' });
+      if (shop) built.sign = SHOP_SIGNS[this.shops++ % SHOP_SIGNS.length];
+      houses.push(built);
       at += length;
     }
     return houses;
