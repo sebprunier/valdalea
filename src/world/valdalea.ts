@@ -1,4 +1,4 @@
-import { inflate, rect, rectToPolygon, smoothRing, vec } from '../core/geometry';
+import { inflate, rect, rectContains, rectToPolygon, smoothRing, vec } from '../core/geometry';
 import { doorPoint, WorldBuilder } from './builder';
 import type { Commune } from './model';
 import { widenEast } from './widen';
@@ -373,6 +373,7 @@ export function buildValDAlea(): Commune {
   widenEast(b.commune, CUT, WIDENING, ['feu-foret', 'industriel']);
   dressGap(b);
   dressSchoolyard(b);
+  dressBourg(b);
   return b.commune;
 }
 
@@ -416,4 +417,45 @@ function dressSchoolyard(b: WorldBuilder): void {
   ] as const) {
     b.tree(x, y, r);
   }
+}
+
+/**
+ * Le bourg, côté pratique : des places de stationnement et des passages piétons.
+ * Posés en dernier, comme le reste du décor ; ici, les coordonnées sont celles du jeu.
+ */
+function dressBourg(b: WorldBuilder): void {
+  // Un petit parking prend le coin sud-ouest du square : deux rangées de places de part et d'autre d'une allée,
+  // qui débouche sur l'avenue. On s'y gare pour aller à pied aux commerces et dans le Vieux-Bourg.
+  const lot = rect(2168, 1414, 154, 100);
+  b.groundRect('parking', lot);
+  b.groundRect('parking', rect(2124, 1453, 46, 22));
+  b.parkingRow(rect(2172, 1416, 146, 36), 'S', [0, 2, 5]);
+  b.parkingRow(rect(2172, 1476, 146, 36), 'N', [1, 3, 4]);
+
+  // En face de l'école, de l'autre côté du quai : quelques places en épi, à deux pas du passage piéton.
+  const quay = rect(1668, 2122, 165, 34);
+  b.parkingRow(quay, 'N', [0, 2, 3], 0.5);
+
+  // Le parking du gymnase et celui de l'usine : une rangée de places au fond, l'allée devant.
+  b.parkingRow(rect(2646, 896, 220, 40), 'S', [0, 2, 3, 6, 8]);
+  b.parkingRow(rect(3450 + WIDENING + 6, 1746, 208, 40), 'N', [1, 2, 4, 5, 7, 8]);
+
+  // Plus d'arbre là où l'on se gare.
+  for (const area of [lot, quay]) {
+    b.commune.trees = b.commune.trees.filter((tree) => !rectContains(inflate(area, tree.r + 6), tree));
+  }
+
+  // Du parking vers le Vieux-Bourg : on traverse l'avenue en face de la rue Basse.
+  b.crossing(vec(2100, 1430), 'avenue', true);
+  // Le carrefour de l'avenue et de la Grande-Rue, et la Grande-Rue devant ses commerces.
+  b.crossing(vec(2100, 1712), 'avenue', true);
+  b.crossing(vec(2040, 1660), 'departementale', false);
+  b.crossing(vec(2190, 1660), 'departementale', false);
+  b.crossing(vec(2520, 1660), 'departementale', false);
+  // Au débouché de la rue de l'Église, vers le tabac-presse et la poste.
+  b.crossing(vec(1700, 1660), 'departementale', false);
+  // Devant l'école : du portail à la passerelle du camping, et aux places du quai.
+  b.crossing(vec(1650, 2100), 'rue', false);
+  // Devant la mairie.
+  b.crossing(vec(2400, 1000), 'rue', false);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { distToPolyline, distToRect, inflate, pointInPolygon, rectsIntersect, type Vec } from '../src/core/geometry';
+import { distToPolyline, distToRect, inflate, pointInPolygon, rectContains, rectsIntersect, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
 import { buildWalkGrid, type WalkGrid } from '../src/world/grid';
 import { findPlace, sectorAt, type Commune } from '../src/world/model';
@@ -161,6 +161,94 @@ describe("plan de Val-d'Aléa", () => {
       const next = shops.filter((other) => other !== shop && other.rect.y === shop.rect.y && Math.abs(other.rect.x - (shop.rect.x + shop.rect.w)) < 1);
       expect(next, shop.sign).toEqual([]);
     }
+  });
+
+  it('pose chaque passage piéton en travers d’une voie, sur toute sa largeur', () => {
+    const crossings = commune.decors.filter((decor) => decor.kind === 'passage');
+    expect(crossings.length).toBeGreaterThanOrEqual(6);
+    for (const crossing of crossings) {
+      const where = `passage en ${crossing.x}, ${crossing.y}`;
+      // Il est sur l'axe d'une voie, dont il a la largeur…
+      const road = commune.roads.find((r) => distToPolyline(crossing, r.path) < 1 && r.width === crossing.span);
+      expect(road, where).toBeDefined();
+      // … il la coupe à angle droit…
+      const vertical = Math.abs(Math.sin(crossing.angle)) > 0.5;
+      const along = { x: crossing.x + (vertical ? 0 : 30), y: crossing.y + (vertical ? 30 : 0) };
+      expect(distToPolyline(along, road!.path), where).toBeLessThan(1);
+      // … et il débouche des deux côtés sur un trottoir, pas dans un mur. (Dans le bourg, les façades sont au ras de la chaussée.)
+      const kerb = crossing.span! / 2 + 3;
+      for (const side of [-1, 1]) {
+        const end = { x: crossing.x + (vertical ? side * kerb : 0), y: crossing.y + (vertical ? 0 : side * kerb) };
+        expect(commune.buildings.some((building) => rectContains(building.rect, end)), `${where}, côté ${side}`).toBe(false);
+      }
+    }
+    // Devant l'école, le passage mène du portail à la passerelle.
+    const school = findPlace(commune, 'ecole')!.pos;
+    const footbridge = commune.bridges.find((bridge) => bridge.kind === 'passerelle')!.rect;
+    const atSchool = crossings.find((crossing) => Math.abs(crossing.y - school.y) < 30 && Math.abs(crossing.x - school.x) < 60)!;
+    expect(atSchool).toBeDefined();
+    expect(atSchool.x).toBeGreaterThanOrEqual(footbridge.x);
+    expect(atSchool.x).toBeLessThanOrEqual(footbridge.x + footbridge.w);
+  });
+
+  it('range un petit parking au coin du square : deux rangées de places, une allée, pas d’arbre', () => {
+    const park = commune.grounds.find((ground) => ground.kind === 'parc' && ground.bounds.w >= 400)!.bounds;
+    const lot = commune.grounds.find((ground) => ground.kind === 'parking' && ground.bounds.w > 100 && rectsIntersect(ground.bounds, park))!.bounds;
+    expect(lot.x >= park.x && lot.y >= park.y && lot.x + lot.w <= park.x + park.w && lot.y + lot.h <= park.y + park.h).toBe(true);
+    const rows = commune.parkings.filter((row) => rectsIntersect(row.rect, lot));
+    expect(rows.map((row) => row.open).sort()).toEqual(['N', 'S']);
+    const [north, south] = [...rows].sort((a, b) => a.rect.y - b.rect.y);
+    // Les deux rangées se font face, de part et d'autre d'une allée assez large pour manœuvrer.
+    expect(north.open).toBe('S');
+    expect(south.open).toBe('N');
+    expect(south.rect.y - (north.rect.y + north.rect.h)).toBeGreaterThanOrEqual(22);
+    for (const row of rows) expect(row.rect.x >= lot.x && row.rect.x + row.rect.w <= lot.x + lot.w && row.rect.y >= lot.y && row.rect.y + row.rect.h <= lot.y + lot.h).toBe(true);
+    // L'allée débouche sur l'avenue.
+    const avenue = commune.roads.find((road) => road.name === 'avenue de la République')!;
+    const drive = commune.grounds.find((ground) => ground.kind === 'parking' && ground.bounds.x + ground.bounds.w >= lot.x && ground.bounds.x < lot.x)!.bounds;
+    expect(drive.x).toBeLessThanOrEqual(avenue.path[0].x + avenue.width / 2);
+    expect(drive.y).toBeGreaterThanOrEqual(north.rect.y + north.rect.h);
+    expect(drive.y + drive.h).toBeLessThanOrEqual(south.rect.y);
+    for (const tree of commune.trees) expect(rectsIntersect(lot, { x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }), `arbre en ${tree.x}, ${tree.y}`).toBe(false);
+    for (const building of commune.buildings) expect(rectsIntersect(lot, building.rect)).toBe(false);
+    expect(commune.trees.filter((tree) => tree.x > park.x && tree.x < park.x + park.w && tree.y > park.y && tree.y < park.y + park.h).length).toBeGreaterThan(8);
+  });
+
+  it('trace des rangées de places où les voitures tiennent, sans rien de bâti ni d’arbre dessus', () => {
+    expect(commune.parkings.length).toBeGreaterThanOrEqual(5);
+    for (const row of commune.parkings) {
+      const where = `rangée en ${row.rect.x}, ${row.rect.y}`;
+      // Une place fait 22 de large ; penchée, elle prend plus de longueur de rangée.
+      const bays = Math.floor((row.rect.w - Math.abs(Math.tan(row.slant) * row.rect.h)) / (22 / Math.cos(row.slant)));
+      expect(bays, where).toBeGreaterThanOrEqual(3);
+      // Une voiture fait 36 de long : la place la contient, dans son axe.
+      expect(row.rect.h / Math.cos(row.slant), where).toBeGreaterThanOrEqual(36);
+      expect(row.cars.length, where).toBeGreaterThan(0);
+      expect(row.cars.length, where).toBeLessThan(bays);
+      expect(new Set(row.cars.map((car) => car.bay)).size, where).toBe(row.cars.length);
+      for (const car of row.cars) expect(car.bay, where).toBeLessThan(bays);
+      for (const building of commune.buildings) expect(rectsIntersect(row.rect, building.rect), where).toBe(false);
+      for (const tree of commune.trees) expect(rectsIntersect(row.rect, { x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }), where).toBe(false);
+      // Ni dans la rivière.
+      for (const corner of [row.rect, { x: row.rect.x + row.rect.w, y: row.rect.y + row.rect.h }]) expect(distToPolyline(corner, commune.river.path), where).toBeGreaterThan(commune.river.width / 2 + 10);
+    }
+  });
+
+  it('gare en épi en face de l’école, de l’autre côté du quai, près du passage piéton', () => {
+    const school = findPlace(commune, 'ecole')!.pos;
+    const quay = commune.roads.find((road) => road.name === 'quai de la Follette')!;
+    const row = commune.parkings.find((r) => r.slant !== 0)!;
+    expect(row).toBeDefined();
+    // Du côté de la rivière, au bord de la chaussée, et l'on y entre par le quai.
+    expect(row.open).toBe('N');
+    expect(row.rect.y).toBeGreaterThanOrEqual(quay.path[0].y + quay.width / 2);
+    expect(row.rect.y - (quay.path[0].y + quay.width / 2)).toBeLessThan(6);
+    // En face de l'école, à côté du passage piéton sans le recouvrir.
+    expect(row.rect.x).toBeLessThan(school.x + 40);
+    expect(row.rect.x + row.rect.w).toBeGreaterThan(school.x);
+    const crossing = commune.decors.find((decor) => decor.kind === 'passage' && Math.abs(decor.y - quay.path[0].y) < 1)!;
+    expect(row.rect.x - crossing.x).toBeGreaterThan(9);
+    expect(row.rect.x - crossing.x).toBeLessThan(40);
   });
 
   it("ferme l'école derrière sa clôture : on s'arrête au portail", () => {

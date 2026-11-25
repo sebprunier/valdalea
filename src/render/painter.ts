@@ -1,5 +1,5 @@
 import { clamp, distToPolyline, inflate, rectsIntersect, type Rect, type Vec } from '../core/geometry';
-import type { Bridge, Building, Commune, Decor, Fence, Ground, MapLabel, River, Road, RoadKind, Tank, Tree } from '../world/model';
+import type { Bridge, Building, Commune, Decor, Fence, Ground, MapLabel, ParkingRow, River, Road, RoadKind, Tank, Tree } from '../world/model';
 
 /**
  * Dessin du plan de la commune, entièrement en code (aucune image).
@@ -70,6 +70,13 @@ const ROOFS = {
 
 const TREE_TONES = ['#7dab66', '#6f9f5c', '#8bb874', '#64955a'];
 const DECOR_TONES = ['#e9a23b', '#4f8fc0', '#d9604a', '#7a9e4d'];
+/** Voitures : la carrosserie, son contour, le toit. */
+const CAR_TONES = [
+  ['#3f6f9f', '#27496b', '#35618c'],
+  ['#a8483a', '#70291f', '#93392d'],
+  ['#6b7780', '#444e55', '#5c676f'],
+  ['#d9d2c2', '#8f8674', '#c4bca9'],
+] as const;
 
 export function paintMap(
   ctx: CanvasRenderingContext2D,
@@ -98,6 +105,7 @@ export function paintMap(
 
   paintRoads(ctx, commune.roads.filter((road) => seen(road.bounds)));
   for (const bridge of commune.bridges) if (seen(bridge.rect, 12)) paintBridge(ctx, bridge);
+  for (const row of commune.parkings) if (seen(row.rect, 24)) paintParkingRow(ctx, row, options.details);
 
   for (const fence of commune.fences) if (seen(fence.rect, 6)) paintFence(ctx, fence);
 
@@ -110,8 +118,8 @@ export function paintMap(
     if (seen({ x: tank.x - tank.r, y: tank.y - tank.r, w: tank.r * 2, h: tank.r * 2 }, 10)) paintTank(ctx, tank);
   }
   for (const decor of commune.decors) {
-    // Le terrain de jeux est plus grand que les autres éléments de décor.
-    const reach = decor.kind === 'terrain' ? 64 : 40;
+    // Le terrain de jeux et les passages piétons sont plus grands que les autres éléments de décor.
+    const reach = decor.kind === 'terrain' ? 64 : decor.kind === 'passage' ? 48 : 40;
     if (seen({ x: decor.x - reach, y: decor.y - reach, w: reach * 2, h: reach * 2 })) paintDecor(ctx, decor);
   }
   for (const tree of commune.trees) {
@@ -209,15 +217,12 @@ function paintGround(ctx: CanvasRenderingContext2D, ground: Ground, options: Pai
       ctx.lineWidth = 2;
       ctx.stroke();
       break;
-    case 'parking': {
-      ctx.save();
-      ctx.clip();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-      ctx.lineWidth = 2;
-      hatch(ctx, ground.bounds, 22, Math.PI / 2);
-      ctx.restore();
+    case 'parking':
+      // L'enrobé seul : les places sont tracées par les rangées (voir `paintParkingRow`).
+      ctx.strokeStyle = '#bcb8ae';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       break;
-    }
     case 'camping':
       ctx.strokeStyle = '#8fb573';
       ctx.lineWidth = 3;
@@ -586,28 +591,98 @@ function paintTank(ctx: CanvasRenderingContext2D, tank: Tank): void {
   ctx.stroke();
 }
 
+/** Une voiture vue du dessus, centrée sur l'origine, l'avant vers la droite. */
+function paintCar(ctx: CanvasRenderingContext2D, tone: number): void {
+  const [body, line, roof] = CAR_TONES[tone % CAR_TONES.length];
+  ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
+  ctx.beginPath();
+  ctx.roundRect(-15, -5, 36, 16, 5);
+  ctx.fill();
+  ctx.fillStyle = body;
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(-18, -8, 36, 16, 5);
+  ctx.fill();
+  ctx.stroke();
+  // Pare-brise et lunette arrière
+  ctx.fillStyle = '#cfe1ee';
+  ctx.fillRect(3, -6, 6, 12);
+  ctx.fillRect(-11, -6, 4, 12);
+  ctx.fillStyle = roof;
+  ctx.fillRect(-7, -6.5, 10, 13);
+}
+
+/** Largeur d'une place de stationnement, en unités monde. */
+const BAY = 22;
+
+/**
+ * Une rangée de places : l'enrobé, les lignes blanches qui séparent les places
+ * (droites, ou penchées pour des places en épi) et la ligne du fond, puis les
+ * voitures garées, chacune dans sa place, l'avant vers le fond.
+ */
+function paintParkingRow(ctx: CanvasRenderingContext2D, row: ParkingRow, details: boolean): void {
+  const { x, y, w, h } = row.rect;
+  ctx.fillStyle = GROUND_FILL.parking[0];
+  ctx.fillRect(x, y, w, h);
+  if (!details) return;
+
+  // D'une place à l'autre le long de la rangée, et du fond d'une place à son entrée.
+  const lean = Math.tan(row.slant) * h;
+  const pitch = BAY / Math.cos(row.slant);
+  const count = Math.floor((w - Math.abs(lean)) / pitch);
+  const start = x + (w - count * pitch - Math.abs(lean)) / 2 + Math.max(0, -lean);
+  const back = row.open === 'S' ? y : y + h;
+  const front = row.open === 'S' ? y + h : y;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  for (let i = 0; i <= count; i++) {
+    ctx.moveTo(start + i * pitch, back);
+    ctx.lineTo(start + i * pitch + lean, front);
+  }
+  ctx.moveTo(start, back);
+  ctx.lineTo(start + count * pitch, back);
+  ctx.stroke();
+  ctx.restore();
+
+  const angle = Math.atan2(back - front, -lean);
+  for (const car of row.cars) {
+    if (car.bay >= count) continue;
+    ctx.save();
+    ctx.translate(start + (car.bay + 0.5) * pitch + lean / 2, y + h / 2);
+    ctx.rotate(angle);
+    paintCar(ctx, car.tone);
+    ctx.restore();
+  }
+}
+
 function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
   ctx.save();
   ctx.translate(decor.x, decor.y);
   ctx.rotate(decor.angle);
-  if (decor.kind === 'voiture') {
-    ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
-    ctx.beginPath();
-    ctx.roundRect(-15, -5, 36, 16, 5);
-    ctx.fill();
-    ctx.fillStyle = '#3f6f9f';
-    ctx.strokeStyle = '#27496b';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.roundRect(-18, -8, 36, 16, 5);
-    ctx.fill();
-    ctx.stroke();
-    // Pare-brise et lunette arrière
-    ctx.fillStyle = '#cfe1ee';
-    ctx.fillRect(3, -6, 6, 12);
-    ctx.fillRect(-11, -6, 4, 12);
-    ctx.fillStyle = '#35618c';
-    ctx.fillRect(-7, -6.5, 10, 13);
+  if (decor.kind === 'passage') {
+    // Passage piéton : des bandes blanches, parallèles à la voie, d'un trottoir à l'autre.
+    const span = decor.span ?? 40;
+    const bands = Math.max(3, Math.floor((span - 6) / 9));
+    const step = (span - 6) / bands;
+    // Un contour gris : sur une rue claire, des bandes blanches ne se verraient pas.
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(96, 88, 72, 0.7)';
+    ctx.lineWidth = 0.9;
+    for (let i = 0; i < bands; i++) {
+      const y = -span / 2 + 3 + i * step + step * 0.2;
+      ctx.fillRect(-9, y, 18, step * 0.6);
+      ctx.strokeRect(-9, y, 18, step * 0.6);
+    }
+  } else if (decor.kind === 'voiture') {
+    paintCar(ctx, decor.tone);
   } else if (decor.kind === 'tente') {
     ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
     ctx.fillRect(-12, -8, 28, 22);
@@ -769,6 +844,10 @@ function isLabelSpotFree(commune: Commune, road: Road, p: Vec, halfWidth: number
   }
   for (const place of commune.places) {
     if (Math.hypot(p.x - place.pos.x, p.y - place.pos.y) < halfWidth + 34) return false;
+  }
+  // Ni sur un passage piéton, dont les bandes rendraient le nom illisible.
+  for (const decor of commune.decors) {
+    if (decor.kind === 'passage' && Math.hypot(p.x - decor.x, p.y - decor.y) < halfWidth + 22) return false;
   }
   return true;
 }
@@ -936,6 +1015,7 @@ export type LegendSample =
   | 'riviere'
   | 'route'
   | 'rue'
+  | 'passage'
   | 'chemin'
   | 'maison'
   | 'commerce'
@@ -1013,6 +1093,10 @@ export function paintLegendSample(ctx: CanvasRenderingContext2D, sample: LegendS
     case 'rue':
       road('rue', 34);
       break;
+    case 'passage':
+      road('rue', 34);
+      paintDecor(ctx, { kind: 'passage', x: w / 2, y: h / 2, angle: 0, tone: 0, span: 34 });
+      break;
     case 'chemin':
       road('chemin', 18);
       break;
@@ -1039,7 +1123,9 @@ export function paintLegendSample(ctx: CanvasRenderingContext2D, sample: LegendS
     case 'camping':
     case 'place':
     case 'parking':
-      ground(sample, 8);
+      // Une rangée de places, avec une voiture garée.
+      ground('parking', 4);
+      paintParkingRow(ctx, { rect: { x: (w - 4 * BAY - 4) / 2, y: h * 0.18, w: 4 * BAY + 4, h: h * 0.5 }, open: 'S', slant: 0, cars: [{ bay: 1, tone: 0 }] }, true);
       break;
     default:
       ground(sample);

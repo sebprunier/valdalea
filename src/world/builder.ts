@@ -82,6 +82,7 @@ export class WorldBuilder {
       fences: [],
       trees: [],
       decors: [],
+      parkings: [],
       labels: [],
       sectors: [],
       places: [],
@@ -164,6 +165,28 @@ export class WorldBuilder {
     // L'aléa est toujours consommé, pour que le reste de la commune ne dépende pas de ce paramètre.
     const random = this.between(-0.5, 0.5);
     this.commune.decors.push({ kind, x, y, angle: angle ?? random, tone: Math.floor(this.rng() * 4) });
+    return this;
+  }
+
+  /**
+   * Rangée de places de stationnement.
+   * @param open côté par lequel on y entre : l'allée, ou la rue
+   * @param cars places occupées, par leur rang depuis l'ouest
+   * @param slant inclinaison des places en épi, en radians (0 : places droites)
+   */
+  parkingRow(area: Rect, open: 'N' | 'S', cars: readonly number[], slant = 0): this {
+    // La teinte des voitures se déduit du rang de leur place : rien n'est tiré au sort.
+    this.commune.parkings.push({ rect: area, open, slant, cars: cars.map((bay) => ({ bay, tone: (bay * 3 + this.commune.parkings.length) % 4 })) });
+    return this;
+  }
+
+  /**
+   * Passage piéton, en travers d'une voie.
+   * @param at point de l'axe de la voie où l'on traverse
+   * @param vertical la voie va du nord au sud : on la traverse d'est en ouest
+   */
+  crossing(at: Vec, kind: RoadKind, vertical: boolean): this {
+    this.commune.decors.push({ kind: 'passage', x: at.x, y: at.y, angle: vertical ? Math.PI / 2 : 0, tone: 0, span: ROAD_WIDTH[kind] });
     return this;
   }
 

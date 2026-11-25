@@ -99,11 +99,27 @@ export interface Tree {
 }
 
 export interface Decor {
-  kind: 'tente' | 'caravane' | 'voiture' | 'terrain' | 'marelle' | 'banc' | 'preau';
+  kind: 'tente' | 'caravane' | 'voiture' | 'terrain' | 'marelle' | 'banc' | 'preau' | 'passage';
   x: number;
   y: number;
   angle: number;
   tone: number;
+  /** Pour un passage piéton : la largeur de la chaussée qu'il traverse. */
+  span?: number;
+}
+
+/**
+ * Une rangée de places de stationnement, tracées au sol : les places se suivent
+ * d'ouest en est. Un parking, c'est une ou deux rangées et l'allée qui les dessert.
+ */
+export interface ParkingRow {
+  rect: Rect;
+  /** Côté par lequel les voitures entrent : l'allée, ou la rue. */
+  open: 'N' | 'S';
+  /** Places en épi : leur inclinaison par rapport à la perpendiculaire, en radians (0 : places droites). */
+  slant: number;
+  /** Places occupées : leur rang depuis l'ouest, et la teinte de la voiture. */
+  cars: Array<{ bay: number; tone: number }>;
 }
 
 export interface MapLabel {
@@ -201,6 +217,7 @@ export interface Commune {
   fences: Fence[];
   trees: Tree[];
   decors: Decor[];
+  parkings: ParkingRow[];
   labels: MapLabel[];
   sectors: Sector[];
   places: Place[];
