@@ -22,7 +22,7 @@
         <p class="hud__commune">Val-d'Aléa</p>
         <p class="hud__sector"><span class="sr-only">Secteur : </span><span id="hud-sector">Bas-Bourg</span></p>
       </div>
-      <!-- L'état du moment : le temps qu'il fait et la vigilance. Les deux ouvrent le détail, dans le téléphone. -->
+      <!-- L'état du moment, sous le nom de la commune : le temps qu'il fait et la vigilance. Les deux ouvrent le détail, dans le téléphone. -->
       <div class="hud__status">
         <button type="button" class="chip chip--button" id="hud-weather" aria-haspopup="dialog">
           <span class="chip__icon" id="hud-weather-icon" aria-hidden="true"></span>
@@ -33,6 +33,27 @@
           <span>Vigilance<span class="chip__extra"> crues</span> : <span id="hud-vigilance-level">verte</span></span>
         </button>
       </div>
+      <!-- La mission : ce qu'il faut faire maintenant, le temps qu'il reste, l'avancement. Ce bouton, voisin des autres, ouvre le carnet. -->
+      <button type="button" class="mission-bar" id="button-mission" aria-keyshortcuts="M" aria-haspopup="dialog">
+        <span class="mission-bar__label">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 4h6v3H9V4Zm0 1.5H6v15h12v-15h-3M9 12l2 2 4-4.5M9 17h6" />
+          </svg>
+          <span class="mission-bar__name">Mission</span>
+        </span>
+        <span class="mission-bar__text" id="hud-objective"></span>
+        <span class="mission-bar__meta">
+          <span class="mission-bar__clock" id="hud-clock" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2" />
+            </svg>
+            <span id="hud-clock-text"></span>
+            <span class="chip__bar" aria-hidden="true"><span id="hud-clock-bar"></span></span>
+          </span>
+          <span class="mission-bar__progress" id="hud-progress" hidden></span>
+          <kbd aria-hidden="true">M</kbd>
+        </span>
+      </button>
       <nav class="hud__actions" aria-label="Menu du jeu">
         <button type="button" class="hud-button" id="button-places" aria-keyshortcuts="L">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -56,27 +77,6 @@
           <span class="hud-button__label">Aide</span> <kbd aria-hidden="true">H</kbd>
         </button>
       </nav>
-      <!-- La mission : ce qu'il faut faire maintenant, le temps qu'il reste, l'avancement. Le tout ouvre le carnet. -->
-      <button type="button" class="mission-bar" id="button-mission" aria-keyshortcuts="M" aria-haspopup="dialog">
-        <span class="mission-bar__label">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9 4h6v3H9V4Zm0 1.5H6v15h12v-15h-3M9 12l2 2 4-4.5M9 17h6" />
-          </svg>
-          <span class="mission-bar__name">Mission</span>
-        </span>
-        <span class="mission-bar__text" id="hud-objective"></span>
-        <span class="mission-bar__meta">
-          <span class="mission-bar__clock" id="hud-clock" hidden>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2" />
-            </svg>
-            <span id="hud-clock-text"></span>
-            <span class="chip__bar" aria-hidden="true"><span id="hud-clock-bar"></span></span>
-          </span>
-          <span class="mission-bar__progress" id="hud-progress" hidden></span>
-          <kbd aria-hidden="true">M</kbd>
-        </span>
-      </button>
     </header>
 
     <main class="stage">
@@ -95,9 +95,21 @@
       <p id="map-help" class="sr-only">
         Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. L ouvre la
         liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. T
-        ouvre le téléphone, H l'aide. Plus et moins changent le zoom.
+        ouvre le téléphone, H l'aide, G la légende de la carte. Plus et moins changent le zoom.
       </p>
       <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+      <div class="map-tools">
+        <div class="layer-chip" id="layer-chip" hidden>
+          <span>Carte de risque : <strong id="layer-name"></strong></span>
+          <button type="button" class="layer-chip__hide" id="layer-hide">Masquer</button>
+        </div>
+        <button type="button" class="map-button" id="button-legend" aria-keyshortcuts="G" aria-haspopup="dialog">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 6h4v4H4V6Zm0 8h4v4H4v-4Zm8-7h8m-8 8h8" />
+          </svg>
+          <span class="map-button__label">Légende</span> <kbd aria-hidden="true">G</kbd>
+        </button>
+      </div>
       <div class="zoom" role="group" aria-label="Zoom de la carte">
         <button type="button" class="zoom__button" id="zoom-in" aria-label="Zoomer" aria-keyshortcuts="+">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>

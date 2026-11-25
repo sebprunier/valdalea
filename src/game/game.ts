@@ -1,6 +1,6 @@
 import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
-import { floodLayer, hazardLayer, type WaterLayer } from '../render/flood';
+import { floodLayer, type WaterLayer } from '../render/flood';
 import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
 import { paintRisk } from '../render/riskmap';
 import { TILE_SIZE, TileCache } from '../render/tiles';
@@ -70,7 +70,6 @@ export class Game {
   private readonly pathfinder: Pathfinder;
   private readonly elevation: Elevation;
   private readonly hooks: GameHooks;
-  private readonly hazard: WaterLayer;
   private readonly flood: WaterLayer;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
@@ -118,7 +117,6 @@ export class Game {
     this.pathfinder = options.pathfinder;
     this.elevation = options.elevation;
     this.hooks = options.hooks;
-    this.hazard = hazardLayer(options.elevation);
     this.flood = floodLayer(options.elevation);
     const { commune } = this;
 
@@ -211,7 +209,7 @@ export class Game {
 
   /** Dessine la zone inondable et la crue sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
   paintWater(ctx: CanvasRenderingContext2D): void {
-    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.hazard);
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.elevation);
     if (this.floodLevel > 0.02) {
       this.flood.setLevel(this.floodLevel);
       this.flood.draw(ctx);
@@ -530,7 +528,7 @@ export class Game {
     if (missing) this.dirty = true;
 
     ctx.setTransform(scale, 0, 0, scale, -origin.x, -origin.y);
-    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 13, this.hazard);
+    if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 13, this.elevation);
     if (this.floodLevel > 0.02) {
       this.flood.setLevel(this.floodLevel);
       this.flood.draw(ctx);

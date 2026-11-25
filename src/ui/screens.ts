@@ -31,6 +31,7 @@ function controlsList(): HTMLElement {
     ...row('Courir', 'maintenir ', keys('Maj')),
     ...row('Ouvrir un lieu', keys('Entrée'), ' ou ', keys('E')),
     ...row('Zoomer, dézoomer', keys('+'), ' et ', keys('-'), ', la molette, ou les boutons en bas de la carte'),
+    ...row('Légende de la carte', keys('G')),
     ...row('Carnet de mission', keys('M')),
     ...row('Liste des lieux', keys('L')),
     ...row('Téléphone', keys('T')),
@@ -131,11 +132,17 @@ export function createHelpDialog(): DialogHandle {
       null,
       "Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend l'automne au début en gardant vos badges, « Tout recommencer » efface la partie. À la fin de la crue, le bilan et le carnet de mission proposent aussi de rejouer.",
     ),
+    h('h3', null, 'Quitter le jeu'),
+    h(
+      'p',
+      null,
+      "La partie s'enregistre toute seule : vous pouvez fermer la page et revenir plus tard. Si vous faites « retour » dans le navigateur, le jeu vous demande confirmation avant de vous laisser partir.",
+    ),
     h('h3', null, 'Les repères sur la carte'),
     h(
       'p',
       null,
-      'Chaque lieu est signalé par une pastille. Approchez-vous : son nom apparaît en bas de l’écran, et vous pouvez l’ouvrir. Un chiffre orange indique le nombre de gestes possibles sur place ; une coche marque les lieux déjà visités.',
+      'Chaque lieu est signalé par une pastille. Approchez-vous : son nom apparaît en bas de l’écran, et vous pouvez l’ouvrir. Un chiffre orange indique le nombre de gestes possibles sur place ; une coche marque les lieux déjà visités. Le bouton « Légende », en bas à gauche de la carte, explique les couleurs et les motifs du plan.',
     ),
   );
   return dialog;

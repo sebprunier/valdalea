@@ -29,10 +29,6 @@ export interface FlowDeps {
   setChapter(recipe: (chapter: Chapter) => Chapter): void;
   getBadges(): readonly string[];
   addBadges(ids: readonly string[]): void;
-  /** Affiche la carte de la zone inondable sur le plan du jeu. */
-  showFloodZone(): void;
-  /** Ouvre le DICRIM. */
-  openDicrim(returnFocus: HTMLElement | null): void;
   /** Recommence le chapitre, en gardant les badges. */
   replay(): void;
   /** Ferme la fiche de lieu si elle est ouverte. */
@@ -258,11 +254,6 @@ export function createFlow(deps: FlowDeps): Flow {
     isBusy: () => busy,
 
     afterAction(action) {
-      if (action.id === 'mairie-dicrim') {
-        deps.showFloodZone();
-        deps.openDicrim(null);
-        return true;
-      }
       if (action.endsPhase && action.phase !== 'accueil') {
         void enter(deps.getChapter().phase);
         return true;

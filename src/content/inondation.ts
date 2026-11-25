@@ -30,9 +30,10 @@ export const ACTIONS: ActionDef[] = [
     phase: 'preparation',
     minutes: 20,
     title: 'Consulter le DICRIM',
+    go: 'Ouvrir le DICRIM',
     why: "Le document d'information communal sur les risques majeurs présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Se renseigner en mairie est la première des mesures de prévention.",
     who: 'Le maire rédige le DICRIM et doit le faire connaître. À chacun de le lire.',
-    done: "Vous savez maintenant où l'eau peut monter : la zone inondable s'affiche sur la carte. Le DICRIM reste disponible dans votre téléphone.",
+    done: "Vous avez parcouru le DICRIM : vous savez maintenant où l'eau peut monter. La zone inondable s'affiche sur la carte, en hachures violettes. Le document reste disponible dans votre téléphone.",
     sources: ['georisques-inondation', 'georisques-dicrim'],
   },
   {

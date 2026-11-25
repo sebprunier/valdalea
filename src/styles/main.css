@@ -28,6 +28,8 @@
 html,
 body {
   height: 100%;
+  /* Un glissement horizontal sur la carte ne doit pas faire reculer le navigateur d'une page. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -131,18 +133,49 @@ kbd {
 
 /* ------------------------------------------------------------------ Barre */
 
+/*
+ * À gauche : la commune, et dessous l'état du moment (temps, vigilance).
+ * À droite : la mission, puis les autres boutons. Sur un écran moins large,
+ * la mission passe sur sa propre ligne.
+ */
 .hud {
   flex: none;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   grid-template-areas:
-    'where status actions'
-    'objective objective objective';
+    'where actions'
+    'status status'
+    'mission mission';
   align-items: center;
   gap: 0.4rem 1rem;
   padding: 0.5rem 0.875rem;
   background: var(--ink);
   color: var(--paper);
+}
+
+@media (min-width: 68rem) {
+  .hud {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'where mission actions'
+      'status mission actions';
+  }
+
+  /* À côté des boutons, la mission tient sur deux lignes : le temps et l'avancement, puis le conseil. */
+  .mission-bar {
+    justify-self: end;
+    width: fit-content;
+    max-width: min(100%, 38rem);
+  }
+
+  .mission-bar__meta {
+    order: 2;
+  }
+
+  .mission-bar__text {
+    order: 3;
+    flex-basis: 100%;
+  }
 }
 
 .hud__where {
@@ -178,7 +211,6 @@ kbd {
   grid-area: status;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 0.5rem;
 }
 
@@ -251,7 +283,7 @@ kbd {
  * l'avancement. C'est un seul bouton, qui ouvre le carnet.
  */
 .mission-bar {
-  grid-area: objective;
+  grid-area: mission;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -329,6 +361,7 @@ kbd {
   grid-area: actions;
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
@@ -410,6 +443,67 @@ kbd {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* En bas à gauche de la carte : la légende et, quand une carte de risque est affichée, son nom. */
+.map-tools {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  max-width: calc(100% - 5.5rem);
+}
+
+.map-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.9rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 35%);
+}
+
+.map-button:hover {
+  background: #2c3b49;
+}
+
+.map-button kbd {
+  color: #d8d2c4;
+}
+
+.layer-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  padding: 0.3rem 0.4rem 0.3rem 0.9rem;
+  border: 2px solid #4a37a8;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  box-shadow: 0 6px 18px rgb(20 26 34 / 25%);
+}
+
+.layer-chip__hide {
+  flex: none;
+  min-height: 2rem;
+  padding: 0.1rem 0.7rem;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.layer-chip__hide:hover {
+  background: var(--paper-2);
 }
 
 /* Zoom : deux boutons, en bas à droite de la carte. */
@@ -847,20 +941,6 @@ kbd {
 
 /* ----------------------------------------------------------- Petits écrans */
 
-@media (max-width: 52rem) {
-  .hud {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'where actions'
-      'status status'
-      'objective objective';
-  }
-
-  .hud__status {
-    justify-content: flex-start;
-  }
-}
-
 @media (max-width: 34rem) {
   .hud-button__label {
     position: absolute;
@@ -923,9 +1003,38 @@ kbd {
     padding-left: 2.2rem;
   }
 
-  /* Le nom du lieu ne passe jamais sous les boutons de zoom. */
+  /* Le nom du lieu ne passe jamais sous les boutons de la carte ; la légende se réduit à son pictogramme. */
   .prompt {
     max-width: calc(100% - 8.5rem);
+  }
+
+  .map-button {
+    width: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .map-button__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .map-button kbd {
+    display: none;
+  }
+
+  /* Au-dessus du nom du lieu, qui occupe le bas de la carte. */
+  .map-tools {
+    bottom: 1.25rem;
+  }
+
+  .layer-chip {
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
   }
 
   .dialog__panel {
@@ -964,6 +1073,7 @@ kbd {
 
 @media (forced-colors: active) {
   .hud-button,
+  .map-button,
   .mission-bar,
   .chip--button,
   .zoom__button,
@@ -1598,6 +1708,31 @@ meter {
   background: var(--paper-2);
 }
 
+/* ------------------------------------------------------ Légende de la carte */
+
+.map-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.map-legend li {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.map-legend--tall li {
+  grid-template-columns: 3rem 1fr;
+}
+
+.legend-sample {
+  justify-self: center;
+  border: 1px solid var(--ink-soft);
+  border-radius: 0.25rem;
+}
+
 /* -------------------------------------------- Téléphone : vigilance et partie */
 
 .facts {
@@ -1781,7 +1916,7 @@ meter {
 /* ----------------------------------------------------------------- DICRIM */
 
 .dialog--document {
-  width: min(52rem, calc(100vw - 1rem));
+  width: min(54rem, calc(100vw - 1rem));
   height: calc(100dvh - 1rem);
   max-height: none;
   background: #6b7480;
@@ -1815,22 +1950,83 @@ meter {
   background: #2c3b49;
 }
 
+.dialog--document .dialog__head {
+  gap: 0.75rem;
+}
+
+.dialog--document .dialog__title {
+  margin-right: auto;
+}
+
+/* Bouton d'impression, dans le bandeau sombre du document. */
+.document-print {
+  min-height: 2.25rem;
+  border-color: #8a97a3;
+  color: var(--paper);
+}
+
+.document-print:hover {
+  border-color: var(--paper);
+  background: #2c3b49;
+}
+
+.document-hint {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  color: #eef1f4;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.dialog--document .dialog__body > * + * {
+  margin-top: 0;
+}
+
 .document {
   display: grid;
   gap: 1.25rem;
-  padding: 1.25rem 1rem 2rem;
+  justify-content: center;
+  padding: 1rem 1rem 2rem;
 }
 
+/*
+ * Une page : une feuille A4 à 96 points par pouce (794 × 1123 px). Toutes ont
+ * la même taille, à l'écran comme à l'impression ; sur un écran plus étroit,
+ * le document entier est réduit en proportion (propriété zoom, posée par le script).
+ */
 .page {
-  width: min(42rem, 100%);
-  margin: 0 auto;
-  padding: 2rem 2.25rem 1.25rem;
+  position: relative;
+  width: 794px;
+  height: 1123px;
+  padding: 48px 64px 68px;
+  overflow: hidden;
   background: #fffdf8;
   box-shadow: 0 6px 20px rgb(10 14 20 / 35%);
 }
 
-.page > * + * {
-  margin-top: 0.8rem;
+.page__body {
+  height: 100%;
+}
+
+.page__body > * + * {
+  margin-top: 0.7rem;
+}
+
+/* Variante resserrée, retenue quand elle évite à un chapitre de déborder de quelques lignes sur une page de plus. */
+.page--tight .page__body > * + * {
+  margin-top: 0.45rem;
+}
+
+.page.page--tight h4 {
+  margin-top: 0.9rem;
+}
+
+.page--tight .reflexes {
+  padding: 0.5rem 1rem;
+}
+
+.page--tight .bullets {
+  gap: 0.15rem;
 }
 
 .dialog__body .page h3 {
@@ -1842,7 +2038,7 @@ meter {
 }
 
 .page h4 {
-  margin: 1.5rem 0 0;
+  margin: 1.25rem 0 0;
   color: var(--accent-dark);
   font-size: 1.0625rem;
 }
@@ -1862,26 +2058,80 @@ meter {
 }
 
 .page__footer {
+  position: absolute;
+  right: 64px;
+  bottom: 22px;
+  left: 64px;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 0.6rem;
+  margin: 0;
+  padding-top: 0.5rem;
   border-top: 1px solid var(--line);
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
+}
+
+/* Pendant la mise en pages, le document est mesuré à sa taille réelle, quel que soit l'écran. */
+.document--measuring {
+  width: max-content;
+}
+
+/*
+ * Écran étroit : lecture en continu. Chaque page garde son contenu et son
+ * numéro, mais prend la largeur de l'écran et la hauteur de son texte.
+ */
+.document--flow {
+  justify-content: stretch;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.document--flow .page {
+  width: auto;
+  height: auto;
+  padding: 1.25rem 1rem 1rem;
+  overflow: visible;
+}
+
+.document--flow .page__body {
+  height: auto;
+}
+
+.document--flow .page__footer {
+  position: static;
+  margin-top: 1.5rem;
+}
+
+.document--flow .page--cover {
+  min-height: 70dvh;
+}
+
+/* En lecture continue, les cartes reprennent toute la largeur, et leur légende une seule colonne. */
+.document--flow .risk-map__image {
+  width: 100%;
+}
+
+.document--flow .risk-map--compact .legend-list {
+  grid-template-columns: 1fr;
+}
+
+/* La couverture occupe toute sa page. */
+.page--cover {
+  display: grid;
+  align-content: center;
 }
 
 .cover {
   display: grid;
   justify-items: center;
-  gap: 0.6rem;
-  padding: 2.5rem 0 1.5rem;
+  gap: 0.75rem;
+  padding: 0 0 3rem;
   text-align: center;
 }
 
 .cover__emblem {
-  width: 7.5rem;
+  width: 10rem;
   height: auto;
 }
 
@@ -1914,8 +2164,8 @@ meter {
 }
 
 .cover__notice {
-  max-width: 28rem;
-  margin-top: 2rem;
+  max-width: 30rem;
+  margin-top: 4rem;
   padding: 0.75rem 1rem;
   border: 1px dashed var(--ink-soft);
   color: var(--ink-soft);
@@ -1927,11 +2177,29 @@ meter {
   text-align: right;
 }
 
+/* Sommaire : un titre, des points de conduite, le numéro de la page. */
 .toc {
   display: grid;
-  gap: 0.2rem;
-  padding-left: 1.5rem;
-  list-style: decimal;
+  gap: 0.1rem;
+}
+
+.toc li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.toc__dots {
+  flex: 1;
+  min-width: 1.5rem;
+  border-bottom: 2px dotted var(--line);
+}
+
+.toc__page {
+  min-width: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
 }
 
 .link-button {
@@ -1945,13 +2213,34 @@ meter {
 }
 
 .risk-map {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
   margin: 1rem 0 0;
+}
+
+.risk-map figcaption {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.risk-map .link-button {
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Carte réduite, pour tenir sur la page où commence le chapitre : la légende passe sur deux colonnes. */
+.risk-map--compact .legend-list {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.5rem;
+  width: 100%;
 }
 
 .risk-map__image {
   display: block;
-  width: 100%;
+  width: var(--map-width, 100%);
   height: auto;
+  justify-self: center;
   border: 1px solid var(--ink-soft);
 }
 
@@ -2018,12 +2307,16 @@ meter {
 }
 
 @media (max-width: 34rem) {
-  .page {
-    padding: 1.25rem 1rem 1rem;
+  .document--flow .cover__title {
+    font-size: 3rem;
   }
 
-  .cover__title {
-    font-size: 3rem;
+  .document-print__more {
+    display: none;
+  }
+
+  .dialog--document .dialog__title {
+    font-size: 1rem;
   }
 
   .todo {
@@ -2032,5 +2325,71 @@ meter {
 
   .todo__status {
     grid-column: 2;
+  }
+}
+
+/* -------------------------------------------------- Impression du DICRIM */
+
+/* Conteneur qui reçoit les pages le temps de l'impression : invisible à l'écran. */
+.print-root {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  /* L'impression lancée depuis le DICRIM ne montre que ses pages, une par feuille. */
+  html.printing,
+  html.printing body {
+    display: block;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  html.printing body > :not(.print-root) {
+    display: none !important;
+  }
+
+  html.printing .print-root {
+    display: block;
+    margin: 0;
+  }
+
+  html.printing .document {
+    display: block;
+    padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html.printing .page {
+    width: 210mm;
+    height: 296.5mm;
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  html.printing .page--cover {
+    display: grid;
+  }
+
+  html.printing .page:last-child {
+    break-after: auto;
+  }
+
+  /* Sans objet sur le papier ; la place est gardée, pour que la mise en pages ne bouge pas. */
+  html.printing .screen-only {
+    visibility: hidden;
+  }
+
+  html.printing .link-button {
+    color: inherit;
+    text-decoration: none;
   }
 }

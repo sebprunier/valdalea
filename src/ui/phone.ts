@@ -44,6 +44,8 @@ export interface PhoneDeps {
   isDicrimRead(): boolean;
   /** Ouvre le DICRIM par-dessus le téléphone. */
   openDicrim(): void;
+  /** Ouvre la légende de la carte par-dessus le téléphone. */
+  openLegend(): void;
   /** Affiche une carte de risque sur le plan du jeu, ou aucune. */
   setLayer(risk: RiskId | null): void;
   isReducedMotion(): boolean;
@@ -138,12 +140,15 @@ export function createPhone(deps: PhoneDeps): Phone {
     layerChoice('aucune', 'Aucune'),
     ...RISK_IDS.map((risk) => layerChoice(risk, RISK_NAMES[risk])),
   );
+  const legendButton = h('button', { type: 'button', class: 'button button--small' }, 'Légende de la carte');
+  legendButton.addEventListener('click', () => deps.openLegend());
   const mapView = h(
     'div',
     { class: 'stack' },
     mapWhere,
     mapCanvas,
     h('p', { class: 'fine-print' }, 'Votre position est le point orange. Les numéros renvoient à la liste ci-dessous.'),
+    legendButton,
     mapZoneField,
     mapLegend,
   );

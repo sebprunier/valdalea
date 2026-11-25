@@ -20,8 +20,9 @@ Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation*
 Autour de ce chapitre :
 
 - **Le récit entre les phases** : aucune alerte n'arrive sans prévenir. Un court moment de récit la précède, pendant lequel le joueur voit le soir tomber, la pluie arriver et l'eau monter sur la carte. Rien n'avance tout seul : c'est lui qui passe à la suite.
-- **La barre d'état** : le temps qu'il fait et le niveau de vigilance, qui ouvrent le détail (les quatre niveaux de vigilance, les messages reçus), et le bandeau de mission, qui dit toujours quoi faire ensuite, avec le temps restant et l'avancement.
-- **Le DICRIM de Val-d'Aléa**, un vrai document à feuilleter : mot des élus, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Chaque carte peut s'afficher sur le plan du jeu.
+- **La barre d'état** : sous le nom de la commune, le temps qu'il fait et le niveau de vigilance, qui ouvrent le détail (les quatre niveaux de vigilance, les messages reçus) ; à côté des autres boutons, celui de la mission, qui dit toujours quoi faire ensuite, avec le temps restant et l'avancement.
+- **Le DICRIM de Val-d'Aléa**, un vrai document : couverture, mot des élus, sommaire, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Il est mis en pages comme une brochure, en feuilles A4 numérotées, et s'imprime ou s'enregistre en PDF tel quel ; chaque page rappelle qu'il s'agit d'un document fictif. Chaque carte peut s'afficher sur le plan du jeu.
+- **La légende de la carte** (bouton en bas à gauche, touche G) : ce que représentent les couleurs et les motifs du plan, et les repères posés dessus.
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
 - **Le téléphone**, tableau de bord du jeu : une pastille y signale ce qui vient d'arriver (une alerte, le DICRIM, le bilan). On y rejoue le chapitre ou on y recommence la partie, dans les réglages.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
@@ -70,13 +71,15 @@ Aucune dépendance à l'exécution : TypeScript, l'API Canvas 2D, SVG et le DOM.
 | Dossier | Rôle |
 |---|---|
 | `src/core` | Géométrie, état de la partie, sauvegarde, règles du chapitre (phases, temps, bilan). Sans DOM, testable seul. |
-| `src/world` | Plan de la commune (`valdalea.ts`), grille de franchissabilité, calcul d'itinéraire, relief et inondation, zones de risque. Sans DOM. |
+| `src/world` | Plan de la commune (`valdalea.ts`), grille de franchissabilité, calcul d'itinéraire, relief et inondation, contour de la zone inondable, zones de risque. Sans DOM. |
 | `src/content` | Textes et contenus de prévention, séparés du code pour être relus facilement. |
 | `src/render` | Dessin du plan, mis en cache par tuiles, cartes de risques, nappes d'eau, temps qu'il fait (voile et pluie) et éléments animés. |
 | `src/game` | Boucle de jeu, entrées clavier et pointeur, caméra. |
-| `src/ui` | Interface en HTML : barre, fenêtres, téléphone, fiches de lieux, carnet de mission, DICRIM, schémas, déroulé du chapitre. |
+| `src/ui` | Interface en HTML : barre, fenêtres, téléphone, fiches de lieux, carnet de mission, DICRIM (mise en pages et impression), légende, schémas, déroulé du chapitre. |
 | `src/ui/scenes` | Vues rapprochées des lieux, dessinées en SVG. |
-| `tests` | Tests unitaires : règles du chapitre, cohérence des contenus, validité du plan, relief, itinéraires, sauvegarde. |
+| `tests` | Tests unitaires : règles du chapitre, cohérence des contenus, validité du plan, relief, contour de la zone inondable, itinéraires, sauvegarde. |
+
+Le DICRIM est mis en pages dans le navigateur : ses blocs (titres, paragraphes, cartes, listes) sont répartis sur des pages de 794 × 1123 px, soit une feuille A4 à 96 points par pouce, en mesurant ce qui tient. Une carte est réduite si cela évite une page presque vide. L'impression reprend exactement ces pages ; c'est la fenêtre d'impression du navigateur qui propose l'enregistrement en PDF. Sur un écran étroit, les mêmes pages se lisent en continu, à la largeur de l'écran.
 
 Unités : une unité « monde » vaut un mètre. La commune fait 4,2 km sur 3 ; les bâtiments sont grossis, comme sur un plan schématique. Le temps du jeu n'est jamais réel : il n'avance que lorsque le joueur accomplit un geste ou se déplace, à 6 km/h.
 
@@ -87,6 +90,7 @@ Le jeu vise les critères du RGAA :
 - l'interface est en HTML sémantique, les fenêtres utilisent l'élément natif `<dialog>` ;
 - tout se fait au clavier, et le focus reste visible ;
 - la carte et les illustrations ne sont pas indispensables : la liste des lieux, le carnet de mission et la liste des gestes en sont l'alternative, et chaque carte de risque est décrite en toutes lettres ;
+- un « retour » involontaire du navigateur ne quitte pas le jeu sans confirmation ; fermer la page ne demande rien, la partie étant enregistrée ;
 - rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;
 - la pluie et la lumière du soir sont un décor : le temps qu'il fait est aussi écrit dans la barre d'état ;
 - aucune information ne repose sur la couleur seule (niveaux de vigilance, zones des cartes, états des gestes, résultats du bilan) ;

@@ -27,6 +27,8 @@ import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
 import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, h, icon, requireElement } from './dom';
 import { createFlow, type Scene } from './flow';
+import { guardBack } from './leave';
+import { createMapLegend } from './legend';
 import { createMission } from './mission';
 import { createPhone, type PhoneView } from './phone';
 import { createPlaceUi } from './place';
@@ -47,7 +49,7 @@ export interface UiDeps {
   setReducedMotion(reduced: boolean): void;
 }
 
-export type Panel = 'phone' | 'places' | 'help' | 'mission';
+export type Panel = 'phone' | 'places' | 'help' | 'mission' | 'legend';
 
 export interface Ui {
   setNearPlace(place: Place | null): void;
@@ -80,6 +82,9 @@ export function createUi(deps: UiDeps): Ui {
   const phoneNews = requireElement<HTMLElement>('phone-news');
   const zoomIn = requireElement<HTMLButtonElement>('zoom-in');
   const zoomOut = requireElement<HTMLButtonElement>('zoom-out');
+  const layerChip = requireElement<HTMLElement>('layer-chip');
+  const layerName = requireElement<HTMLElement>('layer-name');
+  const layerHide = requireElement<HTMLButtonElement>('layer-hide');
   const prompt = requireElement<HTMLElement>('prompt');
   const promptButton = requireElement<HTMLButtonElement>('prompt-button');
   const promptName = requireElement<HTMLElement>('prompt-name');
@@ -120,6 +125,12 @@ export function createUi(deps: UiDeps): Ui {
     toast(after.phase === 'preparation' ? `Le temps presse : il vous reste ${left} avant la nuit.` : `L'eau monte : il vous reste ${left} pour vous mettre à l'abri.`);
   }
 
+  /** Carte de risque réellement montrée sur le plan. Pendant la crue et les moments de récit, c'est le ciel et l'eau qui se voient : les zones théoriques s'effacent. */
+  function shownLayer(): RiskId | null {
+    const layer = store.get().settings.hazardLayer as RiskId | null;
+    return layer && dicrimRead() && chapter().phase !== 'crise' && !scene ? layer : null;
+  }
+
   let near: Place | null = null;
   let sectorName = commune.name;
   /** Moment de récit en cours : il remplace, dans la barre et sur la carte, l'état de la phase. */
@@ -154,8 +165,6 @@ export function createUi(deps: UiDeps): Ui {
     setChapter,
     getBadges: () => store.get().badges,
     addBadges: (ids) => store.update((state) => withBadges(state, ids)),
-    showFloodZone: () => setLayer('inondation'),
-    openDicrim: (returnFocus) => dicrim.open(returnFocus),
     replay,
     closePlace: () => placeUi.close(),
     goHome: () => game.moveTo(home),
@@ -191,6 +200,13 @@ export function createUi(deps: UiDeps): Ui {
     getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
     perform: (action) => setChapter((current) => perform(current, action)),
+    performed: (action) => {
+      // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur
+      // au moment même du geste, et la zone inondable apparaît sur le plan.
+      if (action.id !== 'mairie-dicrim') return;
+      setLayer('inondation');
+      dicrim.open(null);
+    },
     afterAction: (action) => void flow.afterAction(action),
   });
 
@@ -213,6 +229,11 @@ export function createUi(deps: UiDeps): Ui {
     goTo,
     openBilan: () => openPhone(map, 'bilan'),
     replay,
+  });
+
+  const legend = createMapLegend({
+    getLayer: () => shownLayer(),
+    hideLayer: () => setLayer(null),
   });
 
   /** Rejoue le chapitre en cours de route : la progression du chapitre est perdue, d'où la confirmation. */
@@ -258,6 +279,7 @@ export function createUi(deps: UiDeps): Ui {
     clearNews: (id) => store.update((state) => withoutNews(state, id)),
     isDicrimRead: dicrimRead,
     openDicrim: () => dicrim.open(null),
+    openLegend: () => legend.open(null),
     setLayer,
     isReducedMotion: deps.isReducedMotion,
     setReducedMotion: deps.setReducedMotion,
@@ -298,6 +320,7 @@ export function createUi(deps: UiDeps): Ui {
     if (panel === 'phone') openPhone(trigger);
     else if (panel === 'help') helpDialog.open(trigger);
     else if (panel === 'mission') mission.open(trigger);
+    else if (panel === 'legend') legend.open(trigger);
     else placesDialog.show(game.position, store.get().visited, trigger);
   }
 
@@ -310,6 +333,24 @@ export function createUi(deps: UiDeps): Ui {
   bind('button-places', 'places');
   bind('button-phone', 'phone');
   bind('button-help', 'help');
+  bind('button-legend', 'legend');
+  layerHide.addEventListener('click', () => {
+    setLayer(null);
+    map.focus({ preventScroll: true });
+  });
+
+  // Un « retour » du navigateur ne quitte pas le jeu sans prévenir.
+  guardBack(() =>
+    confirm({
+      title: 'Quitter le jeu ?',
+      message: deps.persistent
+        ? 'Votre partie est enregistrée dans ce navigateur : vous la retrouverez en revenant sur cette page.'
+        : "Votre navigateur bloque l'enregistrement : la partie en cours sera perdue.",
+      confirmLabel: 'Quitter',
+      cancelLabel: 'Rester',
+      preferCancel: true,
+    }),
+  );
   // Le temps qu'il fait et la vigilance mènent au même endroit : la situation du moment, dans le téléphone.
   onPress(weatherChip, (trigger) => openPhone(trigger, 'alertes'));
   onPress(vigilanceChip, (trigger) => openPhone(trigger, 'alertes'));
@@ -384,9 +425,11 @@ export function createUi(deps: UiDeps): Ui {
     }
     shownPhase = current.phase;
 
-    // Pendant la crue et les moments de récit, c'est le ciel et l'eau qui se voient : les zones théoriques s'effacent.
-    const layer = state.settings.hazardLayer as RiskId | null;
-    game.setHazardLayer(layer && current.done.includes('mairie-dicrim') && current.phase !== 'crise' && !scene ? layer : null);
+    // La carte de risque posée sur le plan est nommée sur la carte elle-même : on sait ce qu'on regarde.
+    const layer = shownLayer();
+    game.setHazardLayer(layer);
+    layerChip.hidden = layer === null;
+    if (layer) layerName.textContent = RISK_NAMES[layer].toLowerCase();
     game.invalidate();
   }
   store.subscribe(sync);

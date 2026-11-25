@@ -26,6 +26,8 @@ export interface PlaceUiDeps {
   getExposures(place: Place): string[] | null;
   /** Accomplit l'action. */
   perform(action: ActionDef): void;
+  /** L'action vient d'être accomplie et son résultat est affiché : c'est le moment d'ouvrir ce qu'elle donne à voir. */
+  performed(action: ActionDef): void;
   /** Le joueur a lu le résultat de l'action et passe à la suite. */
   afterAction(action: ActionDef): void;
 }
@@ -190,6 +192,7 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
         ].filter((node): node is HTMLElement => node !== null),
       );
       dialog.focusTitle();
+      deps.performed(action);
     };
 
     const questions = (action.questions ?? []).map((id) => QUESTIONS.find((q) => q.id === id)).filter((q) => q !== undefined);
@@ -240,7 +243,7 @@ export function createPlaceUi(deps: PlaceUiDeps): PlaceUi {
           ),
         );
       }
-      const go = h('button', { type: 'button', class: 'button button--primary' }, questions.length > 0 ? 'Commencer' : 'Le faire');
+      const go = h('button', { type: 'button', class: 'button button--primary' }, action.go ?? (questions.length > 0 ? 'Commencer' : 'Le faire'));
       go.addEventListener('click', () => (questions.length > 0 ? ask(0) : finish()));
       host.append(h('div', { class: 'dialog__actions' }, go));
     } else if (state.state === 'faite') {

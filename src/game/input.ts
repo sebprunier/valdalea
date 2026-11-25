@@ -1,6 +1,6 @@
 import type { Vec } from '../core/geometry';
 
-export type Shortcut = 'phone' | 'places' | 'help' | 'mission';
+export type Shortcut = 'phone' | 'places' | 'help' | 'mission' | 'legend';
 
 /** `halt` : le joueur pose un second doigt pour pincer ; le déplacement en cours s'arrête. */
 export type Action = 'interact' | Shortcut | 'zoom-in' | 'zoom-out' | 'halt';
@@ -29,6 +29,7 @@ const ACTION_KEYS: Record<string, Action> = {
   KeyL: 'places',
   KeyH: 'help',
   KeyM: 'mission',
+  KeyG: 'legend',
 };
 
 /** Le zoom se lit par caractère, lui : « + » et « - » ne sont pas au même endroit sur tous les claviers. */

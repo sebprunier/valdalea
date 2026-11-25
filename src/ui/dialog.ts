@@ -119,8 +119,17 @@ export function createDialog(options: DialogOptions): DialogHandle {
   };
 }
 
+export interface ConfirmQuestion {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  /** Mettre en avant le refus plutôt que la confirmation, quand refuser est le choix sans risque. */
+  preferCancel?: boolean;
+}
+
 /** Demande de confirmation. La promesse vaut `true` si l'action est confirmée. */
-export function createConfirm(): (question: { title: string; message: string; confirmLabel: string }) => Promise<boolean> {
+export function createConfirm(): (question: ConfirmQuestion) => Promise<boolean> {
   const dialog = createDialog({ id: 'confirmation', title: '', className: 'dialog--narrow' });
   const message = h('p');
   const cancel = h('button', { type: 'button', class: 'button' }, 'Annuler');
@@ -143,6 +152,9 @@ export function createConfirm(): (question: { title: string; message: string; co
     dialog.setTitle(question.title);
     message.textContent = question.message;
     confirm.textContent = question.confirmLabel;
+    cancel.textContent = question.cancelLabel ?? 'Annuler';
+    cancel.classList.toggle('button--primary', question.preferCancel === true);
+    confirm.classList.toggle('button--primary', question.preferCancel !== true);
     confirmed = false;
     return new Promise<boolean>((done) => {
       resolve = done;

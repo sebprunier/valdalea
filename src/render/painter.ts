@@ -1,5 +1,5 @@
 import { clamp, distToPolyline, inflate, rectsIntersect, type Rect, type Vec } from '../core/geometry';
-import type { Bridge, Building, Commune, Decor, Fence, Ground, MapLabel, Road, RoadKind, Tank, Tree } from '../world/model';
+import type { Bridge, Building, Commune, Decor, Fence, Ground, MapLabel, River, Road, RoadKind, Tank, Tree } from '../world/model';
 
 /**
  * Dessin du plan de la commune, entièrement en code (aucune image).
@@ -90,7 +90,7 @@ export function paintMap(
     if (ground.kind !== 'jardin' && seen(ground.bounds, 4)) paintGround(ctx, ground, options);
   }
 
-  if (seen(commune.river.bounds)) paintRiver(ctx, commune, options);
+  if (seen(commune.river.bounds)) paintRiver(ctx, commune.river, options);
 
   for (const ground of commune.grounds) {
     if (ground.kind === 'jardin' && seen(ground.bounds, 4)) paintGround(ctx, ground, options);
@@ -239,8 +239,8 @@ function paintGround(ctx: CanvasRenderingContext2D, ground: Ground, options: Pai
 
 // ------------------------------------------------------------------ Rivière
 
-function paintRiver(ctx: CanvasRenderingContext2D, commune: Commune, options: PaintOptions): void {
-  const { path, width } = commune.river;
+function paintRiver(ctx: CanvasRenderingContext2D, river: River, options: PaintOptions): void {
+  const { path, width } = river;
   tracePath(ctx, path);
   ctx.strokeStyle = '#cfe0bb';
   ctx.lineWidth = width + 30;
@@ -781,6 +781,127 @@ export function paintAboveWater(
   const still: PaintOptions = { labels: false, details: false };
   for (const tree of commune.trees) {
     if (seen({ x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }) && isFlooded(tree)) paintTree(ctx, tree, still);
+  }
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ Légende
+
+/** Éléments du plan que la légende explique. */
+export type LegendSample =
+  | 'pre'
+  | 'champ'
+  | 'foret'
+  | 'parc'
+  | 'jardin'
+  | 'falaise'
+  | 'eboulis'
+  | 'camping'
+  | 'industrie'
+  | 'parking'
+  | 'place'
+  | 'riviere'
+  | 'route'
+  | 'rue'
+  | 'chemin'
+  | 'maison'
+  | 'public'
+  | 'activite';
+
+/**
+ * Dessine un échantillon du plan dans un cadre de `w` sur `h` unités monde.
+ * L'échantillon passe par les fonctions mêmes qui dessinent la carte : la
+ * légende ne peut pas s'en écarter.
+ */
+export function paintLegendSample(ctx: CanvasRenderingContext2D, sample: LegendSample, w: number, h: number): void {
+  const options: PaintOptions = { labels: false, details: true };
+  const frame = (inset: number): { poly: Vec[]; bounds: Rect } => ({
+    poly: [
+      { x: inset, y: inset },
+      { x: w - inset, y: inset },
+      { x: w - inset, y: h - inset },
+      { x: inset, y: h - inset },
+    ],
+    bounds: { x: inset, y: inset, w: w - inset * 2, h: h - inset * 2 },
+  });
+  const ground = (kind: Ground['kind'], inset = 0, variant = 0): void => paintGround(ctx, { kind, variant, ...frame(inset) }, options);
+  const across: Vec[] = [
+    { x: -30, y: h / 2 },
+    { x: w + 30, y: h / 2 },
+  ];
+  const road = (kind: RoadKind, width: number): void => paintRoads(ctx, [{ kind, width, path: across, bounds: frame(0).bounds }]);
+  const trees = (spots: ReadonlyArray<readonly [number, number, number]>): void => {
+    spots.forEach(([x, y, r], tone) => paintTree(ctx, { x: x * w, y: y * h, r, tone }, options));
+  };
+  const building = (kind: Building['kind'], roof: Building['roof'], tone: number): void => {
+    const rect = { x: w * 0.2, y: h * 0.22, w: w * 0.6, h: h * 0.56 };
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
+    ctx.fillRect(rect.x + 4, rect.y + 6, rect.w, rect.h);
+    paintBuilding(ctx, { kind, roof, tone, rect });
+  };
+
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.clip();
+  ctx.fillStyle = MAP_BACKGROUND;
+  ctx.fillRect(0, 0, w, h);
+
+  switch (sample) {
+    case 'pre':
+      break;
+    case 'foret':
+      ground('foret');
+      trees([
+        [0.16, 0.3, 17],
+        [0.44, 0.22, 20],
+        [0.74, 0.34, 18],
+        [0.28, 0.72, 19],
+        [0.58, 0.68, 16],
+        [0.88, 0.78, 18],
+      ]);
+      break;
+    case 'parc':
+      ground('parc', 8);
+      trees([
+        [0.3, 0.42, 15],
+        [0.68, 0.58, 17],
+      ]);
+      break;
+    case 'riviere':
+      paintRiver(ctx, { name: '', width: h * 0.46, path: across, bounds: frame(0).bounds }, options);
+      break;
+    case 'route':
+      road('departementale', 46);
+      break;
+    case 'rue':
+      road('rue', 34);
+      break;
+    case 'chemin':
+      road('chemin', 18);
+      break;
+    case 'maison':
+      ground('jardin', 6);
+      building('pavillon', 'tuile', 0);
+      break;
+    case 'public':
+      building('mairie', 'ardoise', 0);
+      break;
+    case 'activite':
+      ground('industrie');
+      building('hangar', 'bac', 0);
+      break;
+    case 'jardin':
+    case 'camping':
+    case 'place':
+    case 'parking':
+      ground(sample, 8);
+      break;
+    default:
+      ground(sample);
+      break;
   }
   ctx.restore();
 }

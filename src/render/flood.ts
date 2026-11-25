@@ -1,9 +1,10 @@
 import type { Elevation } from '../world/elevation';
 
 /**
- * Nappe d'eau dessinée sur la carte : zone inondable (aplat fixe) ou crue en
- * cours (plus sombre là où l'eau est profonde). Le masque est calculé à la
- * résolution du relief, puis étiré avec lissage : ses bords sont doux.
+ * Nappe d'eau dessinée sur la carte : la crue en cours, plus sombre là où l'eau
+ * est profonde. Le masque est calculé à la résolution du relief, puis étiré avec
+ * lissage : ses bords sont doux. (La zone inondable du DICRIM, elle, est une
+ * zone de carte, hachurée : voir `riskmap`.)
  */
 export class WaterLayer {
   private readonly canvas: HTMLCanvasElement;
@@ -64,16 +65,6 @@ export class WaterLayer {
   }
 }
 
-/**
- * Zone inondable du DICRIM, en deux classes selon la hauteur d'eau de la crue de
- * référence. Violet, pour ne pas la confondre avec le bleu de la rivière.
- */
-export function hazardLayer(elevation: Elevation): WaterLayer {
-  // Les deux classes se fondent l'une dans l'autre autour d'un mètre d'eau, et la
-  // zone s'estompe sur sa limite : pas d'effet d'escalier dû à la grille du relief.
-  return new WaterLayer(elevation, [92, 70, 196], (depth) => edge(depth) * (0.3 + 0.28 * smoothstep(0.85, 1.15, depth)));
-}
-
 /** Crue en cours : une eau chargée, plus opaque avec la profondeur. */
 export function floodLayer(elevation: Elevation): WaterLayer {
   return new WaterLayer(elevation, [92, 128, 150], (depth) => edge(depth) * (0.5 + depth * 0.22));
@@ -82,9 +73,4 @@ export function floodLayer(elevation: Elevation): WaterLayer {
 /** Fondu sur les premiers centimètres d'eau : c'est lui qui adoucit le bord de la nappe. */
 function edge(depth: number): number {
   return Math.min(1, depth / 0.16);
-}
-
-function smoothstep(from: number, to: number, value: number): number {
-  const t = Math.min(1, Math.max(0, (value - from) / (to - from)));
-  return t * t * (3 - 2 * t);
 }

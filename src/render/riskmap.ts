@@ -1,8 +1,8 @@
-import type { Vec } from '../core/geometry';
+import type { Rect, Vec } from '../core/geometry';
+import { outlineBelow } from '../world/contour';
 import type { Elevation } from '../world/elevation';
 import { zonesOf } from '../world/hazards';
 import type { Commune, HazardZone, RiskId } from '../world/model';
-import { hazardLayer, type WaterLayer } from './flood';
 
 /**
  * Cartes de risques, à la manière des cartes officielles : des zones colorées
@@ -32,9 +32,11 @@ interface ZoneStyle {
 const D = Math.PI / 4;
 
 const STYLES: Record<RiskId, Record<'fort' | 'moyen', ZoneStyle>> = {
+  // Hachures et limite nette, comme les autres zones : rien qui ressemble à de l'eau.
+  // La classe forte recouvre la moyenne, et leurs hachures se croisent.
   inondation: {
-    fort: { fill: 'rgba(92, 70, 196, 0.58)', line: '#4a37a8', hatch: null, spacing: 0 },
-    moyen: { fill: 'rgba(92, 70, 196, 0.3)', line: '#4a37a8', hatch: null, spacing: 0 },
+    fort: { fill: 'rgba(92, 70, 196, 0.14)', line: '#4a37a8', hatch: D, spacing: 1.4 },
+    moyen: { fill: 'rgba(92, 70, 196, 0.1)', line: '#4a37a8', hatch: -D, spacing: 1.4 },
   },
   'mouvement-terrain': {
     fort: { fill: 'rgba(160, 72, 20, 0.5)', line: '#7a3408', hatch: D, spacing: 1 },
@@ -98,26 +100,31 @@ function trace(ctx: CanvasRenderingContext2D, poly: readonly Vec[]): void {
   ctx.closePath();
 }
 
+/** Hachures parallèles couvrant un rectangle ; à appeler une fois la zone découpée (clip). */
+function hatch(ctx: CanvasRenderingContext2D, bounds: Rect, style: ZoneStyle, grain: number): void {
+  if (style.hatch === null) return;
+  const reach = Math.hypot(bounds.w, bounds.h) / 2 + grain;
+  ctx.translate(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
+  ctx.rotate(style.hatch);
+  ctx.beginPath();
+  for (let d = -reach; d <= reach; d += grain * style.spacing) {
+    ctx.moveTo(-reach, d);
+    ctx.lineTo(reach, d);
+  }
+  ctx.strokeStyle = style.line;
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = grain * 0.12;
+  ctx.stroke();
+}
+
 function paintZone(ctx: CanvasRenderingContext2D, zone: HazardZone, style: ZoneStyle, grain: number): void {
   trace(ctx, zone.poly);
   ctx.fillStyle = style.fill;
   ctx.fill();
   if (style.hatch !== null) {
-    const { x, y, w, h } = zone.bounds;
-    const reach = Math.hypot(w, h) / 2 + grain;
     ctx.save();
     ctx.clip();
-    ctx.translate(x + w / 2, y + h / 2);
-    ctx.rotate(style.hatch);
-    ctx.beginPath();
-    for (let d = -reach; d <= reach; d += grain * style.spacing) {
-      ctx.moveTo(-reach, d);
-      ctx.lineTo(reach, d);
-    }
-    ctx.strokeStyle = style.line;
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = grain * 0.12;
-    ctx.stroke();
+    hatch(ctx, zone.bounds, style, grain);
     ctx.restore();
     trace(ctx, zone.poly);
   }
@@ -128,15 +135,72 @@ function paintZone(ctx: CanvasRenderingContext2D, zone: HazardZone, style: ZoneS
   ctx.setLineDash([]);
 }
 
+/** Une zone inondable prête à être dessinée : sa surface, sa limite et son emprise. */
+interface FloodShape {
+  area: Path2D;
+  edge: Path2D;
+  bounds: Rect;
+}
+
+const floodShapes = new WeakMap<Elevation, Map<number, FloodShape>>();
+
+/** Zone sous un niveau d'eau donné ; le contour, tiré du relief, n'est calculé qu'une fois. */
+function floodShape(elevation: Elevation, level: number): FloodShape {
+  let byLevel = floodShapes.get(elevation);
+  if (!byLevel) {
+    byLevel = new Map();
+    floodShapes.set(elevation, byLevel);
+  }
+  let shape = byLevel.get(level);
+  if (!shape) {
+    const outline = outlineBelow(elevation, level);
+    const area = new Path2D();
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const polygon of outline.polygons) {
+      area.moveTo(polygon[0].x, polygon[0].y);
+      for (const point of polygon) {
+        area.lineTo(point.x, point.y);
+        top = Math.min(top, point.y);
+        bottom = Math.max(bottom, point.y);
+      }
+      area.closePath();
+    }
+    const edge = new Path2D();
+    for (const [a, b] of outline.segments) {
+      edge.moveTo(a.x, a.y);
+      edge.lineTo(b.x, b.y);
+    }
+    shape = { area, edge, bounds: { x: 0, y: top, w: elevation.width, h: Math.max(0, bottom - top) } };
+    byLevel.set(level, shape);
+  }
+  return shape;
+}
+
+function paintFloodZone(ctx: CanvasRenderingContext2D, shape: FloodShape, style: ZoneStyle, grain: number): void {
+  ctx.fillStyle = style.fill;
+  ctx.fill(shape.area);
+  ctx.save();
+  ctx.clip(shape.area);
+  hatch(ctx, shape.bounds, style, grain);
+  ctx.restore();
+  ctx.strokeStyle = style.line;
+  ctx.lineWidth = grain * 0.18;
+  ctx.lineCap = 'round';
+  ctx.stroke(shape.edge);
+}
+
 /**
  * Dessine les zones d'un risque ; le contexte est en coordonnées monde.
  * @param grain taille de référence des hachures et des traits, en unités monde
- * @param flood nappe de la zone inondable, pour le risque d'inondation
+ * @param elevation relief, dont est tirée la zone inondable
  */
-export function paintRisk(ctx: CanvasRenderingContext2D, commune: Commune, risk: RiskId, grain: number, flood: WaterLayer): void {
+export function paintRisk(ctx: CanvasRenderingContext2D, commune: Commune, risk: RiskId, grain: number, elevation: Elevation): void {
   if (risk === 'inondation') {
-    flood.setLevel(commune.relief.referenceFlood);
-    flood.draw(ctx);
+    // Deux classes, d'après la hauteur d'eau de la crue de référence : toute la zone, puis plus d'un mètre.
+    const reference = commune.relief.referenceFlood;
+    paintFloodZone(ctx, floodShape(elevation, reference), STYLES.inondation.moyen, grain);
+    paintFloodZone(ctx, floodShape(elevation, reference - 1), STYLES.inondation.fort, grain);
   } else {
     for (const zone of zonesOf(commune, risk)) paintZone(ctx, zone, STYLES[risk][zone.level], grain);
   }
@@ -181,10 +245,9 @@ export function createRiskMap(options: RiskMapOptions): HTMLCanvasElement {
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const flood = hazardLayer(options.elevation);
   ctx.save();
   ctx.scale(k, k);
-  for (const risk of risks) paintRisk(ctx, commune, risk, 34, flood);
+  for (const risk of risks) paintRisk(ctx, commune, risk, 34, options.elevation);
   ctx.restore();
 
   // Toponymie : de quoi se repérer.

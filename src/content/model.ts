@@ -43,6 +43,8 @@ export interface ActionDef {
   lexicon?: string[];
   /** Illustration montrée quand le geste est accompli. */
   figure?: 'repere';
+  /** Libellé du bouton qui accomplit le geste, quand « Le faire » ne dit pas assez bien ce qui va se passer. */
+  go?: string;
   title: string;
   /** Pourquoi ce geste compte. */
   why: string;
