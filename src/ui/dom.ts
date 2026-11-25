@@ -1,0 +1,71 @@
+/** Petits outils de construction du DOM, sans bibliothèque. */
+
+type Child = Node | string | null | undefined | false;
+type Attributes = Record<string, string | boolean | undefined>;
+
+/** Crée un élément HTML. Une valeur `true` donne un attribut booléen ; `false` ou `undefined` l'omet. */
+export function h<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  attributes: Attributes | null = null,
+  ...children: Child[]
+): HTMLElementTagNameMap[K] {
+  const element = document.createElement(tag);
+  if (attributes) {
+    for (const [name, value] of Object.entries(attributes)) {
+      if (value === false || value === undefined) continue;
+      if (name === 'class') element.className = String(value);
+      else element.setAttribute(name, value === true ? '' : value);
+    }
+  }
+  for (const child of children) {
+    if (child !== null && child !== undefined && child !== false) element.append(child);
+  }
+  return element;
+}
+
+const ICONS = {
+  lieux: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  telephone: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm3 17h2',
+  aide: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm-2.6-12.6a2.7 2.7 0 1 1 3.8 2.5c-.7.3-1.2.9-1.2 1.6v.5m0 3h.01',
+  carte: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14',
+  carnet: 'M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6V3Zm0 0v18M10 8h5m-5 4h5',
+  reglages: 'M4 7h10m4 0h2M4 17h4m4 0h8M14 5v4M8 15v4',
+  fermer: 'M6 6l12 12M18 6 6 18',
+  retour: 'M15 5l-7 7 7 7',
+  coche: 'M5 12.5l4.5 4.5L19 7.5',
+} as const;
+
+export type IconName = keyof typeof ICONS;
+
+/** Pictogramme décoratif (masqué aux technologies d'assistance : le texte voisin porte le sens). */
+export function icon(name: IconName): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  svg.classList.add('icon');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', ICONS[name]);
+  svg.append(path);
+  return svg;
+}
+
+/** Zone d'annonce pour les lecteurs d'écran. */
+export function createAnnouncer(element: HTMLElement): (message: string) => void {
+  let timer = 0;
+  return (message) => {
+    // Vider puis remplir : un même message répété est de nouveau annoncé.
+    element.textContent = '';
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      element.textContent = message;
+    }, 60);
+  };
+}
+
+export function requireElement<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`Élément #${id} introuvable dans la page.`);
+  return element as T;
+}

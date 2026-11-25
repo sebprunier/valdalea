@@ -1,0 +1,743 @@
+import { clamp, distToPolyline, inflate, rectsIntersect, type Rect, type Vec } from '../core/geometry';
+import type { Bridge, Building, Commune, Decor, Fence, Ground, MapLabel, Road, RoadKind, Tank, Tree } from '../world/model';
+
+/**
+ * Dessin du plan de la commune, entièrement en code (aucune image).
+ * Le contexte reçu est déjà en coordonnées monde ; seul ce qui croise `view` est tracé.
+ * Ce dessin est figé dans des tuiles : il n'est pas rejoué à chaque image.
+ */
+
+export interface PaintOptions {
+  /** Noms de rues, de secteurs et de bâtiments. */
+  labels: boolean;
+  /** Petits détails (haies, hachures, reflets), inutiles sur la vue d'ensemble. */
+  details: boolean;
+}
+
+export const MAP_BACKGROUND = '#dfe8c9';
+
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+const GROUND_FILL: Record<Ground['kind'], readonly string[]> = {
+  champ: ['#e9e2b6', '#dedaa6', '#d6e0a8', '#e7dbac'],
+  foret: ['#b4cf9b'],
+  parc: ['#c6dfab'],
+  jardin: ['#d2e4b8', '#cde0b1'],
+  place: ['#eee4d2'],
+  cour: ['#e4dccb'],
+  parking: ['#d8d5ce'],
+  industrie: ['#d6d4cf'],
+  camping: ['#cbe3ae'],
+  eboulis: ['#d1c9bd'],
+  falaise: ['#aaa094'],
+};
+
+const ROAD_STYLE: Record<RoadKind, { fill: string; casing: string; rank: number }> = {
+  chemin: { fill: '#dccba6', casing: '#c2ad84', rank: 0 },
+  ruelle: { fill: '#f7f3eb', casing: '#bdb5a6', rank: 1 },
+  rue: { fill: '#ffffff', casing: '#bdb5a6', rank: 2 },
+  avenue: { fill: '#fff5d6', casing: '#c9b684', rank: 3 },
+  departementale: { fill: '#fde8a6', casing: '#cfb262', rank: 4 },
+};
+
+/** Toitures : [versant clair, versant sombre, arête]. */
+const ROOFS = {
+  tuile: [
+    ['#dc8a63', '#c26f4c', '#8f4c33'],
+    ['#d27d58', '#b96443', '#87462f'],
+    ['#e09a72', '#c98058', '#96583b'],
+    ['#c9745a', '#af5c45', '#7d3f2f'],
+  ],
+  ardoise: [
+    ['#8693a1', '#6c7987', '#4c5763'],
+    ['#7a8896', '#616e7c', '#444f5b'],
+    ['#93a0ad', '#788593', '#56616d'],
+    ['#6f7d8b', '#586572', '#3e4853'],
+  ],
+  bac: [
+    ['#c9d1d8', '#b3bcc4', '#7f8b95'],
+    ['#bcc6ce', '#a6b0b9', '#76828c'],
+    ['#d3d9de', '#bdc5cc', '#8a959e'],
+    ['#b3beb9', '#9ea9a4', '#6f7b76'],
+  ],
+  plat: [
+    ['#d9d5cc', '#c7c2b8', '#8e897f'],
+    ['#cfd3d2', '#bcc1c0', '#868c8b'],
+    ['#e3ded3', '#d0cabd', '#989284'],
+    ['#c8ccc4', '#b5bab1', '#80867c'],
+  ],
+} as const;
+
+const TREE_TONES = ['#7dab66', '#6f9f5c', '#8bb874', '#64955a'];
+const DECOR_TONES = ['#e9a23b', '#4f8fc0', '#d9604a', '#7a9e4d'];
+
+export function paintMap(
+  ctx: CanvasRenderingContext2D,
+  commune: Commune,
+  view: Rect,
+  options: PaintOptions = { labels: true, details: true },
+): void {
+  const seen = (bounds: Rect, margin = 0): boolean => rectsIntersect(margin ? inflate(bounds, margin) : bounds, view);
+
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  ctx.fillStyle = MAP_BACKGROUND;
+  ctx.fillRect(view.x, view.y, view.w, view.h);
+
+  for (const ground of commune.grounds) {
+    if (ground.kind !== 'jardin' && seen(ground.bounds, 4)) paintGround(ctx, ground, options);
+  }
+
+  if (seen(commune.river.bounds)) paintRiver(ctx, commune, options);
+
+  for (const ground of commune.grounds) {
+    if (ground.kind === 'jardin' && seen(ground.bounds, 4)) paintGround(ctx, ground, options);
+  }
+
+  paintRoads(ctx, commune.roads.filter((road) => seen(road.bounds)));
+  for (const bridge of commune.bridges) if (seen(bridge.rect, 12)) paintBridge(ctx, bridge);
+
+  for (const fence of commune.fences) if (seen(fence.rect, 6)) paintFence(ctx, fence);
+
+  const buildings = commune.buildings.filter((b) => seen(b.rect, 14));
+  ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
+  for (const b of buildings) ctx.fillRect(b.rect.x + 4, b.rect.y + 6, b.rect.w, b.rect.h);
+  for (const b of buildings) paintBuilding(ctx, b);
+
+  for (const tank of commune.tanks) {
+    if (seen({ x: tank.x - tank.r, y: tank.y - tank.r, w: tank.r * 2, h: tank.r * 2 }, 10)) paintTank(ctx, tank);
+  }
+  for (const decor of commune.decors) {
+    if (seen({ x: decor.x - 24, y: decor.y - 24, w: 48, h: 48 })) paintDecor(ctx, decor);
+  }
+  for (const tree of commune.trees) {
+    if (seen({ x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }, 8)) paintTree(ctx, tree, options);
+  }
+
+  if (options.labels) {
+    paintRoadLabels(ctx, commune, view);
+    paintRiverLabels(ctx, commune, view);
+    for (const label of commune.labels) {
+      if (seen({ x: label.x - 320, y: label.y - 30, w: 640, h: 60 })) paintLabel(ctx, label);
+    }
+  }
+  ctx.restore();
+}
+
+// --------------------------------------------------------------------- Sols
+
+function tracePolygon(ctx: CanvasRenderingContext2D, points: readonly Vec[]): void {
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+}
+
+function tracePath(ctx: CanvasRenderingContext2D, points: readonly Vec[]): void {
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+}
+
+/** Hachures parallèles couvrant un rectangle englobant ; à appeler après un clip. */
+function hatch(ctx: CanvasRenderingContext2D, bounds: Rect, spacing: number, angle: number): void {
+  const reach = Math.hypot(bounds.w, bounds.h) / 2 + spacing;
+  ctx.save();
+  ctx.translate(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  for (let d = -reach; d <= reach; d += spacing) {
+    ctx.moveTo(-reach, d);
+    ctx.lineTo(reach, d);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function paintGround(ctx: CanvasRenderingContext2D, ground: Ground, options: PaintOptions): void {
+  const fills = GROUND_FILL[ground.kind];
+  tracePolygon(ctx, ground.poly);
+  ctx.fillStyle = fills[ground.variant % fills.length];
+  ctx.fill();
+  if (!options.details) return;
+
+  switch (ground.kind) {
+    case 'champ': {
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(120, 110, 60, 0.16)';
+      ctx.lineWidth = 2;
+      hatch(ctx, ground.bounds, 14, [0.25, -0.6, 1.1, 0.05][ground.variant % 4]);
+      ctx.restore();
+      break;
+    }
+    case 'falaise': {
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(70, 62, 54, 0.3)';
+      ctx.lineWidth = 2;
+      hatch(ctx, ground.bounds, 16, -0.9);
+      ctx.restore();
+      tracePolygon(ctx, ground.poly);
+      ctx.strokeStyle = '#6f665b';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      break;
+    }
+    case 'eboulis': {
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(110, 100, 88, 0.45)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([1, 9]);
+      hatch(ctx, ground.bounds, 9, 0.4);
+      ctx.restore();
+      break;
+    }
+    case 'jardin':
+      ctx.strokeStyle = '#9fbf85';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      break;
+    case 'place':
+    case 'cour':
+      ctx.strokeStyle = '#d3c6ae';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      break;
+    case 'parking': {
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 2;
+      hatch(ctx, ground.bounds, 22, Math.PI / 2);
+      ctx.restore();
+      break;
+    }
+    case 'camping':
+      ctx.strokeStyle = '#8fb573';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      break;
+    case 'industrie':
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1.5;
+      hatch(ctx, ground.bounds, 40, 0);
+      hatch(ctx, ground.bounds, 40, Math.PI / 2);
+      ctx.restore();
+      break;
+    default:
+      break;
+  }
+}
+
+// ------------------------------------------------------------------ Rivière
+
+function paintRiver(ctx: CanvasRenderingContext2D, commune: Commune, options: PaintOptions): void {
+  const { path, width } = commune.river;
+  tracePath(ctx, path);
+  ctx.strokeStyle = '#cfe0bb';
+  ctx.lineWidth = width + 30;
+  ctx.stroke();
+  ctx.strokeStyle = '#79aecf';
+  ctx.lineWidth = width + 6;
+  ctx.stroke();
+  ctx.strokeStyle = '#a3cfe8';
+  ctx.lineWidth = width;
+  ctx.stroke();
+  if (!options.details) return;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([46, 90]);
+  ctx.lineDashOffset = 20;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
+}
+
+// ------------------------------------------------------------------- Voirie
+
+function paintRoads(ctx: CanvasRenderingContext2D, roads: Road[]): void {
+  const ordered = [...roads].sort((a, b) => ROAD_STYLE[a.kind].rank - ROAD_STYLE[b.kind].rank);
+  // Tous les bords d'abord, puis toutes les chaussées : les carrefours se raccordent d'eux-mêmes.
+  for (const road of ordered) {
+    tracePath(ctx, road.path);
+    ctx.strokeStyle = ROAD_STYLE[road.kind].casing;
+    ctx.lineWidth = road.width;
+    ctx.stroke();
+  }
+  for (const road of ordered) {
+    tracePath(ctx, road.path);
+    ctx.strokeStyle = ROAD_STYLE[road.kind].fill;
+    ctx.lineWidth = road.width - (road.kind === 'chemin' ? 3 : 5);
+    ctx.stroke();
+  }
+}
+
+function paintBridge(ctx: CanvasRenderingContext2D, bridge: Bridge): void {
+  const { x, y, w, h } = bridge.rect;
+  if (bridge.kind === 'passerelle') {
+    ctx.fillStyle = '#c8a878';
+    ctx.fillRect(x + 8, y, w - 16, h);
+    ctx.strokeStyle = 'rgba(95, 70, 40, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let py = y + 8; py < y + h; py += 10) {
+      ctx.moveTo(x + 8, py);
+      ctx.lineTo(x + w - 8, py);
+    }
+    ctx.stroke();
+  }
+  // Parapets
+  ctx.strokeStyle = bridge.kind === 'pont' ? '#8c8478' : '#7a5f3d';
+  ctx.lineWidth = bridge.kind === 'pont' ? 6 : 3;
+  ctx.lineCap = 'butt';
+  const inset = bridge.kind === 'pont' ? 1 : 8;
+  ctx.beginPath();
+  ctx.moveTo(x + inset, y);
+  ctx.lineTo(x + inset, y + h);
+  ctx.moveTo(x + w - inset, y);
+  ctx.lineTo(x + w - inset, y + h);
+  ctx.stroke();
+  ctx.lineCap = 'round';
+}
+
+function paintFence(ctx: CanvasRenderingContext2D, fence: Fence): void {
+  const { x, y, w, h } = fence.rect;
+  const inset = 5;
+  ctx.strokeStyle = '#5f666d';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + inset, y + inset, w - 2 * inset, h - 2 * inset);
+  ctx.lineWidth = 5;
+  ctx.setLineDash([1, 14]);
+  ctx.strokeRect(x + inset, y + inset, w - 2 * inset, h - 2 * inset);
+  ctx.setLineDash([]);
+  if (fence.gate && (fence.gate.side === 'N' || fence.gate.side === 'S')) {
+    const gy = fence.gate.side === 'N' ? y + inset : y + h - inset;
+    ctx.strokeStyle = '#c2410c';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(fence.gate.from, gy);
+    ctx.lineTo(fence.gate.to, gy);
+    ctx.stroke();
+    ctx.lineCap = 'round';
+  }
+}
+
+// ---------------------------------------------------------------- Bâtiments
+
+function paintBuilding(ctx: CanvasRenderingContext2D, b: Building): void {
+  const [light, dark, edge] = ROOFS[b.roof][b.tone % 4];
+  const { x, y, w, h } = b.rect;
+
+  if (b.kind === 'eglise') {
+    paintChurch(ctx, b);
+    return;
+  }
+
+  if (b.roof === 'tuile' || b.roof === 'ardoise') {
+    // Toit à deux pans : faîtage dans le sens de la longueur, versant nord-ouest éclairé.
+    ctx.fillStyle = dark;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = light;
+    if (w >= h) ctx.fillRect(x, y, w, h / 2);
+    else ctx.fillRect(x, y, w / 2, h);
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    if (w >= h) {
+      ctx.moveTo(x, y + h / 2);
+      ctx.lineTo(x + w, y + h / 2);
+    } else {
+      ctx.moveTo(x + w / 2, y);
+      ctx.lineTo(x + w / 2, y + h);
+    }
+    ctx.stroke();
+    // Cheminée
+    ctx.fillStyle = edge;
+    if (w >= h) ctx.fillRect(x + w * 0.22, y + h / 2 - 9, 7, 7);
+    else ctx.fillRect(x + w / 2 - 9, y + h * 0.22, 7, 7);
+  } else {
+    ctx.fillStyle = light;
+    ctx.fillRect(x, y, w, h);
+    if (b.roof === 'bac') {
+      // Bac acier : nervures régulières.
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (w >= h) {
+        for (let px = x + 10; px < x + w; px += 10) {
+          ctx.moveTo(px, y);
+          ctx.lineTo(px, y + h);
+        }
+      } else {
+        for (let py = y + 10; py < y + h; py += 10) {
+          ctx.moveTo(x, py);
+          ctx.lineTo(x + w, py);
+        }
+      }
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = dark;
+      ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+      ctx.fillStyle = light;
+      ctx.fillRect(x + 7, y + 7, w - 14, h - 14);
+    }
+  }
+
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+
+  if (b.kind === 'mairie') paintPorch(ctx, b, 64, 14, '#e9e2d3', edge);
+  else if (b.kind === 'commerce') paintAwning(ctx, b);
+  else if (b.door && b.kind !== 'mobil-home') paintPorch(ctx, b, 14, 5, '#efe7d6', edge);
+}
+
+/** Perron ou avant-corps, posé devant la façade d'entrée. */
+function paintPorch(ctx: CanvasRenderingContext2D, b: Building, length: number, depth: number, fill: string, stroke: string): void {
+  const { x, y, w, h } = b.rect;
+  let px = x + w / 2 - length / 2;
+  let py = y + h;
+  let pw = length;
+  let ph = depth;
+  switch (b.door) {
+    case 'N':
+      py = y - depth;
+      break;
+    case 'E':
+      px = x + w;
+      py = y + h / 2 - length / 2;
+      pw = depth;
+      ph = length;
+      break;
+    case 'W':
+      px = x - depth;
+      py = y + h / 2 - length / 2;
+      pw = depth;
+      ph = length;
+      break;
+    default:
+      break;
+  }
+  ctx.fillStyle = fill;
+  ctx.fillRect(px, py, pw, ph);
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+}
+
+/** Store rayé d'un commerce, le long de la façade sur rue. */
+function paintAwning(ctx: CanvasRenderingContext2D, b: Building): void {
+  const { x, y, w, h } = b.rect;
+  const depth = 7;
+  const colors = [['#b5432b', '#f4ede1'], ['#2f6f8f', '#f4ede1'], ['#4f7a3a', '#f4ede1'], ['#8a5a8c', '#f4ede1']][b.tone % 4];
+  const horizontal = b.door === 'N' || b.door === 'S' || !b.door;
+  const length = (horizontal ? w : h) - 12;
+  const stripes = Math.max(2, Math.round(length / 8));
+  const step = length / stripes;
+  for (let i = 0; i < stripes; i++) {
+    ctx.fillStyle = colors[i % 2];
+    if (horizontal) {
+      ctx.fillRect(x + 6 + i * step, b.door === 'N' ? y - depth : y + h, step, depth);
+    } else {
+      ctx.fillRect(b.door === 'W' ? x - depth : x + w, y + 6 + i * step, depth, step);
+    }
+  }
+}
+
+function paintChurch(ctx: CanvasRenderingContext2D, b: Building): void {
+  const [light, dark, edge] = ROOFS.ardoise[b.tone % 4];
+  const { x, y, w, h } = b.rect;
+  const tower = Math.min(h * 0.6, 54);
+  const naveY = y + h * 0.18;
+  const naveH = h * 0.64;
+  const naveX = x + tower * 0.7;
+  const naveW = w - tower * 0.7 - naveH / 2;
+
+  // Nef et chevet arrondi
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.rect(naveX, naveY, naveW, naveH);
+  ctx.arc(naveX + naveW, naveY + naveH / 2, naveH / 2, -Math.PI / 2, Math.PI / 2);
+  ctx.fill();
+  ctx.fillStyle = light;
+  ctx.beginPath();
+  ctx.rect(naveX, naveY, naveW, naveH / 2);
+  ctx.arc(naveX + naveW, naveY + naveH / 2, naveH / 2, -Math.PI / 2, 0);
+  ctx.lineTo(naveX + naveW, naveY + naveH / 2);
+  ctx.fill();
+  // Transept
+  const tx = naveX + naveW * 0.55;
+  ctx.fillStyle = dark;
+  ctx.fillRect(tx, y, 30, h);
+  ctx.fillStyle = light;
+  ctx.fillRect(tx, y, 15, h);
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(tx + 0.5, y + 0.5, 29, h - 1);
+  ctx.beginPath();
+  ctx.moveTo(naveX, naveY + naveH / 2);
+  ctx.lineTo(naveX + naveW + naveH / 2, naveY + naveH / 2);
+  ctx.stroke();
+
+  // Clocher : toit en pavillon, vu de dessus
+  const cx = x + tower / 2;
+  const cy = y + h / 2;
+  const half = tower / 2;
+  const faces: Array<[number, number, number, number, string]> = [
+    [-half, -half, half, -half, light],
+    [half, -half, half, half, dark],
+    [half, half, -half, half, dark],
+    [-half, half, -half, -half, light],
+  ];
+  for (const [ax, ay, bx, by, fill] of faces) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + ax, cy + ay);
+    ctx.lineTo(cx + bx, cy + by);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx - half, cy - half, tower, tower);
+  ctx.beginPath();
+  ctx.moveTo(cx - half, cy - half);
+  ctx.lineTo(cx + half, cy + half);
+  ctx.moveTo(cx + half, cy - half);
+  ctx.lineTo(cx - half, cy + half);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function paintTank(ctx: CanvasRenderingContext2D, tank: Tank): void {
+  ctx.fillStyle = 'rgba(52, 48, 36, 0.22)';
+  ctx.beginPath();
+  ctx.arc(tank.x + 4, tank.y + 6, tank.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e4e8eb';
+  ctx.beginPath();
+  ctx.arc(tank.x, tank.y, tank.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#87929b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.strokeStyle = '#b4bdc4';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(tank.x, tank.y, tank.r * 0.55, 0, Math.PI * 2);
+  ctx.moveTo(tank.x - tank.r, tank.y);
+  ctx.lineTo(tank.x + tank.r, tank.y);
+  ctx.stroke();
+}
+
+function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
+  ctx.save();
+  ctx.translate(decor.x, decor.y);
+  ctx.rotate(decor.angle);
+  if (decor.kind === 'tente') {
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
+    ctx.fillRect(-12, -8, 28, 22);
+    ctx.fillStyle = DECOR_TONES[decor.tone % 4];
+    ctx.fillRect(-14, -11, 28, 22);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.fillRect(-14, -11, 28, 11);
+    ctx.strokeStyle = 'rgba(40, 36, 28, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-13.5, -10.5, 27, 21);
+    ctx.beginPath();
+    ctx.moveTo(-14, 0);
+    ctx.lineTo(14, 0);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
+    ctx.fillRect(-16, -7, 38, 22);
+    ctx.fillStyle = '#f3f1ea';
+    ctx.fillRect(-18, -10, 36, 20);
+    ctx.strokeStyle = '#8b8a84';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(-17.5, -9.5, 35, 19);
+    ctx.fillStyle = DECOR_TONES[decor.tone % 4];
+    ctx.fillRect(-18, -2, 36, 4);
+  }
+  ctx.restore();
+}
+
+function paintTree(ctx: CanvasRenderingContext2D, tree: Tree, options: PaintOptions): void {
+  if (options.details) {
+    ctx.fillStyle = 'rgba(45, 60, 35, 0.2)';
+    ctx.beginPath();
+    ctx.arc(tree.x + 3, tree.y + 5, tree.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = TREE_TONES[tree.tone % 4];
+  ctx.beginPath();
+  ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI * 2);
+  ctx.fill();
+  if (!options.details) return;
+  ctx.strokeStyle = 'rgba(50, 80, 45, 0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+  ctx.beginPath();
+  ctx.arc(tree.x - tree.r * 0.28, tree.y - tree.r * 0.3, tree.r * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------------------------------------------------------------- Toponymie
+
+/** Ramène un angle de texte dans [-90°, 90°[ pour qu'il ne soit jamais à l'envers. */
+function readableAngle(angle: number): number {
+  if (angle >= Math.PI / 2 - 1e-6) return angle - Math.PI;
+  if (angle < -Math.PI / 2 - 1e-6) return angle + Math.PI;
+  return angle;
+}
+
+function near(view: Rect, x: number, y: number, margin: number): boolean {
+  return x > view.x - margin && x < view.x + view.w + margin && y > view.y - margin && y < view.y + view.h + margin;
+}
+
+interface RoadLabel {
+  text: string;
+  x: number;
+  y: number;
+  angle: number;
+  width: number;
+}
+
+const ROAD_LABEL_FONT = `600 12px ${FONT}`;
+const roadLabelCache = new WeakMap<Commune, RoadLabel[]>();
+
+/** Un nom de rue ne doit recouvrir ni un carrefour ni le repère d'un lieu. */
+function isLabelSpotFree(commune: Commune, road: Road, p: Vec, halfWidth: number): boolean {
+  for (const other of commune.roads) {
+    if (other !== road && distToPolyline(p, other.path) < other.width / 2 + halfWidth + 6) return false;
+  }
+  for (const place of commune.places) {
+    if (Math.hypot(p.x - place.pos.x, p.y - place.pos.y) < halfWidth + 34) return false;
+  }
+  return true;
+}
+
+/**
+ * Choisit l'emplacement des noms de rues, une fois pour toutes : au milieu des
+ * tronçons assez longs, décalé si nécessaire pour éviter carrefours et repères.
+ */
+function placeRoadLabels(ctx: CanvasRenderingContext2D, commune: Commune): RoadLabel[] {
+  const labels: RoadLabel[] = [];
+  ctx.font = ROAD_LABEL_FONT;
+  for (const road of commune.roads) {
+    if (!road.name || road.kind === 'chemin') continue;
+    const width = ctx.measureText(road.name).width;
+    const lengths = road.path.slice(1).map((b, i) => Math.hypot(b.x - road.path[i].x, b.y - road.path[i].y));
+    const longest = Math.max(...lengths);
+    lengths.forEach((length, i) => {
+      // Une route sinueuse n'est nommée que sur son plus long tronçon (et sur ses grandes lignes droites).
+      if (length < width + 50 || (length < longest && length < 480)) return;
+      const a = road.path[i];
+      const b = road.path[i + 1];
+      const repeats = Math.max(1, Math.floor(length / 760));
+      const angle = readableAngle(Math.atan2(b.y - a.y, b.x - a.x));
+      const margin = (width / 2 + 24) / length;
+      for (let k = 0; k < repeats; k++) {
+        const base = (k + 0.5) / repeats;
+        for (const shift of [0, -0.12, 0.12, -0.24, 0.24, -0.36, 0.36]) {
+          const t = clamp(base + shift / repeats, margin, 1 - margin);
+          const spot = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          if (isLabelSpotFree(commune, road, spot, width / 2)) {
+            labels.push({ text: road.name!, x: spot.x, y: spot.y, angle, width });
+            break;
+          }
+        }
+      }
+    });
+  }
+  return labels;
+}
+
+function paintRoadLabels(ctx: CanvasRenderingContext2D, commune: Commune, view: Rect): void {
+  let labels = roadLabelCache.get(commune);
+  if (!labels) {
+    labels = placeRoadLabels(ctx, commune);
+    roadLabelCache.set(commune, labels);
+  }
+  ctx.font = ROAD_LABEL_FONT;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#5a5246';
+  for (const label of labels) {
+    if (!near(view, label.x, label.y, label.width)) continue;
+    ctx.save();
+    ctx.translate(label.x, label.y);
+    ctx.rotate(label.angle);
+    ctx.fillText(label.text, 0, 0.5);
+    ctx.restore();
+  }
+}
+
+function paintRiverLabels(ctx: CanvasRenderingContext2D, commune: Commune, view: Rect): void {
+  const { path, name } = commune.river;
+  ctx.font = `italic 600 17px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#2c6a92';
+  for (const fraction of [0.12, 0.36, 0.63, 0.88]) {
+    const i = Math.min(path.length - 2, Math.floor(fraction * (path.length - 1)));
+    const a = path[i];
+    const b = path[i + 1];
+    if (!near(view, a.x, a.y, 120)) continue;
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(readableAngle(Math.atan2(b.y - a.y, b.x - a.x)));
+    ctx.fillText(name, 0, 0);
+    ctx.restore();
+  }
+}
+
+/** Texte en capitales espacées, centré, sans dépendre de `letterSpacing` (support inégal). */
+function spacedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number, halo?: string): void {
+  const chars = [...text];
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const total = widths.reduce((sum, w) => sum + w, 0) + spacing * (chars.length - 1);
+  ctx.textAlign = 'left';
+  let cx = x - total / 2;
+  chars.forEach((ch, i) => {
+    if (halo) ctx.strokeText(ch, cx, y);
+    ctx.fillText(ch, cx, y);
+    cx += widths[i] + spacing;
+  });
+}
+
+function paintLabel(ctx: CanvasRenderingContext2D, label: MapLabel): void {
+  ctx.textBaseline = 'middle';
+  const text = label.text.toLocaleUpperCase('fr');
+  switch (label.kind) {
+    case 'secteur':
+      ctx.font = `700 28px ${FONT}`;
+      ctx.fillStyle = 'rgba(64, 54, 40, 0.42)';
+      spacedText(ctx, text, label.x, label.y, 7);
+      break;
+    case 'lieu-dit':
+      ctx.font = `700 18px ${FONT}`;
+      ctx.fillStyle = 'rgba(64, 54, 40, 0.5)';
+      spacedText(ctx, text, label.x, label.y, 4);
+      break;
+    case 'batiment':
+      ctx.font = `700 11px ${FONT}`;
+      ctx.fillStyle = '#3f392f';
+      ctx.strokeStyle = 'rgba(255, 252, 244, 0.85)';
+      ctx.lineWidth = 3.5;
+      ctx.lineJoin = 'round';
+      spacedText(ctx, text, label.x, label.y, 1.5, 'halo');
+      break;
+  }
+}
