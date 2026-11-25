@@ -49,7 +49,7 @@ export const PLACE_TEXTS: Record<string, PlaceText> = {
   },
   lucien: {
     description:
-      "La dernière maison du hameau avant la forêt. Lucien y vit depuis quarante ans ; son jardin s'arrête là où les arbres commencent.",
+      "Une maison dans une clairière, au bout d'un sentier, à l'écart du hameau : la forêt l'entoure sur trois côtés. Lucien y vit depuis quarante ans.",
   },
   brandes: {
     description:

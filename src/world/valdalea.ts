@@ -29,6 +29,11 @@ export function buildValDAlea(): Commune {
     vec(4200, 1200),
     vec(3950, 1280),
     vec(3700, 1180),
+    // La clairière de Lucien : la forêt l'entoure sur trois côtés, au ras de son jardin.
+    vec(3694, 1176),
+    vec(3694, 916),
+    vec(3516, 916),
+    vec(3516, 1062),
     vec(3450, 1020),
     vec(3250, 820),
     vec(3080, 520),
@@ -71,6 +76,8 @@ export function buildValDAlea(): Commune {
   b.road('rue', [vec(1200, 300), vec(1200, 1660)], 'rue du Plateau');
   b.road('rue', [vec(2100, 1000), vec(2960, 1000)], 'rue de la Mairie');
   b.road('ruelle', [vec(2960, 1000), vec(3150, 1060), vec(3350, 1220), vec(3650, 1330), vec(3720, 1500), vec(3720, 1650)], 'chemin des Brandes');
+  // Le sentier qui monte chez Lucien, dans sa clairière.
+  b.road('chemin', [vec(3555, 1295), vec(3605, 1052)]);
 
   b.road('rue', [vec(1200, 1150), vec(2100, 1150)], 'rue des Carriers');
   b.road('rue', [vec(1200, 1430), vec(2100, 1430)], 'rue Basse');
@@ -174,7 +181,7 @@ export function buildValDAlea(): Commune {
   const hamlet = (
     [
       [3230, 930, 90, 70, 'S'],
-      [3440, 1090, 100, 70, 'S'],
+      [3555, 955, 100, 70, 'S'],
       [3620, 1190, 90, 70, 'S'],
       [3820, 1330, 100, 80, 'W'],
       [3480, 1370, 100, 70, 'N'],
@@ -186,7 +193,7 @@ export function buildValDAlea(): Commune {
     b.groundRect('jardin', inflate(house, 25));
     return b.building('pavillon', house, { roof: 'tuile', door });
   });
-  // La maison de Lucien : la dernière avant la forêt, qui commence au bout de son jardin.
+  // La maison de Lucien, à l'écart du hameau, dans une clairière que la forêt entoure sur trois côtés.
   const lucien = hamlet[1];
 
   // --------------------------------------------------------------- Camping

@@ -33,7 +33,7 @@ export const ACTIONS: ActionDef[] = [
     figure: 'debroussaillement',
     title: 'Aider Lucien à débroussailler',
     why: "Débroussailler, c'est réduire la quantité de végétaux et créer des discontinuités dans la végétation qui reste : moins il y a de matière combustible, moins le feu est intense. Ce n'est ni une coupe rase, ni un défrichement.",
-    who: 'Lucien, propriétaire de la dernière maison avant la forêt. À 82 ans, il a besoin de bras : vous lui prêtez les vôtres.',
+    who: 'Lucien, dont la maison est dans une clairière, au milieu des arbres. À 82 ans, il a besoin de bras : vous lui prêtez les vôtres.',
     done: "Le terrain de Lucien est méconnaissable, et pourtant il reste des arbres. Entre la forêt et la maison, le feu n'a plus de chemin tout tracé.",
     sources: ['georisques-old', 'georisques-feu'],
   },
@@ -134,7 +134,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'debroussailler',
-    context: 'Derrière la maison de Lucien, la forêt commence au bout du jardin. Rien n’a été fait depuis trois ans.',
+    context: 'La maison de Lucien est dans une clairière : la forêt commence au bout du jardin. Rien n’a été fait depuis trois ans.',
     prompt: 'Que faites-vous ? Cochez tout ce qui convient, ou désignez-le sur le dessin.',
     multiple: true,
     choices: [
@@ -173,7 +173,7 @@ const OPENING: StoryCard = {
   title: "Avant l'été",
   paragraphs: [
     "« L'été dernier, le feu est passé à trois kilomètres des Brandes », vous a dit le maire. « Les maisons qui brûlent sont presque toujours celles dont le terrain n'était pas débroussaillé. C'est maintenant que ça se joue, pas en août. »",
-    "Votre mission : aider le hameau à se préparer. Aux Brandes d'abord, et chez Lucien, dont le jardin touche la forêt ; puis au camping. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
+    "Votre mission : aider le hameau à se préparer. Aux Brandes d'abord, et chez Lucien, dans sa clairière au milieu des arbres ; puis au camping. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
   ],
   next: 'Commencer',
   sky: 'sec',

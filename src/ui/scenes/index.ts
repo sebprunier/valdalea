@@ -401,7 +401,7 @@ const WOOD = faces('#a5744a', '#6f4d30');
 const STUMP = faces('#b08a5e', '#6f553b');
 
 /**
- * La dernière maison avant la forêt. Le dessin montre le terrain tel qu'il est :
+ * La maison de Lucien, dans sa clairière. Le dessin montre le terrain tel qu'il est :
  * chaque élément de `work` y laisse sa trace, bonne ou mauvaise.
  */
 export function buildBrushScene(work: BrushWork): Scene {
@@ -410,7 +410,7 @@ export function buildBrushScene(work: BrushWork): Scene {
     ground: { w: 20, d: 16 },
     water: 0,
     label: describe(
-      'La maison de Lucien, la dernière avant la forêt des Brandes, qui commence au bout du jardin.',
+      'La maison de Lucien, dans sa clairière : la forêt des Brandes commence au bout du jardin.',
       did('herbes') ? "L'herbe est coupée." : 'Des herbes hautes couvrent le terrain, de la forêt à la maison.',
       did('buissons') ? '' : 'Des buissons poussent contre la façade.',
       did('raser') ? 'Tous les arbres du jardin ont été abattus : il ne reste que des souches.' : did('espacer') ? 'Les arbres du jardin ne se touchent plus.' : 'Deux arbres du jardin se touchent, tout près de la forêt.',

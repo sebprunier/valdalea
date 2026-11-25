@@ -1,3 +1,4 @@
+import { CREDITS } from '../content/credits';
 import { UNITS_PER_METER } from '../game/constants';
 import { createDialog, type DialogHandle } from './dialog';
 import { h } from './dom';
@@ -100,7 +101,8 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     h(
       'p',
       { class: 'fine-print' },
-      "Version de travail : un seul chapitre est jouable, l'automne et le risque d'inondation. ",
+      `Un jeu libre de ${CREDITS.author} : crédits et code source dans le téléphone, application « À propos ». `,
+      "Version de travail : tous les chapitres ne sont pas encore jouables. ",
       "Jeu indépendant, sans lien avec les services de l'État. Aucune donnée personnelle n'est collectée. ",
       options.persistent
         ? 'La partie est enregistrée uniquement dans votre navigateur.'

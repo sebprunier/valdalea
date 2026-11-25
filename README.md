@@ -8,7 +8,7 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 > Projet indépendant, sans lien avec les services de l'État. Il n'en reprend ni la charte ni les logos.
 
-**Jouer : <https://sebprunier.github.io/valdalea/>** (version de travail, mise à jour à chaque évolution).
+**Jouer : <https://www.valdalea.fr>** (version de travail, mise à jour à chaque évolution).
 
 ## État d'avancement
 
@@ -28,7 +28,7 @@ Autour de ce chapitre :
 - **Le DICRIM de Val-d'Aléa**, un vrai document : couverture, mot des élus, sommaire, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Il est mis en pages comme une brochure, en feuilles A4 numérotées, et s'imprime ou s'enregistre en PDF tel quel ; chaque page rappelle qu'il s'agit d'un document fictif. Chaque carte peut s'afficher sur le plan du jeu.
 - **La légende de la carte** (bouton en bas à gauche, touche G) : ce que représentent les couleurs et les motifs du plan, et les repères posés dessus.
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
-- **Le téléphone**, télécommande du jeu : calendrier des chapitres, carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, alertes, DICRIM, lexique, bilan, réglages. Une pastille y signale ce qui vient d'arriver.
+- **Le téléphone**, télécommande du jeu : calendrier des chapitres, carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, alertes, DICRIM, lexique, bilan, réglages, et « À propos » (auteur, code source, licences, sources). Une pastille y signale ce qui vient d'arriver.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève) et les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte), et une cloche prévient quand le temps presse. Il se coupe d'un bouton.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
@@ -49,11 +49,13 @@ npm run preview    # sert le contenu de dist/ pour le vérifier
 npm run liens      # vérifie que les pages officielles citées répondent toujours
 ```
 
+Le dossier `public/` contient l'image d'aperçu (`apercu.png`) que les réseaux sociaux affichent quand le lien du jeu est partagé ; elle sert aussi d'aperçu du dépôt.
+
 Le dossier `dist/` se dépose tel quel sur n'importe quel hébergement statique. Les chemins sont relatifs : il fonctionne aussi dans un sous-dossier.
 
 ### Mise en ligne
 
-Chaque poussée sur la branche `main` lance les tests, construit le site et le publie sur GitHub Pages (`.github/workflows/publier.yml`). Si un test échoue, rien n'est publié. Le développement se fait sur une branche par jalon : seule la fusion dans `main` met en ligne.
+Chaque poussée sur la branche `main` lance les tests, construit le site et le publie sur GitHub Pages (`.github/workflows/publier.yml`), à l'adresse `www.valdalea.fr` (domaine déclaré dans les réglages du dépôt). Si un test échoue, rien n'est publié. Le développement se fait sur une branche par jalon : seule la fusion dans `main` met en ligne.
 
 En développement, `window.jcrm` donne accès au jeu depuis la console du navigateur.
 

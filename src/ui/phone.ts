@@ -1,4 +1,5 @@
 import type { ChapterInfo } from '../content/chapitres';
+import { CREDITS } from '../content/credits';
 import { BADGES, VIGILANCE_SCALE } from '../content/inondation';
 import { LEXICON } from '../content/lexique';
 import type { Bulletin, VigilanceLevel } from '../content/model';
@@ -74,7 +75,7 @@ export interface PhoneDeps {
   restart(): Promise<boolean>;
 }
 
-export type PhoneView = 'accueil' | 'calendrier' | 'carte' | 'carnet' | 'meteo' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages';
+export type PhoneView = 'accueil' | 'calendrier' | 'carte' | 'carnet' | 'meteo' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages' | 'apropos';
 
 export interface Phone {
   /** Ouvre le téléphone, sur l'écran des applications ou directement dans l'une d'elles. */
@@ -95,6 +96,7 @@ const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconNam
   { view: 'lexique', label: 'Lexique', icon: 'aide' },
   { view: 'bilan', label: 'Bilan', icon: 'medaille' },
   { view: 'reglages', label: 'Réglages', icon: 'reglages' },
+  { view: 'apropos', label: 'À propos', icon: 'info' },
 ];
 
 const TITLES: Record<View, string> = {
@@ -108,6 +110,7 @@ const TITLES: Record<View, string> = {
   lexique: 'Lexique',
   bilan: 'Bilan et badges',
   reglages: 'Réglages',
+  apropos: 'À propos',
 };
 
 export function createPhone(deps: PhoneDeps): Phone {
@@ -443,6 +446,35 @@ export function createPhone(deps: PhoneDeps): Phone {
     ),
   );
 
+  // ---------------------------------------------------------------- À propos
+  /** Lien vers l'extérieur : il s'ouvre dans un nouvel onglet, et le dit. */
+  const external = (label: string, url: string): HTMLElement => h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, label, h('span', { class: 'sr-only' }, ' (nouvelle fenêtre)'));
+  const aboutView = h(
+    'div',
+    { class: 'stack about' },
+    h('p', { class: 'lead' }, `${CREDITS.name}, un jeu pour se préparer aux risques majeurs.`),
+    h('p', null, `Un jeu de ${CREDITS.author}. Version ${CREDITS.version}.`),
+    h('h3', null, 'Un jeu libre'),
+    h('p', null, 'Le code source est public : chacun peut le lire, le réutiliser, l’améliorer.'),
+    h(
+      'ul',
+      { class: 'bullets' },
+      h('li', null, external('Le code source, sur GitHub', CREDITS.repository)),
+      h('li', null, external('Signaler un problème ou proposer une amélioration', CREDITS.issues)),
+      h('li', null, 'Code : ', external(`licence ${CREDITS.licences.code.name}`, CREDITS.licences.code.url)),
+      h('li', null, 'Textes et contenus : ', external(`licence ${CREDITS.licences.contents.name}`, CREDITS.licences.contents.url)),
+    ),
+    h('h3', null, 'Les consignes'),
+    h(
+      'p',
+      null,
+      "Val-d'Aléa est une commune fictive : ses habitants, son histoire et son DICRIM sont inventés. Les consignes de sécurité, elles, reprennent les pages officielles citées à côté de chaque geste : Géorisques, le ministère chargé de la Transition écologique, Vigicrues, Météo-France, FR-Alert.",
+    ),
+    h('p', null, "Projet indépendant, sans lien avec les services de l'État. En cas de doute, la source officielle fait foi."),
+    h('h3', null, 'Vos données'),
+    h('p', null, "Le jeu ne collecte rien : pas de compte, pas de traceur, pas de serveur. La partie est enregistrée dans votre navigateur, et nulle part ailleurs."),
+  );
+
   // ------------------------------------------------------------ Navigation
   const views: Record<View, HTMLElement> = {
     accueil: home,
@@ -455,6 +487,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     lexique: lexiconView,
     bilan: bilanView,
     reglages: settingsView,
+    apropos: aboutView,
   };
   const renderers: Partial<Record<View, () => void>> = {
     accueil: renderHome,

@@ -1775,6 +1775,12 @@ meter {
   background: var(--paper-2);
 }
 
+/* Liens des pages de texte du téléphone. */
+.about a {
+  color: #0a4aa8;
+  font-weight: 600;
+}
+
 /* ------------------------------------------------------- Téléphone : lieux, météo */
 
 .place-row__about {
