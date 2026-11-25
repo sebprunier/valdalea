@@ -30,7 +30,7 @@ export const PROLOGUE: ActionDef[] = [
     go: 'Ouvrir le DICRIM',
     why: "Le document d'information communal sur les risques majeurs présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Se renseigner en mairie est la première des mesures de prévention.",
     who: 'Le maire rédige le DICRIM et doit le faire connaître. À chacun de le lire.',
-    done: "Vous avez parcouru le DICRIM : vous savez maintenant où sont les risques de la commune. La zone inondable s'affiche sur la carte, en hachures violettes ; les autres cartes sont dans le téléphone, comme le document lui-même. Il vous reste à choisir votre première mission.",
+    done: "Vous avez parcouru le DICRIM : vous savez maintenant où sont les risques de la commune. Ses cartes peuvent s'afficher sur le plan du jeu : depuis le document, ou dans le téléphone, application Carte. Il vous reste à choisir votre première mission.",
     sources: ['georisques-inondation', 'georisques-dicrim'],
   },
 ];

@@ -61,6 +61,8 @@ export interface LoadContext {
   /** Choix valides de chaque situation de crise. */
   situationChoices: ReadonlyMap<string, ReadonlySet<string>>;
   badgeIds: ReadonlySet<string>;
+  /** Ce que certains gestes laissent au joueur pour la suite de la partie : identifiant du geste, puis de l'acquis. */
+  grants: ReadonlyMap<string, string>;
   /** Cartes de risque existantes. */
   riskIds: ReadonlySet<string>;
   /** Le joueur peut-il se tenir à cette position ? */
@@ -116,6 +118,22 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     }
   }
 
+  // Les acquis : chacun avec le chapitre où il a été obtenu. Une partie d'avant eux, enregistrée
+  // en cours de chapitre, garde ce que ses gestes déjà accomplis lui ont donné.
+  const known = new Set(context.grants.values());
+  const assets: Record<string, string> = {};
+  if (isRecord(data.assets)) {
+    for (const [asset, origin] of Object.entries(data.assets)) {
+      if (known.has(asset) && typeof origin === 'string' && context.chapterIds.has(origin)) assets[asset] = origin;
+    }
+  }
+  if (chapterId !== null) {
+    for (const actionId of chapter.done) {
+      const asset = context.grants.get(actionId);
+      if (asset !== undefined && !(asset in assets)) assets[asset] = chapterId;
+    }
+  }
+
   return {
     version: SAVE_VERSION,
     player: context.isFree(pos) ? pos : { ...context.spawn },
@@ -124,6 +142,7 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     chapterId,
     record,
     badges: knownIds(data.badges, context.badgeIds),
+    assets,
     news: knownIds(data.news, new Set<string>(NEWS_IDS)) as NewsId[],
     settings: {
       reducedMotion: typeof settings.reducedMotion === 'boolean' ? settings.reducedMotion : null,

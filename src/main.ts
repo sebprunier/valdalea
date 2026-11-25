@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { Sound } from './audio/sound';
-import { ALL_ACTIONS, ALL_BADGES, ALL_SITUATIONS, CHAPTERS } from './content/chapitres';
+import { ALL_ACTIONS, ALL_BADGES, ALL_SITUATIONS, CHAPTERS, GRANTS } from './content/chapitres';
 import { PROLOGUE } from './content/prologue';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
@@ -29,6 +29,7 @@ const saved = loadGame(storage, {
   legacy: { chapterId: 'automne', prologue: PROLOGUE.map((action) => action.id) },
   situationChoices: new Map(ALL_SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
   badgeIds: new Set(ALL_BADGES.map((badge) => badge.id)),
+  grants: GRANTS,
   riskIds: new Set(RISK_IDS),
   isFree: (pos) => grid.circleFree(pos.x, pos.y, PLAYER_RADIUS),
   spawn: commune.spawn,

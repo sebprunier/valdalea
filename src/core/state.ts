@@ -32,6 +32,8 @@ export interface GameState {
   record: Record<string, number>;
   /** Badges obtenus, conservés d'une partie à l'autre du chapitre. */
   badges: string[];
+  /** Ce que le joueur garde d'un chapitre à l'autre (son kit d'urgence), avec le chapitre où il l'a obtenu. */
+  assets: Record<string, string>;
   /** Applications du téléphone où quelque chose de nouveau attend d'être regardé. */
   news: NewsId[];
   settings: Settings;
@@ -40,7 +42,12 @@ export interface GameState {
 export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null, sound: true };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, badges, news: [], settings };
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, badges, assets: {}, news: [], settings };
+}
+
+/** Le joueur vient d'acquérir quelque chose qu'il gardera dans les chapitres suivants. Le premier chapitre où il l'obtient fait foi. */
+export function withAsset(state: GameState, asset: string, chapterId: string): GameState {
+  return asset in state.assets ? state : { ...state, assets: { ...state.assets, [asset]: chapterId } };
 }
 
 /** Retient l'indice de préparation d'un chapitre mené au bout, s'il est meilleur que le précédent. */

@@ -1,4 +1,4 @@
-import { ALL_BADGES, findChapter, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
+import { ALL_BADGES, findChapter, ownedIn, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
 import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -19,7 +19,7 @@ import {
   type Chapter,
   type Phase,
 } from '../core/chapter';
-import { DEFAULT_SETTINGS, markVisited, newGame, withBadges, withChapter, withNews, withoutNews, withRecord, type GameState, type NewsId } from '../core/state';
+import { DEFAULT_SETTINGS, markVisited, newGame, withAsset, withBadges, withChapter, withNews, withoutNews, withRecord, type GameState, type NewsId } from '../core/state';
 import { distance, distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
@@ -34,7 +34,7 @@ import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
 import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, h, icon, requireElement } from './dom';
 import { createFlow, type Scene } from './flow';
-import { guardBack } from './leave';
+import { guardBack, guardUnload } from './leave';
 import { createMapLegend } from './legend';
 import { createMission } from './mission';
 import { createPhone, type PhoneView } from './phone';
@@ -109,13 +109,16 @@ export function createUi(deps: UiDeps): Ui {
 
   const chapter = (): Chapter => store.get().chapter;
   /** Ce qui se joue en ce moment : le prologue, puis le chapitre choisi. */
-  let bookId: string | null | undefined;
+  let bookKey: string | undefined;
   let book: Playbook = playbookOf(null);
   function playbook(): Playbook {
-    const id = store.get().chapterId;
-    if (id !== bookId) {
-      bookId = id;
-      book = playbookOf(id);
+    const { chapterId, assets } = store.get();
+    // Ce que le joueur a acquis dans un autre chapitre change les gestes de celui-ci : son kit se vérifie au lieu de se préparer.
+    const owned = ownedIn(assets, chapterId);
+    const key = `${chapterId ?? ''}|${owned.join(',')}`;
+    if (key !== bookKey) {
+      bookKey = key;
+      book = playbookOf(chapterId, owned);
     }
     return book;
   }
@@ -304,7 +307,7 @@ export function createUi(deps: UiDeps): Ui {
    * les lieux visités et les réglages sont conservés ; le récit ouvre le chapitre.
    */
   function begin(chapterId: string): void {
-    const next = playbookOf(chapterId);
+    const next = playbookOf(chapterId, ownedIn(store.get().assets, chapterId));
     store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
     showHazard(0, true);
     game.setFocus(null);
@@ -353,11 +356,13 @@ export function createUi(deps: UiDeps): Ui {
     getQuestions: () => playbook().questions,
     perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
     performed: (action) => {
-      // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur
-      // au moment même du geste, et la zone inondable apparaît sur le plan.
-      if (action.id !== 'mairie-dicrim') return;
-      setLayer('inondation');
-      dicrim.open(null);
+      // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur au moment
+      // même du geste. Aucune carte de risque n'est posée d'office sur le plan : c'est lui qui choisit.
+      if (action.id === 'mairie-dicrim') dicrim.open(null);
+      // Le kit d'urgence, une fois préparé, suit le joueur dans les autres chapitres.
+      const { grants } = action;
+      const chapterId = store.get().chapterId;
+      if (grants && chapterId) store.update((state) => withAsset(state, grants, chapterId));
     },
     afterAction: (action) => {
       // Le prologue s'achève avec la lecture du DICRIM : il reste à choisir une mission.
@@ -476,8 +481,11 @@ export function createUi(deps: UiDeps): Ui {
       startDialog.close();
     },
   });
+  /** La partie a commencé : l'écran d'accueil est refermé. */
+  let playing = false;
   // Une fois l'accueil refermé, on reprend le récit là où il en était.
   startDialog.onClose(() => {
+    playing = true;
     announce(mission.hint().text);
     flow.resume();
   });
@@ -540,6 +548,8 @@ export function createUi(deps: UiDeps): Ui {
       preferCancel: true,
     }),
   );
+  // Fermer l'onglet, recharger ou partir vers un autre site : c'est le navigateur qui pose la question, à sa façon.
+  guardUnload(() => playing);
   // Le temps qu'il fait et la vigilance ouvrent leur application, dans le téléphone.
   onPress(weatherChip, (trigger) => openPhone(trigger, 'meteo'));
   onPress(vigilanceChip, (trigger) => openPhone(trigger, playbook().content?.hazardApp ?? 'alertes'));

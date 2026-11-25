@@ -23,6 +23,8 @@ Le chapitre de l'inondation se déroule ainsi, et celui du feu sur le même mod�
 3. **Crue.** Six décisions à prendre pendant que l'eau monte sur la carte.
 4. **Bilan.** Ce qui a tenu, ce qui a été touché, pourquoi, avec la source officielle de chaque consigne. Un indice de préparation et des badges.
 
+Le **kit d'urgence 72 heures** sert pour tous les risques : le joueur le prépare dans le premier chapitre qu'il joue, quel qu'il soit, et le vérifie dans les suivants.
+
 Autour des chapitres :
 
 - **Le récit entre les phases** : aucune alerte n'arrive sans prévenir. Un court moment de récit la précède, pendant lequel le joueur voit le soir tomber, la pluie arriver et l'eau monter sur la carte. Rien n'avance tout seul : c'est lui qui passe à la suite.
@@ -70,6 +72,7 @@ Toute consigne de sécurité affichée dans le jeu reprend une page officielle, 
 - `src/content/prologue.ts` : la rencontre du maire et la lecture du DICRIM.
 - `src/content/inondation.ts` : le chapitre de l'inondation — gestes, questions, situations de crise, bilan, bulletins. Chaque élément porte l'identifiant de ses sources.
 - `src/content/feu.ts` : le chapitre du feu de forêt — le printemps, l'été, les décisions, le bilan, les messages.
+- `src/content/kit.ts` : le kit d'urgence 72 heures, commun à tous les risques. Il se prépare dans le premier chapitre joué, quel qu'il soit, avec ses questions ; dans les suivants, il se vérifie.
 - `src/content/dicrim.ts` : le DICRIM. Ce qui décrit la commune est inventé ; les phénomènes et les bons réflexes reprennent les pages officielles.
 - `src/content/lexique.ts` : les définitions du lexique.
 - `src/content/places.ts` : textes de présentation des lieux (aucune consigne).
@@ -109,7 +112,7 @@ Le jeu vise les critères du RGAA :
 - l'interface est en HTML sémantique, les fenêtres utilisent l'élément natif `<dialog>` ;
 - tout se fait au clavier, et le focus reste visible ;
 - la carte et les illustrations ne sont pas indispensables : la liste des lieux, le carnet de mission et la liste des gestes en sont l'alternative, et chaque carte de risque est décrite en toutes lettres ;
-- un « retour » involontaire du navigateur ne quitte pas le jeu sans confirmation ; fermer la page ne demande rien, la partie étant enregistrée ;
+- on ne quitte pas le jeu par mégarde : un « retour » du navigateur ouvre une confirmation du jeu ; fermer l'onglet, recharger la page ou partir vers un autre site déclenche celle du navigateur (sa fenêtre et son texte, qu'une page ne peut pas choisir) ;
 - rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;
 - la pluie et la lumière du soir sont un décor : le temps qu'il fait est aussi écrit dans la barre d'état ;
 - aucune information ne repose sur la couleur seule (niveaux de vigilance, zones des cartes, états des gestes, résultats du bilan) ;

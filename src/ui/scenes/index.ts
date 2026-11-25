@@ -324,7 +324,8 @@ function campsite(state: SceneState): Scene {
       }
       if (state.water <= 0) c.person(18.3, 13.2, '#4f7a3a');
       c.spot('camping-consignes', 16.2, 13.2, 1.45);
-      c.spot('camping-barbecue', safeBarbecue ? 13.8 : 1.8, safeBarbecue ? 14.6 : 13.2, 1.3);
+      // Au-dessus du barbecue, pas dessus : il reste visible sous la pastille.
+      c.spot('camping-barbecue', safeBarbecue ? 13.8 : 1.8, safeBarbecue ? 14.6 : 13.2, 2.7);
     },
   });
 }
@@ -466,17 +467,18 @@ export function buildBrushScene(work: BrushWork): Scene {
         c.tree(16.3, 5.2, 4.4);
       }
 
-      // Les buissons, contre la façade arrière.
-      if (!did('buissons')) {
-        for (const x of [7.3, 9.2, 11.1]) c.box(x, 6.2, 0, 1.1, 0.8, 0.9, BUSH);
-      }
-
       // La maison.
       c.box(7, 7, 0, 6, 5, 3.2, WALL);
       c.panelRight(13, 8, 1, 1.3, 1.2, GLASS, LINE);
       windowsLeft(c, 12, 1, [7.7, 11.2]);
       c.panelLeft(9.4, 12, 0, 1.1, 2.1, DOOR, LINE);
       c.gable(6.6, 6.6, 3.2, 6.8, 5.8, 2, TILE);
+
+      // Les buissons, au pied de la façade, sous les fenêtres.
+      if (!did('buissons')) {
+        c.box(7.2, 12.05, 0, 1.9, 0.9, 0.95, BUSH);
+        c.box(10.8, 12.05, 0, 1.9, 0.9, 0.95, BUSH);
+      }
 
       // Le tas de bois et la bouteille de gaz : contre le mur, ou au fond du terrain.
       if (did('combustibles')) {
@@ -494,10 +496,11 @@ export function buildBrushScene(work: BrushWork): Scene {
       // Le coin barbecue, sur la terrasse, et Lucien.
       c.ground(14.2, 12.4, 2.4, 1.4, PAVING);
       c.box(15, 12.8, 0, 0.6, 0.5, 0.8, faces('#3a3f45', '#1b2733'));
-      c.person(10.9, 13.1, '#7c5c8e');
+      c.person(9.9, 13.6, '#7c5c8e');
 
       c.spot('herbes', 11.5, 4.2, 0.6);
-      c.spot('buissons', 9.7, 6.5, 1.1);
+      // Sur le buisson de gauche ; celui de droite reste entièrement visible.
+      c.spot('buissons', 8.15, 12.5, 1.1);
       c.spot('espacer', 15.7, 5, 3.4);
       c.spot('combustibles', did('combustibles') ? 17.9 : 13.3, did('combustibles') ? 12 : 10.4, 1.1);
       c.spot('raser', 3.6, 11.4, 3.8);
