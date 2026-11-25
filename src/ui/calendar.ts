@@ -1,12 +1,11 @@
 import { CHAPTERS, LATER, type ChapterInfo } from '../content/chapitres';
 import { isUnderway, type Phase } from '../core/chapter';
-import { createDialog } from './dialog';
 import { h, icon } from './dom';
 
 /**
- * Le calendrier : l'année à Val-d'Aléa, chapitre par chapitre. C'est ici que
- * le joueur choisit ce qu'il joue, dans l'ordre qu'il veut ; un chapitre est
- * conseillé pour commencer, aucun n'est imposé.
+ * Le calendrier : l'année à Val-d'Aléa, chapitre par chapitre. C'est une
+ * application du téléphone : le joueur y choisit ce qu'il joue, dans l'ordre
+ * qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé.
  */
 
 export interface CalendarDeps {
@@ -14,10 +13,13 @@ export interface CalendarDeps {
   getProgress(): { phase: Phase; chapterId: string | null; record: Readonly<Record<string, number>> };
   /** Le joueur choisit de jouer ce chapitre. Renvoie vrai s'il a bien commencé. */
   start(chapter: ChapterInfo): Promise<boolean>;
+  /** Le chapitre choisi commence, ou le joueur reprend celui qui est en cours : le téléphone peut se refermer. */
+  leave(): void;
 }
 
-export interface Calendar {
-  open(returnFocus: HTMLElement | null): void;
+export interface CalendarView {
+  element: HTMLElement;
+  render(): void;
 }
 
 const PHASE_NAMES: Partial<Record<Phase, string>> = {
@@ -26,8 +28,8 @@ const PHASE_NAMES: Partial<Record<Phase, string>> = {
   crise: 'crise',
 };
 
-export function createCalendar(deps: CalendarDeps): Calendar {
-  const dialog = createDialog({ id: 'calendrier', title: 'Calendrier' });
+export function createCalendarView(deps: CalendarDeps): CalendarView {
+  const element = h('div', { class: 'stack' });
 
   function card(chapter: ChapterInfo): HTMLElement {
     const { phase, chapterId, record } = deps.getProgress();
@@ -55,7 +57,7 @@ export function createCalendar(deps: CalendarDeps): Calendar {
     if (chapter.playable && !locked) {
       if (current) {
         const resume = h('button', { type: 'button', class: 'button button--primary button--small' }, 'Reprendre');
-        resume.addEventListener('click', () => dialog.close());
+        resume.addEventListener('click', () => deps.leave());
         const again = h('button', { type: 'button', class: 'button button--small' }, 'Recommencer');
         again.addEventListener('click', () => void play(chapter));
         parts.push(h('div', { class: 'chapter__actions' }, resume, again));
@@ -69,13 +71,13 @@ export function createCalendar(deps: CalendarDeps): Calendar {
   }
 
   async function play(chapter: ChapterInfo): Promise<void> {
-    if (await deps.start(chapter)) dialog.close();
+    if (await deps.start(chapter)) deps.leave();
     else render();
   }
 
   function render(): void {
     const { phase } = deps.getProgress();
-    dialog.body.replaceChildren(
+    element.replaceChildren(
       h(
         'p',
         { class: 'lead' },
@@ -88,10 +90,5 @@ export function createCalendar(deps: CalendarDeps): Calendar {
     );
   }
 
-  return {
-    open(returnFocus) {
-      render();
-      dialog.open(returnFocus);
-    },
-  };
+  return { element, render };
 }

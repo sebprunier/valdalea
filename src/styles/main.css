@@ -199,6 +199,13 @@ kbd {
   color: #d8d2c4;
 }
 
+/* Le chapitre en cours : un simple rappel, à la suite du secteur. */
+.hud__chapter {
+  color: #ffcfae;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 .hud__sector::before {
   content: '';
   display: inline-block;
@@ -1725,6 +1732,51 @@ meter {
   border-left: 0.4rem solid #ff9214;
   border-radius: var(--radius);
   background: var(--paper-2);
+}
+
+/* ------------------------------------------------------- Téléphone : lieux, météo */
+
+.place-row__about {
+  margin: 0.2rem 0 0.5rem;
+  padding-left: 0.2rem;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.weather-now {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.weather-now__icon {
+  display: inline-flex;
+  font-size: 1.6rem;
+  color: var(--accent-dark);
+}
+
+.forecast {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.forecast li {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  align-items: start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.forecast__icon {
+  display: inline-flex;
+  padding-top: 0.1rem;
+  color: var(--ink-soft);
 }
 
 /* --------------------------------------------------------------- Calendrier */

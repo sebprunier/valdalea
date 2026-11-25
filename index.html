@@ -21,15 +21,11 @@
       <div class="hud__where">
         <p class="hud__commune">Val-d'Aléa</p>
         <p class="hud__sector"><span class="sr-only">Secteur : </span><span id="hud-sector">Bas-Bourg</span></p>
+        <!-- Le chapitre en cours : un rappel. Il se choisit dans le téléphone, application Calendrier. -->
+        <p class="hud__chapter"><span class="sr-only">Chapitre : </span><span id="hud-chapter-text">Prologue</span></p>
       </div>
-      <!-- L'état du moment, sous le nom de la commune : le chapitre en cours (il ouvre le calendrier), le temps qu'il fait et la vigilance (ils ouvrent le détail, dans le téléphone). -->
+      <!-- L'état du moment, sous le nom de la commune : le temps qu'il fait et la vigilance. Chacun ouvre son application, dans le téléphone. -->
       <div class="hud__status">
-        <button type="button" class="chip chip--button" id="hud-chapter" aria-haspopup="dialog">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M5 5.5h14V20H5V5.5Zm0 5h14M9 3v4.5M15 3v4.5" />
-          </svg>
-          <span class="sr-only">Chapitre : </span><span id="hud-chapter-text">Prologue</span>
-        </button>
         <button type="button" class="chip chip--button" id="hud-weather" aria-haspopup="dialog">
           <span class="chip__icon" id="hud-weather-icon" aria-hidden="true"></span>
           <span class="sr-only">Météo : </span><span id="hud-weather-text">Temps sec</span>
@@ -61,12 +57,6 @@
         </span>
       </button>
       <nav class="hud__actions" aria-label="Menu du jeu">
-        <button type="button" class="hud-button" id="button-places" aria-keyshortcuts="L">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-          </svg>
-          <span class="hud-button__label">Lieux</span> <kbd aria-hidden="true">L</kbd>
-        </button>
         <button type="button" class="hud-button" id="button-phone" aria-keyshortcuts="T">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm3 17h2" />
@@ -104,9 +94,8 @@
         <canvas id="weather" class="weather" aria-hidden="true"></canvas>
       </div>
       <p id="map-help" class="sr-only">
-        Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. L ouvre la
-        liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. T
-        ouvre le téléphone, H l'aide, G la légende de la carte. Plus et moins changent le zoom.
+        Déplacez-vous avec les flèches du clavier. Entrée ouvre la fiche du lieu devant lequel vous vous trouvez. T ouvre le
+        téléphone, la télécommande du jeu ; L y ouvre directement la liste des lieux, qui permet de jouer sans la carte. M ouvre le carnet de mission, qui indique quoi faire ensuite. H ouvre l'aide, G la légende de la carte. Plus et moins changent le zoom.
       </p>
       <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
       <div class="map-tools">

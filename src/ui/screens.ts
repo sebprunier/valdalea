@@ -1,10 +1,8 @@
-import { distance, type Vec } from '../core/geometry';
 import { UNITS_PER_METER } from '../game/constants';
-import type { Commune, Place } from '../world/model';
 import { createDialog, type DialogHandle } from './dialog';
-import { h, icon } from './dom';
+import { h } from './dom';
 
-/** Écrans simples : accueil, aide, fiche d'un lieu et liste des lieux. */
+/** Écrans simples : accueil et aide. La liste des lieux est une application du téléphone. */
 
 function keys(...labels: string[]): HTMLElement {
   const group = h('span', { class: 'keys' });
@@ -33,15 +31,15 @@ function controlsList(): HTMLElement {
     ...row('Zoomer, dézoomer', keys('+'), ' et ', keys('-'), ', la molette, ou les boutons en bas de la carte'),
     ...row('Légende de la carte', keys('G')),
     ...row('Carnet de mission', keys('M')),
-    ...row('Liste des lieux', keys('L')),
     ...row('Téléphone', keys('T')),
+    ...row('Liste des lieux, dans le téléphone', keys('L')),
     ...row('Aide', keys('H')),
     ...row('Fermer une fenêtre', keys('Échap')),
   );
 }
 
 const WITHOUT_MAP =
-  "Vous pouvez jouer sans la carte : la liste des lieux donne accès à toute la commune, au clavier comme avec un lecteur d'écran.";
+  "Vous pouvez jouer sans la carte : dans le téléphone, l'application Lieux donne accès à toute la commune, au clavier comme avec un lecteur d'écran.";
 
 // ------------------------------------------------------------------ Accueil
 
@@ -132,7 +130,7 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "La partie commence par un prologue : rencontrer le maire, lire le DICRIM. Ensuite, le calendrier (dans le téléphone, ou depuis le bouton qui affiche le chapitre en cours, en haut de l'écran) propose les chapitres, un risque par saison. Vous les jouez dans l'ordre que vous voulez ; un chapitre est conseillé pour commencer, aucun n'est imposé.",
+      "La partie commence par un prologue : rencontrer le maire, lire le DICRIM. Ensuite, l'application Calendrier du téléphone propose les chapitres, un risque par saison. Vous les jouez dans l'ordre que vous voulez ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est rappelé en haut de l'écran.",
     ),
     h('h3', null, 'Savoir quoi faire'),
     h(
@@ -144,13 +142,13 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance crues ; ils ouvrent le détail et les messages reçus. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : une alerte, le DICRIM, le bilan.",
+      "Le téléphone est la télécommande du jeu : calendrier des chapitres, carte, lieux, météo, alertes, DICRIM, lexique, bilan, réglages. En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance ; ils ouvrent les applications Météo et Alertes. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : une alerte, le DICRIM, le bilan.",
     ),
     h('h3', null, 'Recommencer'),
     h(
       'p',
       null,
-      "Le calendrier permet de rejouer un chapitre ou d'en changer. Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend le chapitre en cours à son début en gardant vos badges, « Tout recommencer » efface la partie, prologue compris.",
+      "Dans le téléphone : l'application Calendrier permet de rejouer un chapitre ou d'en changer ; dans l'application Réglages, « Rejouer le chapitre » reprend le chapitre en cours à son début en gardant vos badges, « Tout recommencer » efface la partie, prologue compris.",
     ),
     h('h3', null, 'Le son'),
     h(
@@ -183,62 +181,10 @@ export function formatDistance(units: number): string {
   return `à ${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
-export interface PlacesDialog {
-  show(player: Vec, visited: readonly string[], returnFocus: HTMLElement | null): void;
-}
-
 /** Ce que la liste affiche de chaque lieu, en plus de son nom. */
 export interface PlaceInfo {
   /** Nombre de gestes possibles sur place. */
   pending: number;
-  /** En zone inondable ? `null` tant que le DICRIM n'a pas été consulté. */
+  /** Dans une zone de risque ? `null` tant que le DICRIM n'a pas été consulté. */
   exposed: boolean | null;
-}
-
-/**
- * Liste de tous les lieux, groupés par secteur. C'est l'alternative à la carte :
- * tout ce que la carte permet d'atteindre doit rester atteignable d'ici.
- */
-export function createPlacesDialog(commune: Commune, onTravel: (place: Place) => void, info: (place: Place) => PlaceInfo): PlacesDialog {
-  const dialog = createDialog({ id: 'lieux', title: 'Lieux de la commune' });
-  const list = h('div', { class: 'place-groups' });
-  dialog.body.append(h('p', null, 'Choisissez un lieu pour vous y rendre. Le trajet prend le même temps qu’à pied.'), list);
-
-  return {
-    show(player, visited, returnFocus) {
-      list.replaceChildren();
-      for (const sector of commune.sectors) {
-        const places = commune.places.filter((place) => place.sectorId === sector.id);
-        if (places.length === 0) continue;
-        const items = places.map((place) => {
-          const seen = visited.includes(place.id);
-          const { pending, exposed } = info(place);
-          const button = h(
-            'button',
-            { type: 'button', class: 'place-row' },
-            h(
-              'span',
-              { class: 'place-row__name' },
-              place.name,
-              pending > 0 ? h('span', { class: 'tag tag--todo' }, pending > 1 ? `${pending} gestes possibles` : '1 geste possible') : null,
-              exposed ? h('span', { class: 'tag tag--alert' }, 'zone inondable') : null,
-            ),
-            h(
-              'span',
-              { class: 'place-row__meta' },
-              formatDistance(distance(place.pos, player)),
-              seen ? h('span', { class: 'tag' }, icon('coche'), 'déjà visité') : null,
-            ),
-          );
-          button.addEventListener('click', () => {
-            dialog.close();
-            onTravel(place);
-          });
-          return h('li', null, button);
-        });
-        list.append(h('section', null, h('h3', null, sector.name), h('ul', { class: 'place-list' }, ...items)));
-      }
-      dialog.open(returnFocus);
-    },
-  };
 }

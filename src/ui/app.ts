@@ -1,5 +1,5 @@
-import { findChapter } from '../content/chapitres';
-import { ACTIONS, DUSK, OBJECTIVES, SITUATION } from '../content/inondation';
+import { findChapter, type ChapterInfo } from '../content/chapitres';
+import { ACTIONS, DUSK, FORECAST, OBJECTIVES, SITUATION } from '../content/inondation';
 import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -30,7 +30,6 @@ import { SKIES, type WeatherLayer } from '../render/weather';
 import type { Elevation } from '../world/elevation';
 import { exposuresAt, isExposed } from '../world/hazards';
 import { findPlace, RISK_IDS, type Commune, type Place, type RiskId, type Sector } from '../world/model';
-import { createCalendar } from './calendar';
 import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
 import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, h, icon, requireElement } from './dom';
@@ -40,7 +39,7 @@ import { createMapLegend } from './legend';
 import { createMission } from './mission';
 import { createPhone, type PhoneView } from './phone';
 import { createPlaceUi } from './place';
-import { createHelpDialog, createPlacesDialog, createStartDialog } from './screens';
+import { createHelpDialog, createStartDialog } from './screens';
 import { createToaster } from './toast';
 
 /** Ce dont l'interface a besoin du reste du jeu. */
@@ -95,7 +94,6 @@ export function createUi(deps: UiDeps): Ui {
   const layerChip = requireElement<HTMLElement>('layer-chip');
   const layerName = requireElement<HTMLElement>('layer-name');
   const layerHide = requireElement<HTMLButtonElement>('layer-hide');
-  const chapterChip = requireElement<HTMLButtonElement>('hud-chapter');
   const chapterText = requireElement<HTMLElement>('hud-chapter-text');
   const soundButton = requireElement<HTMLButtonElement>('button-sound');
   const soundIcon = requireElement<HTMLElement>('sound-icon');
@@ -223,7 +221,7 @@ export function createUi(deps: UiDeps): Ui {
     getBadges: () => store.get().badges,
     addBadges: (ids) => store.update((state) => withBadges(state, ids)),
     replay,
-    openCalendar: () => calendar.open(map),
+    openCalendar,
     closePlace: () => placeUi.close(),
     goHome: () => game.moveTo(home),
     stage: (next) => {
@@ -256,27 +254,27 @@ export function createUi(deps: UiDeps): Ui {
     if (id) begin(id);
   }
 
-  const calendar = createCalendar({
-    getProgress: () => {
-      const state = store.get();
-      return { phase: state.chapter.phase, chapterId: state.chapterId, record: state.record };
-    },
-    start: async (info) => {
-      const { phase } = chapter();
-      if (!info.playable || phase === 'accueil') return false;
-      // Quitter un chapitre en cours le fait perdre : on le dit avant.
-      if (isUnderway(phase)) {
-        const confirmed = await confirm({
-          title: info.id === store.get().chapterId ? 'Recommencer ce chapitre ?' : 'Changer de chapitre ?',
-          message: 'Le chapitre en cours sera abandonné, et sa progression perdue. Vos badges et les lieux découverts sont conservés.',
-          confirmLabel: 'Commencer',
-        });
-        if (!confirmed) return false;
-      }
-      begin(info.id);
-      return true;
-    },
-  });
+  /** Le joueur choisit un chapitre dans le calendrier. Renvoie vrai s'il a bien commencé. */
+  async function chooseChapter(info: ChapterInfo): Promise<boolean> {
+    const { phase } = chapter();
+    if (!info.playable || phase === 'accueil') return false;
+    // Quitter un chapitre en cours le fait perdre : on le dit avant.
+    if (isUnderway(phase)) {
+      const confirmed = await confirm({
+        title: info.id === store.get().chapterId ? 'Recommencer ce chapitre ?' : 'Changer de chapitre ?',
+        message: 'Le chapitre en cours sera abandonné, et sa progression perdue. Vos badges et les lieux découverts sont conservés.',
+        confirmLabel: 'Commencer',
+      });
+      if (!confirmed) return false;
+    }
+    begin(info.id);
+    return true;
+  }
+
+  /** Le calendrier est une application du téléphone : c'est là que se choisissent les chapitres. */
+  function openCalendar(): void {
+    openPhone(map, 'calendrier');
+  }
 
   // -------------------------------------------------------------- Fenêtres
   const confirm = createConfirm();
@@ -301,7 +299,7 @@ export function createUi(deps: UiDeps): Ui {
       // Le prologue s'achève avec la lecture du DICRIM : il reste à choisir une mission.
       if (action.endsPhase && chapter().phase === 'libre') {
         placeUi.close();
-        calendar.open(map);
+        openCalendar();
         return;
       }
       void flow.afterAction(action);
@@ -315,10 +313,6 @@ export function createUi(deps: UiDeps): Ui {
     if (!flow.isBusy()) openPlace(place);
   }
 
-  const placesDialog = createPlacesDialog(commune, goTo, (place) => ({
-    pending: pendingAt(ACTIONS, chapter(), place.id),
-    exposed: dicrimRead() ? RISK_IDS.some((risk) => isExposed(commune, elevation, risk, place.pos)) : null,
-  }));
 
   const mission = createMission({
     commune,
@@ -326,7 +320,7 @@ export function createUi(deps: UiDeps): Ui {
     getPlayer: () => game.position,
     goTo,
     openBilan: () => openPhone(map, 'bilan'),
-    openCalendar: () => calendar.open(map),
+    openCalendar,
     replay,
   });
 
@@ -340,7 +334,7 @@ export function createUi(deps: UiDeps): Ui {
     // Aucun chapitre choisi : il n'y a rien à rejouer, c'est le calendrier qu'il faut.
     if (!store.get().chapterId || !isUnderway(chapter().phase)) {
       if (chapter().phase === 'bilan') replay();
-      else calendar.open(map);
+      else openCalendar();
       return true;
     }
     const confirmed = await confirm({
@@ -376,16 +370,23 @@ export function createUi(deps: UiDeps): Ui {
     getSectorName: () => sectorName,
     getState: () => store.get(),
     getBulletins: () => flow.bulletins(),
-    getSituation: () => {
-      const situation = SITUATION[chapter().phase];
-      return { vigilance: situation.vigilance, sky: SKIES[sky()].label, river: situation.river };
+    getVigilance: () => SITUATION[chapter().phase].vigilance,
+    getWeather: () => {
+      const { phase } = chapter();
+      const now = SKIES[sky()];
+      return { label: now.label, icon: now.icon, river: SITUATION[phase].river, forecast: phase in FORECAST ? FORECAST[phase as keyof typeof FORECAST] : [] };
     },
+    getPlaceInfo: (place) => ({
+      pending: pendingAt(ACTIONS, chapter(), place.id),
+      exposed: dicrimRead() ? RISK_IDS.some((risk) => isExposed(commune, elevation, risk, place.pos)) : null,
+    }),
+    travel: goTo,
+    startChapter: chooseChapter,
     getAssessment: () => flow.assessment(),
     clearNews: (id) => store.update((state) => withoutNews(state, id)),
     isDicrimRead: dicrimRead,
     openDicrim: () => dicrim.open(null),
     openLegend: () => legend.open(null),
-    openCalendar: () => calendar.open(map),
     setLayer,
     isReducedMotion: deps.isReducedMotion,
     setReducedMotion: deps.setReducedMotion,
@@ -430,7 +431,7 @@ export function createUi(deps: UiDeps): Ui {
     else if (panel === 'help') helpDialog.open(trigger);
     else if (panel === 'mission') mission.open(trigger);
     else if (panel === 'legend') legend.open(trigger);
-    else placesDialog.show(game.position, store.get().visited, trigger);
+    else openPhone(trigger, 'carnet');
   }
 
   // Boutons de la barre : au clavier, le focus revient sur le bouton ; à la souris, sur la carte.
@@ -439,7 +440,6 @@ export function createUi(deps: UiDeps): Ui {
   };
   const bind = (id: string, panel: Panel): void => onPress(requireElement<HTMLButtonElement>(id), (trigger) => openPanel(panel, trigger));
   bind('button-mission', 'mission');
-  bind('button-places', 'places');
   bind('button-phone', 'phone');
   bind('button-help', 'help');
   bind('button-legend', 'legend');
@@ -471,11 +471,8 @@ export function createUi(deps: UiDeps): Ui {
       preferCancel: true,
     }),
   );
-  // Le temps qu'il fait et la vigilance mènent au même endroit : la situation du moment, dans le téléphone.
-  onPress(chapterChip, (trigger) => {
-    if (!flow.isBusy()) calendar.open(trigger);
-  });
-  onPress(weatherChip, (trigger) => openPhone(trigger, 'alertes'));
+  // Le temps qu'il fait et la vigilance ouvrent leur application, dans le téléphone.
+  onPress(weatherChip, (trigger) => openPhone(trigger, 'meteo'));
   onPress(vigilanceChip, (trigger) => openPhone(trigger, 'alertes'));
 
   promptButton.addEventListener('click', () => {
@@ -511,11 +508,7 @@ export function createUi(deps: UiDeps): Ui {
 
     // Le chapitre en cours : son nom, ou ce qui tient lieu de chapitre avant d'en avoir choisi un.
     const info = current.phase === 'accueil' || current.phase === 'libre' ? undefined : findChapter(state.chapterId);
-    chapterText.replaceChildren(
-      ...(info
-        ? [info.season, h('span', { class: 'chip__extra' }, ` — ${info.title}`)]
-        : [current.phase === 'accueil' ? 'Prologue' : 'Choisir un chapitre']),
-    );
+    chapterText.textContent = info ? `${info.season} — ${info.title}` : current.phase === 'accueil' ? 'Prologue' : 'Aucun chapitre en cours';
 
     const level = scene?.vigilance ?? SITUATION[current.phase].vigilance;
     vigilanceChip.dataset.level = level;

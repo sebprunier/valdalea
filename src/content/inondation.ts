@@ -576,6 +576,31 @@ export const SITUATION: Record<keyof typeof OBJECTIVES, { vigilance: VigilanceLe
   bilan: { vigilance: 'jaune', sky: 'eclaircie', river: 'en décrue' },
 };
 
+/**
+ * Prévisions de l'application Météo, phase par phase. Fiction : elles annoncent
+ * le récit, comme un bulletin annonce la pluie.
+ */
+export const FORECAST: Record<'preparation' | 'vigilance' | 'crise' | 'bilan', Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>> = {
+  preparation: [
+    { when: 'Cet après-midi', icon: 'soleil', text: 'Temps sec. Le ciel se couvre en fin de journée.' },
+    { when: 'Dimanche', icon: 'nuage', text: 'Ciel couvert. La pluie arrive dans la soirée.' },
+    { when: 'Lundi', icon: 'pluie', text: 'Fortes pluies toute la journée.' },
+  ],
+  vigilance: [
+    { when: 'Ce matin', icon: 'pluie', text: 'Pluie continue.' },
+    { when: 'Cet après-midi', icon: 'pluie', text: 'Fortes pluies.' },
+    { when: 'Mardi', icon: 'eclaircie', text: 'Accalmie.' },
+  ],
+  crise: [
+    { when: "Aujourd'hui", icon: 'pluie', text: "Fortes pluies, qui faiblissent dans l'après-midi." },
+    { when: 'Mardi', icon: 'eclaircie', text: 'Accalmie.' },
+  ],
+  bilan: [
+    { when: 'Ce soir', icon: 'eclaircie', text: 'La pluie a cessé.' },
+    { when: 'Demain', icon: 'soleil', text: 'Temps sec.' },
+  ],
+};
+
 /** Pendant la dernière heure de la journée de préparation, le jour baisse : c'est le signe que le temps presse. */
 export const DUSK = { minutesLeft: 60, sky: 'soir' as SkyId };
 
