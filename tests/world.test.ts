@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { distToPolyline, distToRect, inflate, pointInPolygon, rectsIntersect, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
 import { buildWalkGrid, type WalkGrid } from '../src/world/grid';
-import { sectorAt, type Commune } from '../src/world/model';
+import { findPlace, sectorAt, type Commune } from '../src/world/model';
 import { buildValDAlea } from '../src/world/valdalea';
 
 const commune: Commune = buildValDAlea();
@@ -143,6 +143,45 @@ describe("plan de Val-d'Aléa", () => {
       expect(distToPolyline({ x: cx, y: bridge.rect.y }, commune.river.path)).toBeGreaterThan(commune.river.width / 2);
       expect(distToPolyline({ x: cx, y: bridge.rect.y + bridge.rect.h }, commune.river.path)).toBeGreaterThan(commune.river.width / 2);
     }
+  });
+
+  it('donne à la Grande-Rue quelques commerces, chacun avec son enseigne, entre des maisons', () => {
+    const shops = commune.buildings.filter((building) => building.kind === 'commerce');
+    expect(shops.length).toBeGreaterThanOrEqual(5);
+    expect(shops.length).toBeLessThanOrEqual(8);
+    // Chaque commerce a une enseigne, toutes différentes, et il n'y a d'enseigne que sur un commerce.
+    const signs = shops.map((shop) => shop.sign);
+    for (const sign of signs) expect(sign, 'enseigne').toBeTruthy();
+    expect(new Set(signs).size).toBe(signs.length);
+    expect(signs.slice(0, 4)).toEqual(['Boulangerie', 'Épicerie', 'Tabac-presse', 'Poste']);
+    expect(commune.buildings.filter((building) => building.sign && building.kind !== 'commerce')).toEqual([]);
+    // Une boutique donne sur la rue, et n'a pas de boutique pour voisine immédiate.
+    for (const shop of shops) {
+      expect(['N', 'S'], shop.sign).toContain(shop.door);
+      const next = shops.filter((other) => other !== shop && other.rect.y === shop.rect.y && Math.abs(other.rect.x - (shop.rect.x + shop.rect.w)) < 1);
+      expect(next, shop.sign).toEqual([]);
+    }
+  });
+
+  it("ferme l'école derrière sa clôture : on s'arrête au portail", () => {
+    const school = commune.buildings.find((building) => building.kind === 'ecole')!.rect;
+    const fence = commune.fences.find((f) => f.rect.x <= school.x && f.rect.x + f.rect.w >= school.x + school.w && f.rect.y <= school.y && f.rect.y + f.rect.h >= school.y + school.h)!;
+    expect(fence).toBeDefined();
+    // Le lieu est dehors, devant le portail, et l'on peut s'y tenir.
+    const door = findPlace(commune, 'ecole')!.pos;
+    expect(door.y).toBeGreaterThan(fence.rect.y + fence.rect.h);
+    expect(fence.gate?.side).toBe('S');
+    expect(door.x).toBeGreaterThan(fence.gate!.from);
+    expect(door.x).toBeLessThan(fence.gate!.to);
+    expect(grid.circleFree(door.x, door.y, PLAYER_RADIUS)).toBe(true);
+    // La cour, elle, n'est plus accessible.
+    const reachable = reachableFrom(commune.spawn);
+    // La cour est devant le bâtiment, côté quai : la clôture passe au large de la façade.
+    expect(fence.rect.y + fence.rect.h - (school.y + school.h)).toBeGreaterThan(100);
+    const yard = { x: school.x + school.w / 2, y: school.y + school.h + 60 };
+    expect(grid.circleFree(yard.x, yard.y, PLAYER_RADIUS)).toBe(true);
+    expect(reachable.has(Math.floor(yard.y / grid.cell) * grid.cols + Math.floor(yard.x / grid.cell))).toBe(false);
+    expect(reachable.has(Math.floor(door.y / grid.cell) * grid.cols + Math.floor(door.x / grid.cell))).toBe(true);
   });
 
   it("ferme le site industriel au public", () => {

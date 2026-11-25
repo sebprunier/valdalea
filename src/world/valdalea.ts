@@ -147,8 +147,12 @@ export function buildValDAlea(): Commune {
   b.houseRow(rect(1330, 1700, 140, 150), 'N');
   b.houseRow(rect(1330, 1920, 140, 150), 'S');
   b.townRow(rect(1530, 1700, 530, 75), 'N', 'commerce');
-  b.groundRect('cour', rect(1540, 1810, 280, 130));
-  const ecole = b.building('ecole', rect(1560, 1955, 240, 105), { id: 'ecole', roof: 'tuile', tone: 2, door: 'S' });
+  // L'école, comme sa vue rapprochée la montre : le bâtiment au fond, la cour devant lui, et le long du quai
+  // une clôture dont le portail reste fermé. On ne va pas plus loin que le portail, devant lequel se trouve le lieu.
+  // (Le portail est large : il dépasse de part et d'autre du repère du lieu, posé juste devant.)
+  b.groundRect('cour', rect(1540, 1810, 280, 250));
+  b.building('ecole', rect(1560, 1820, 240, 105), { id: 'ecole', roof: 'tuile', tone: 2, door: 'S' });
+  b.fence(rect(1530, 1800, 300, 270), { side: 'S', from: 1632, to: 1728 });
   b.houseRow(rect(1850, 1920, 210, 150), 'S');
   b.townRow(rect(2140, 1700, 450, 75), 'N', 'commerce');
   b.groundRect('jardin', rect(2143, 1923, 164, 144));
@@ -255,7 +259,7 @@ export function buildValDAlea(): Commune {
   b.label('batiment', 'Mairie', 2400, 760);
   b.label('batiment', 'Gymnase', 2755, 730);
   b.label('batiment', 'Église', 1770, 1220);
-  b.label('batiment', 'École', 1680, 1876);
+  b.label('batiment', 'École', 1680, 1950);
   b.label('batiment', 'Engrais du Val', 3650, 2006);
   b.label('batiment', 'Camping des Berges', 1765, 2832);
 
@@ -276,7 +280,7 @@ export function buildValDAlea(): Commune {
   b.place('mairie', 'Mairie', 'mairie', 'haut-bourg', doorPoint(mairie));
   b.place('gymnase', 'Gymnase des Hauts', 'gymnase', 'haut-bourg', doorPoint(gymnase));
   b.place('jeanne', 'Chez Jeanne', 'domicile', 'bas-bourg', doorPoint(jeanne));
-  b.place('ecole', 'École du Quai', 'ecole', 'bas-bourg', doorPoint(ecole));
+  b.place('ecole', 'École du Quai', 'ecole', 'bas-bourg', vec(1680, 2084));
   b.place('pont', 'Pont de la Follette', 'pont', 'bas-bourg', vec(2100, 2130));
   b.place('vieux-bourg', "Place de l'Église", 'quartier', 'vieux-bourg', doorPoint(eglise));
   b.place('argilieres', 'Lotissement des Argilières', 'quartier', 'argilieres', vec(1650, 300));
@@ -368,6 +372,7 @@ export function buildValDAlea(): Commune {
   // tout ce qui est à l'est de la ligne de coupe se retrouve, en jeu, décalé de `WIDENING` unités.
   widenEast(b.commune, CUT, WIDENING, ['feu-foret', 'industriel']);
   dressGap(b);
+  dressSchoolyard(b);
   return b.commune;
 }
 
@@ -391,5 +396,24 @@ function dressGap(b: WorldBuilder): void {
     [x + 120, 2800, 20],
   ] as const) {
     b.tree(tx, ty, r);
+  }
+}
+
+/**
+ * La cour de l'école, entre le bâtiment et le portail : un préau à gauche, comme sur la vue rapprochée,
+ * un terrain de jeux peint au sol, une marelle, des bancs, quelques arbres. L'allée du portail à la porte
+ * reste dégagée. Posés en dernier : le reste de la commune n'en est pas changé.
+ */
+function dressSchoolyard(b: WorldBuilder): void {
+  b.decor('terrain', 1600, 1966, 0);
+  b.decor('preau', 1583, 2029, 0);
+  b.decor('marelle', 1762, 1972, 0);
+  b.decor('banc', 1808, 1962, Math.PI / 2);
+  b.decor('banc', 1762, 2048, 0);
+  for (const [x, y, r] of [
+    [1798, 2022, 12],
+    [1722, 2032, 11],
+  ] as const) {
+    b.tree(x, y, r);
   }
 }
