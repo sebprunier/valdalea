@@ -77,11 +77,16 @@ export interface PhoneDeps {
   restart(): Promise<boolean>;
 }
 
-export type PhoneView = 'accueil' | 'calendrier' | 'carte' | 'carnet' | 'meteo' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages' | 'apropos';
+export type PhoneView = 'accueil' | 'calendrier' | 'carte' | 'carnet' | 'meteo' | 'messages' | 'alertes' | 'dicrim' | 'lexique' | 'bilan' | 'reglages' | 'apropos';
 
 export interface Phone {
   /** Ouvre le téléphone, sur l'écran des applications ou directement dans l'une d'elles. */
   open(returnFocus: HTMLElement | null, view?: PhoneView): void;
+  /**
+   * Un message ou une alerte vient d'arriver : le téléphone s'ouvre dessus, dans la
+   * messagerie ou dans l'application Alertes. Rendu quand le joueur l'a refermé.
+   */
+  read(bulletin: Bulletin, returnFocus: HTMLElement | null): Promise<void>;
 }
 
 type View = PhoneView;
@@ -93,6 +98,7 @@ const APPS: Array<{ view: Exclude<View, 'accueil'>; label: string; icon: IconNam
   { view: 'carte', label: 'Carte', icon: 'carte' },
   { view: 'carnet', label: 'Lieux', icon: 'lieux' },
   { view: 'meteo', label: 'Météo', icon: 'eclaircie' },
+  { view: 'messages', label: 'Messages', icon: 'message' },
   { view: 'alertes', label: 'Alertes', icon: 'alerte' },
   { view: 'dicrim', label: 'DICRIM', icon: 'document' },
   { view: 'lexique', label: 'Lexique', icon: 'aide' },
@@ -107,6 +113,7 @@ const TITLES: Record<View, string> = {
   carte: 'Carte',
   carnet: 'Lieux de la commune',
   meteo: 'Météo',
+  messages: 'Messages',
   alertes: 'Vigilance et alertes',
   dicrim: 'DICRIM',
   lexique: 'Lexique',
@@ -317,21 +324,46 @@ export function createPhone(deps: PhoneDeps): Phone {
     );
   }
 
-  // ---------------------------------------------------------------- Alertes
+  // ---------------------------------------------------- Messages et alertes
+  /** Le message ou l'alerte qui vient d'arriver, tant que le joueur est en train de le lire. */
+  let reading: Bulletin | null = null;
+
+  const bulletinCard = (bulletin: Bulletin): HTMLElement => h('article', { class: `bulletin bulletin--${bulletin.kind}` }, h('h4', null, bulletin.title), bulletinContent(bulletin));
+
+  /** Ce qui vient d'arriver, seul à l'écran, avec de quoi dire qu'on l'a lu. */
+  function arrival(bulletin: Bulletin): HTMLElement[] {
+    const ok = h('button', { type: 'button', class: 'button button--primary' }, 'Compris');
+    ok.addEventListener('click', () => dialog.close());
+    return [h('p', { class: 'phone__arrival' }, bulletin.kind === 'alerte' ? 'Nouvelle alerte' : 'Nouveau message'), bulletinCard(bulletin), h('div', { class: 'dialog__actions' }, ok)];
+  }
+
+  const messagesView = h('div', { class: 'stack' });
+
+  function renderMessages(): void {
+    if (reading?.kind === 'message') {
+      messagesView.replaceChildren(...arrival(reading));
+      return;
+    }
+    const messages = deps.getBulletins().filter((bulletin) => bulletin.kind === 'message');
+    messagesView.replaceChildren(
+      ...(messages.length === 0 ? [h('p', null, 'Aucun message pour le moment. C’est ici que la mairie vous écrira.')] : messages.map(bulletinCard)),
+      h('p', { class: 'fine-print' }, 'Les bulletins de vigilance et les alertes sont dans l’application Alertes.'),
+    );
+  }
+
   const alertsView = h('div', { class: 'stack' });
 
   function renderAlerts(): void {
+    if (reading?.kind === 'alerte') {
+      alertsView.replaceChildren(...arrival(reading));
+      return;
+    }
     const vigilance = deps.getVigilance();
-    const bulletins = deps.getBulletins();
+    const bulletins = deps.getBulletins().filter((bulletin) => bulletin.kind === 'alerte');
+    const received = [h('h3', null, 'Alertes reçues'), ...(bulletins.length === 0 ? [h('p', null, 'Aucune alerte pour le moment.')] : bulletins.map(bulletinCard))];
     if (vigilance === null) {
-      // Chapitre sans vigilance crues : l'application ne garde que les messages des autorités.
-      alertsView.replaceChildren(
-        h('h3', null, 'Messages reçus'),
-        ...(bulletins.length === 0
-          ? [h('p', null, 'Aucun message pour le moment.')]
-          : bulletins.map((bulletin) => h('article', { class: 'bulletin' }, h('h4', null, bulletin.title), bulletinContent(bulletin)))),
-        h('p', { class: 'fine-print' }, 'Le niveau de danger de feu de forêt est dans l’application Météo.'),
-      );
+      // Chapitre sans vigilance crues : l'application ne garde que les alertes.
+      alertsView.replaceChildren(...received, h('p', { class: 'fine-print' }, 'Le niveau de danger de feu de forêt est dans l’application Météo ; les messages de la mairie, dans l’application Messages.'));
       return;
     }
     const current = VIGILANCE_SCALE.levels.find((level) => level.id === vigilance) ?? VIGILANCE_SCALE.levels[0];
@@ -343,10 +375,7 @@ export function createPhone(deps: PhoneDeps): Phone {
         h('dt', null, 'Vigilance crues'),
         h('dd', null, h('span', { class: 'level-name' }, swatch(current.id), current.name), ` — ${current.meaning}`),
       ),
-      h('h3', null, 'Messages reçus'),
-      ...(bulletins.length === 0
-        ? [h('p', null, 'Aucun message pour le moment.')]
-        : bulletins.map((bulletin) => h('article', { class: 'bulletin' }, h('h4', null, bulletin.title), bulletinContent(bulletin)))),
+      ...received,
       h('h3', null, 'Les quatre niveaux de vigilance'),
       h('p', null, VIGILANCE_SCALE.intro),
       h(
@@ -484,6 +513,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     carte: mapView,
     carnet: placesView,
     meteo: weatherView,
+    messages: messagesView,
     alertes: alertsView,
     dicrim: dicrimView,
     lexique: lexiconView,
@@ -497,6 +527,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     carte: renderMap,
     carnet: renderPlaces,
     meteo: renderWeather,
+    messages: renderMessages,
     alertes: renderAlerts,
     dicrim: renderDicrim,
     bilan: renderBilan,
@@ -509,7 +540,8 @@ export function createPhone(deps: PhoneDeps): Phone {
 
   function show(view: View, moveFocus = true): void {
     for (const [name, element] of Object.entries(views)) element.hidden = name !== view;
-    back.hidden = view === 'accueil';
+    // Pendant la lecture d'un message qui vient d'arriver, le récit attend : on ne part pas dans une autre application.
+    back.hidden = view === 'accueil' || reading !== null;
     dialog.setTitle(TITLES[view]);
     // Ouvrir une application, c'est en avoir vu la nouveauté.
     if (isNews(view)) deps.clearNews(view);
@@ -521,6 +553,21 @@ export function createPhone(deps: PhoneDeps): Phone {
     open(returnFocus, view = 'accueil') {
       show(view, false);
       dialog.open(returnFocus);
+    },
+
+    read(bulletin, returnFocus) {
+      reading = bulletin;
+      show(bulletin.kind === 'alerte' ? 'alertes' : 'messages', false);
+      dialog.open(returnFocus);
+      return new Promise((resolve) => {
+        dialog.onClose(
+          () => {
+            reading = null;
+            resolve();
+          },
+          { once: true },
+        );
+      });
     },
   };
 }

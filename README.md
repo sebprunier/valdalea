@@ -14,7 +14,7 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 La partie s'ouvre sur un **prologue** : rencontrer le maire, puis lire le DICRIM. Le joueur choisit ensuite ses **chapitres** dans le téléphone, application Calendrier : un risque par saison, dans l'ordre qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est rappelé en haut de l'écran.
 
-Deux chapitres sont jouables de bout en bout : **l'automne et le risque d'inondation**, puis **le feu des Brandes** (feu de forêt), qui se joue sur deux saisons. Au printemps : expliquer l'obligation de débroussailler, débroussailler le terrain d'un voisin sur le dessin, rappeler les gestes qui évitent les départs de feu. L'été : un feu arrive par le massif et avance sur la carte, poussé par le vent ; une après-midi pour les derniers gestes, puis six décisions à l'abri. Ce qui a été débroussaillé au printemps ne brûle pas : le bilan en dépend.
+Deux chapitres sont jouables de bout en bout : **l'automne et le risque d'inondation**, puis **le feu des Brandes** (feu de forêt), qui se joue sur deux saisons. Au printemps : expliquer l'obligation de débroussailler, débroussailler le terrain d'un voisin sur le dessin, rappeler les gestes qui évitent les départs de feu. L'été : un feu arrive par le massif et avance sur la carte, poussé par le vent. Le maire fait évacuer le hameau : une après-midi pour aider les habitants à partir et préparer les maisons. Mais le feu va plus vite que prévu et coupe la seule issue : il reste à s'abriter dans un bâtiment en dur, comme le veut la consigne officielle, le temps de six décisions. Ce qui a été débroussaillé au printemps ne brûle pas : le bilan en dépend.
 
 Le chapitre de l'inondation se déroule ainsi, et celui du feu sur le même modèle :
 
@@ -27,12 +27,12 @@ Le **kit d'urgence 72 heures** sert pour tous les risques : le joueur le prépar
 
 Autour des chapitres :
 
-- **Le récit entre les phases** : aucune alerte n'arrive sans prévenir. Un court moment de récit la précède, pendant lequel le joueur voit le soir tomber, la pluie arriver et l'eau monter sur la carte. Rien n'avance tout seul : c'est lui qui passe à la suite.
+- **Le récit entre les phases** : aucune alerte n'arrive sans prévenir. Un court moment de récit la précède, pendant lequel le joueur voit le soir tomber, la pluie arriver et l'eau monter sur la carte. Les messages de la mairie et les alertes s'ouvrent dans le téléphone, où ils restent. Rien n'avance tout seul : c'est lui qui passe à la suite.
 - **La barre d'état** : sous le nom de la commune, le temps qu'il fait et le niveau de vigilance, qui ouvrent le détail (les quatre niveaux de vigilance, les messages reçus) ; à côté des autres boutons, celui de la mission, qui dit toujours quoi faire ensuite, avec le temps restant et l'avancement.
 - **Le DICRIM de Val-d'Aléa**, un vrai document : couverture, mot des élus, sommaire, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Il est mis en pages comme une brochure, en feuilles A4 numérotées, et s'imprime ou s'enregistre en PDF tel quel ; chaque page rappelle qu'il s'agit d'un document fictif. Chaque carte peut s'afficher sur le plan du jeu.
 - **La légende de la carte** (bouton en bas à gauche, touche G) : ce que représentent les couleurs et les motifs du plan, et les repères posés dessus.
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
-- **Le téléphone**, télécommande du jeu : calendrier des chapitres, carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, alertes, DICRIM, lexique, bilan, réglages, et « À propos » (auteur, code source, licences, sources). Une pastille y signale ce qui vient d'arriver.
+- **Le téléphone**, télécommande du jeu : calendrier des chapitres, carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, messages de la mairie, vigilance et alertes, DICRIM, lexique, bilan, réglages, et « À propos » (auteur, code source, licences, sources). Une pastille y signale ce qui vient d'arriver.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève) et les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte), et une cloche prévient quand le temps presse. Il se coupe d'un bouton.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
@@ -79,7 +79,7 @@ Toute consigne de sécurité affichée dans le jeu reprend une page officielle, 
 
 Un chapitre est un contenu, pas du code : ses gestes, ses horaires, son récit d'ouverture, son indicateur de danger (`ChapterContent`, dans `src/content/model.ts`), et le script de sa crise (`CrisisScript`) : le récit et les messages qui l'annoncent, les situations à trancher, le niveau du danger montré sur la carte à chaque moment (la hauteur de la crue, ou l'avancée du feu), les enjeux et les badges du bilan. Les règles et l'interface sont les mêmes pour tous.
 
-Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques, dont celle du feu de forêt pour la Météo des forêts ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
+Sources : ministère de la Transition écologique (« Prévention des feux de forêt en France », pour la vitesse d'un front de flammes et les départs de feu en avant du front), Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques, dont celle du feu de forêt pour la Météo des forêts ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
 
 Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne. Le signal d'alerte que le jeu fait entendre est inventé : il ne reproduit pas le vrai signal de FR-Alert, pour ne pas pouvoir être pris pour lui hors du jeu.
 
@@ -110,7 +110,7 @@ Unités : une unité « monde » vaut un mètre. La commune fait 4,2 km sur 3 ; 
 Le jeu vise les critères du RGAA :
 
 - l'interface est en HTML sémantique, les fenêtres utilisent l'élément natif `<dialog>` ;
-- tout se fait au clavier, et le focus reste visible ;
+- tout se fait au clavier, et le focus reste visible ; sur un écran tactile, une manette de déplacement s'ajoute au toucher de la carte ;
 - la carte et les illustrations ne sont pas indispensables : la liste des lieux, le carnet de mission et la liste des gestes en sont l'alternative, et chaque carte de risque est décrite en toutes lettres ;
 - on ne quitte pas le jeu par mégarde : un « retour » du navigateur ouvre une confirmation du jeu ; fermer l'onglet, recharger la page ou partir vers un autre site déclenche celle du navigateur (sa fenêtre et son texte, qu'une page ne peut pas choisir) ;
 - rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;

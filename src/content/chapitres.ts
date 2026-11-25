@@ -40,7 +40,7 @@ export const CHAPTERS: ChapterInfo[] = [
     id: 'ete',
     title: 'Le feu des Brandes',
     risk: 'Feu de forêt',
-    summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif.",
+    summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif, et le hameau doit partir.",
     playable: true,
   },
 ];

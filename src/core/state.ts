@@ -15,7 +15,7 @@ export interface Settings {
 }
 
 /** Applications du téléphone qui peuvent signaler une nouveauté. */
-export const NEWS_IDS = ['alertes', 'dicrim', 'bilan'] as const;
+export const NEWS_IDS = ['messages', 'alertes', 'dicrim', 'bilan'] as const;
 export type NewsId = (typeof NEWS_IDS)[number];
 
 /** Tout ce qui est sauvegardé d'une partie. Aucune donnée personnelle. */

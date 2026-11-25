@@ -1718,6 +1718,26 @@ meter {
   margin: 0 0 0.4rem;
 }
 
+/* Une alerte se reconnaît à son liseré, en plus de son émetteur écrit en tête. */
+.bulletin--alerte {
+  border-left: 0.4rem solid var(--accent);
+}
+
+/* Un message de la messagerie : une bulle, comme dans une conversation. */
+.bulletin--message {
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: #eef3f8;
+}
+
+/* Ce qui vient d'arriver, annoncé en toutes lettres au-dessus du message. */
+.phone__arrival {
+  color: var(--accent-dark);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .dialog--phone .apps {
   grid-template-columns: repeat(3, 1fr);
   row-gap: 1.25rem;

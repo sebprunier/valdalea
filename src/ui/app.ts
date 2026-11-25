@@ -123,8 +123,16 @@ export function createUi(deps: UiDeps): Ui {
   }
   const dicrimRead = (): boolean => chapter().done.includes('mairie-dicrim');
 
-  /** Nouveauté à signaler sur le téléphone quand le chapitre arrive dans une phase. */
-  const NEWS_AT: Partial<Record<Phase, NewsId>> = { vigilance: 'alertes', crise: 'alertes', bilan: 'bilan' };
+  /**
+   * Nouveautés à signaler sur le téléphone quand le chapitre arrive dans une phase :
+   * les messages et les alertes que le récit va y faire arriver, puis le bilan.
+   */
+  function newsAt(phase: Phase): NewsId[] {
+    if (phase === 'bilan') return ['bilan'];
+    const crisis = playbook().content?.crisis;
+    const beats = phase === 'vigilance' ? crisis?.vigilance : phase === 'crise' ? crisis?.onset : undefined;
+    return (beats ?? []).flatMap((beat) => ('bulletin' in beat ? [beat.bulletin.kind === 'alerte' ? ('alertes' as const) : ('messages' as const)] : []));
+  }
 
   /**
    * Modifie le chapitre. Au passage : prévient le joueur si le temps commence à
@@ -137,8 +145,7 @@ export function createUi(deps: UiDeps): Ui {
 
     if (after.done.includes('mairie-dicrim') && !before.done.includes('mairie-dicrim')) store.update((state) => withNews(state, 'dicrim'));
     if (after.phase !== before.phase) {
-      const news = NEWS_AT[after.phase];
-      if (news) store.update((state) => withNews(state, news));
+      for (const news of newsAt(after.phase)) store.update((state) => withNews(state, news));
       if (after.phase === 'bilan') keepRecord();
       return;
     }
@@ -278,6 +285,7 @@ export function createUi(deps: UiDeps): Ui {
       scene = next;
       sync();
     },
+    readBulletin: (bulletin) => phone.read(bulletin, map),
     play: (cue) => sound.play(cue),
     setHazard: showHazard,
     setFocus: (placeId, south = 0) => {

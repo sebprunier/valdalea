@@ -52,7 +52,7 @@ describe('le feu des Brandes : du printemps à l’été', () => {
     expect(pendingAt(ACTIONS, chapter, 'domicile')).toBe(1);
     expect(pendingAt(ACTIONS, chapter, 'brandes')).toBe(1);
     expect(pendingAt(ACTIONS, chapter, 'lucien')).toBe(2);
-    chapter = play(chapter, 'lucien-rester');
+    chapter = play(chapter, 'lucien-partir');
     expect(chapter.phase).toBe('crise');
   });
 
@@ -85,7 +85,7 @@ describe('bilan du feu', () => {
   const inCrisis = (...ids: string[]): Chapter => {
     const spring = ids.filter((id) => action(id).phase === 'preparation');
     const summer = ids.filter((id) => action(id).phase === 'vigilance');
-    return play(play(play(started(), ...spring), 'maison-soir'), ...summer, 'lucien-rester');
+    return play(play(play(started(), ...spring), 'maison-soir'), ...summer, 'lucien-partir');
   };
   const levels = (chapter: Chapter): Record<string, number> => Object.fromEntries(assess(chapter, content).stakes.map((s) => [s.stake.id, s.level]));
 

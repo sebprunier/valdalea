@@ -6,13 +6,23 @@ import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Questi
  *
  * Il se joue sur deux saisons. Au printemps, on prépare le hameau : faire
  * connaître l'obligation de débroussailler, aider Lucien, écarter les causes de
- * départ de feu. L'été, un feu arrive par le massif : les derniers gestes, puis
- * six décisions à l'abri chez Lucien. Le bilan dit ce que le printemps a changé.
+ * départ de feu. L'été, un feu arrive par le massif. Le maire fait évacuer le
+ * hameau : on aide les habitants à partir, puis on va chercher Lucien. Mais le
+ * feu va plus vite que prévu et coupe la seule issue : il ne reste qu'à s'abriter
+ * dans la maison, comme le veut la consigne, le temps de six décisions. Le bilan
+ * dit ce que le printemps a changé.
  *
- * Les gestes et consignes reprennent les pages de Géorisques citées dans
- * `sources` : « Que faire en cas de feu de forêt ? », « Feu de forêt ou de
- * végétation » et « Obligations légales de débroussaillement ». Les personnages
- * et le déroulé sont de la fiction.
+ * Pourquoi cette fin : face au feu de forêt, la consigne officielle n'est pas de
+ * fuir quand les flammes sont là, mais de s'abriter dans un bâtiment en dur, de
+ * ne pas prendre sa voiture et de n'évacuer que sur ordre des autorités. Le
+ * récit donne donc l'ordre d'évacuer, tôt, puis le rend impossible à suivre : le
+ * joueur vit la consigne la plus contre-intuitive en sachant pourquoi il est là.
+ *
+ * Les gestes et consignes reprennent les pages citées dans `sources` : « Que
+ * faire en cas de feu de forêt ? », « Feu de forêt ou de végétation » et
+ * « Obligations légales de débroussaillement » (Géorisques), « Prévention des
+ * feux de forêt en France » (ministère chargé de la Transition écologique). Les
+ * personnages et le déroulé sont de la fiction.
  */
 
 /**
@@ -129,9 +139,9 @@ export const ACTIONS: ActionDef[] = [
     minutes: 20,
     questions: ['feu-approche'],
     title: 'Faire le tour des maisons du hameau',
-    why: "En cas de départ de feu, quelques gestes se font tout de suite : éloigner les combustibles, rentrer le mobilier de jardin et le tuyau d'arrosage, laisser son portail ouvert pour faciliter l'accès des pompiers.",
+    why: "Le maire fait évacuer le hameau. Avant de partir, quelques gestes se font tout de suite : éloigner les combustibles, rentrer le mobilier de jardin et le tuyau d'arrosage, laisser son portail ouvert pour faciliter l'accès des pompiers.",
     who: 'Chaque habitant, chez lui. La réserve communale passe de maison en maison.',
-    done: 'Les bouteilles de gaz sont loin des murs, les salons de jardin rentrés, les portails grands ouverts. Chacun retourne chez soi, la radio allumée.',
+    done: 'Les bouteilles de gaz sont loin des murs, les salons de jardin rentrés, les portails grands ouverts. Une à une, les familles descendent vers le gymnase : le hameau se vide dans le calme.',
     sources: ['georisques-feu'],
   },
   {
@@ -142,7 +152,7 @@ export const ACTIONS: ActionDef[] = [
     // Si le terrain a été débroussaillé au printemps, le tas de bois et la bouteille de gaz sont déjà loin de la maison.
     eased: { by: 'lucien-debroussailler', minutes: 10 },
     title: 'Dégager les abords de la maison de Lucien',
-    why: "En cas de départ de feu, on éloigne les combustibles, comme les bouteilles de gaz, et l'on rentre le mobilier de jardin et le tuyau d'arrosage.",
+    why: "Avant de quitter la maison : en cas de départ de feu, on éloigne les combustibles, comme les bouteilles de gaz, et l'on rentre le mobilier de jardin et le tuyau d'arrosage.",
     who: 'Lucien, avec votre aide.',
     done: "La bouteille de gaz est au bout de la clairière, loin des murs ; les chaises de jardin et le tuyau d'arrosage sont dans l'entrée.",
     sources: ['georisques-feu'],
@@ -153,22 +163,22 @@ export const ACTIONS: ActionDef[] = [
     phase: 'vigilance',
     minutes: 15,
     title: 'Fermer la maison de Lucien',
-    why: "En cas de départ de feu, on ferme et on arrose volets, portes et fenêtres, et l'on occulte les aérations, avant de s'abriter dans un bâtiment en dur.",
+    why: "Avant de quitter la maison : en cas de départ de feu, on ferme et on arrose volets, portes et fenêtres, et l'on occulte les aérations.",
     who: 'Lucien, avec votre aide.',
     done: 'Les volets sont fermés et arrosés, les grilles d’aération bouchées. Dans la maison, il fait sombre, et encore frais.',
     sources: ['georisques-feu'],
   },
   {
-    id: 'lucien-rester',
+    id: 'lucien-partir',
     place: 'lucien',
     phase: 'vigilance',
     minutes: 0,
     endsPhase: true,
     narrative: true,
-    title: 'Rester auprès de Lucien',
-    why: "Le feu approche. Une fois la porte refermée, vous ne ressortirez pas avant la fin : ce qui n'a pas été fait dehors ne le sera plus.",
+    title: 'Partir avec Lucien',
+    why: "Le maire a ordonné l'évacuation du hameau : vous emmenez Lucien au gymnase. Une fois partis, ce qui n'a pas été fait autour de la maison ne le sera plus.",
     who: 'Vous.',
-    done: 'Vous refermez la porte derrière vous.',
+    done: 'Lucien ferme sa porte, son sac à la main. Vous descendez le sentier.',
     sources: [],
   },
 ];
@@ -243,7 +253,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'feu-approche',
-    context: 'Au hameau, tout le monde regarde la fumée. Nadia a déroulé son tuyau d’arrosage au milieu du jardin ; son voisin ferme son portail à clé avant de monter voir.',
+    context: 'Au hameau, on charge les voitures en regardant la fumée. Nadia a déroulé son tuyau d’arrosage au milieu du jardin ; son voisin ferme son portail à clé avant de partir.',
     prompt: 'Que demandez-vous aux habitants ? Cochez tout ce qui convient.',
     multiple: true,
     choices: [
@@ -272,7 +282,7 @@ export const SITUATIONS: Situation[] = [
     id: 'feu-alerte',
     hazard: 0.5,
     context:
-      'Par la fenêtre de Lucien, vous voyez une fumée monter tout près, à trois cents mètres de la clairière, bien en avant du grand feu : le vent a porté des braises, et des flammes courent déjà dans les fougères.',
+      'Par la fenêtre de Lucien, vous voyez une autre fumée monter tout près, à trois cents mètres de la clairière, bien en avant du grand feu : le vent a porté des braises, et des flammes courent déjà dans les fougères.',
     prompt: 'Que faites-vous ?',
     choices: [
       {
@@ -294,20 +304,21 @@ export const SITUATIONS: Situation[] = [
         outcome: "Personne ne l'avait signalé : les pompiers luttaient deux kilomètres plus haut. Quand un voisin appelle enfin, le second foyer a rejoint le premier.",
       },
     ],
-    lesson: "En cas de départ de feu, on donne l'alerte en appelant le 112, le 18 ou le 114 (pour les personnes malentendantes).",
-    sources: ['georisques-feu'],
+    lesson:
+      "En cas de départ de feu, on donne l'alerte en appelant le 112, le 18 ou le 114 (pour les personnes malentendantes). Des matériaux incandescents transportés par le vent peuvent allumer de nouveaux départs en avant du front de flammes, parfois à plus d'un kilomètre.",
+    sources: ['georisques-feu', 'ecologie-feux-foret'],
   },
   {
     id: 'feu-abri',
     hazard: 0.62,
-    context: 'Le feu grossit, et la fumée arrive sur la clairière. Lucien attrape les clés de sa vieille voiture : « On file par le chemin, on est au bourg dans cinq minutes ! »',
+    context: 'Le feu grossit, et la fumée épaissit sur la clairière. Lucien attrape les clés de sa vieille voiture : « Coupé ou pas, on tente le chemin ! On est au bourg dans cinq minutes ! »',
     prompt: 'Que décidez-vous ?',
     choices: [
       {
         id: 'maison',
-        label: 'Nous restons dans la maison : elle est en dur, et prête',
+        label: 'Nous restons dans la maison : la consigne est de s’abriter, et elle est en dur',
         correct: true,
-        outcome: 'Lucien repose les clés en grommelant. Vous fermez la porte, et vous vous installez dans la pièce du fond, la radio sur la table.',
+        outcome: 'Lucien repose les clés en grommelant. Vous vous installez dans la pièce du fond, la radio sur la table.',
       },
       {
         id: 'voiture',
@@ -322,8 +333,9 @@ export const SITUATIONS: Situation[] = [
         outcome: 'Dans la fumée, Lucien ne tient pas cent mètres. Vous le ramenez en le soutenant, et vous refermez la porte sur vous deux.',
       },
     ],
-    lesson: "En cas de départ de feu, on s'abrite dans un bâtiment en dur. On ne prend pas sa voiture, et l'on n'évacue son domicile que sur ordre des autorités.",
-    sources: ['georisques-feu'],
+    lesson:
+      "Quand le feu est là, on s'abrite dans un bâtiment en dur : on ne prend pas sa voiture, et l'on n'évacue son domicile que sur ordre des autorités. Il n'est plus temps de le devancer : en moins de dix minutes, un front de flammes peut parcourir un kilomètre.",
+    sources: ['georisques-feu', 'ecologie-feux-foret'],
   },
   {
     id: 'feu-aerations',
@@ -470,9 +482,9 @@ export const STAKES: StakeDef[] = [
       return ready === 3 ? 2 : ready >= 1 ? 1 : 0;
     },
     outcomes: [
-      "Autour des maisons les plus proches de la forêt, rien n'avait été débroussaillé : le feu est descendu de jardin en jardin. Deux maisons sont détruites. Sur le chemin encombré de branches, devant des portails fermés à clé, les camions ont perdu de longues minutes.",
-      "Le hameau s'en sort avec des dégâts : une haie, un abri de jardin, une façade. Tout n'était pas prêt — les terrains, le chemin ou les portails — et les pompiers ont dû parer au plus pressé.",
-      'Les terrains étaient débroussaillés, le chemin dégagé, les portails ouverts : les pompiers se sont placés entre la forêt et les maisons, et le feu s’est arrêté au bord des jardins.',
+      "Personne n'est passé de maison en maison : les habitants sont partis au dernier moment, dans la confusion. Autour des maisons les plus proches de la forêt, rien n'avait été débroussaillé : le feu est descendu de jardin en jardin, et deux maisons sont détruites. Sur le chemin encombré de branches, devant des portails fermés à clé, les camions ont perdu de longues minutes.",
+      "Les habitants sont à l'abri au gymnase, mais le hameau a des dégâts : une haie, un abri de jardin, une façade. Tout n'était pas prêt — les terrains, le chemin ou le départ des habitants — et les pompiers ont dû parer au plus pressé.",
+      'Le hameau a été évacué dans le calme, bien avant le feu. Les terrains étaient débroussaillés, le chemin dégagé, les portails ouverts : les pompiers se sont placés entre la forêt et les maisons, et le feu s’est arrêté au bord des jardins.',
     ],
     lesson:
       "Le débroussaillement autour des constructions et le long des voies d'accès protège les habitations et facilite l'intervention des secours. En cas de départ de feu, on laisse son portail ouvert pour faciliter l'accès des pompiers.",
@@ -516,7 +528,7 @@ export const STAKES: StakeDef[] = [
       "Vous avez eu les bons réflexes du début à la fin : donner l'alerte, rester à l'abri, à l'écoute des consignes.",
     ],
     lesson:
-      "Donner l'alerte (112, 18 ou 114), s'abriter dans un bâtiment en dur, occulter les aérations, se couvrir le nez et la bouche avec un linge humide, ne pas sortir de son véhicule, n'évacuer que sur ordre des autorités.",
+      "Quand l'évacuation est ordonnée, on part tôt. Quand le feu est là, on ne fuit plus : on donne l'alerte (112, 18 ou 114), on s'abrite dans un bâtiment en dur, on occulte les aérations, on se couvre le nez et la bouche avec un linge humide, on ne sort pas de son véhicule, et l'on n'évacue que sur ordre des autorités.",
     sources: ['georisques-feu'],
   },
 ];
@@ -526,7 +538,7 @@ export const BADGES: BadgeDef[] = [
   {
     id: 'hameau-pret',
     title: 'Hameau prêt',
-    description: "Faire connaître l'obligation de débroussailler, vérifier le chemin, puis faire le tour des maisons quand le feu approche.",
+    description: "Faire connaître l'obligation de débroussailler, vérifier le chemin, puis faire le tour des maisons quand le hameau est évacué.",
     earned: (v) => v.did('brandes-old') && v.did('brandes-acces') && v.did('brandes-tour'),
   },
   {
@@ -538,7 +550,7 @@ export const BADGES: BadgeDef[] = [
   {
     id: 'maison-close',
     title: 'Maison close au feu',
-    description: 'Dégager les abords de la maison de Lucien, puis la fermer avant l’arrivée du feu.',
+    description: 'Dégager les abords de la maison de Lucien, puis la fermer avant de partir.',
     earned: (v) => v.did('lucien-abords') && v.did('lucien-fermer'),
   },
   {
@@ -553,12 +565,13 @@ export const BADGES: BadgeDef[] = [
 
 export const MESSAGE_MAIRIE: Bulletin = {
   id: 'feu-mairie',
+  kind: 'message',
   from: "Mairie de Val-d'Aléa",
-  title: 'Un feu dans le massif',
+  title: 'Évacuation du hameau des Brandes',
   paragraphs: [
     "Jeudi, 13 h. Un feu s'est déclaré en fin de matinée de l'autre côté du massif. Les pompiers sont sur place ; le vent de nord-est le pousse vers le hameau des Brandes. La Météo des forêts place aujourd'hui le département au niveau de danger le plus haut : très élevé.",
-    'La réserve communale est mobilisée pour aider les habitants du hameau à se préparer. Lucien, dans sa clairière, ne répond pas au téléphone : passez le voir.',
-    "L'après-midi sera courte. Faites ce qui peut l'être, puis mettez-vous à l'abri avec lui.",
+    "Par précaution, le maire fait évacuer le hameau des Brandes avant 15 heures : les habitants sont attendus au gymnase des Hauts. La réserve communale est mobilisée pour les aider à partir. Lucien, dans sa clairière, ne répond pas au téléphone : passez le prendre.",
+    "Avant de partir, chacun prépare sa maison. Faites vite : le feu n'attendra pas.",
   ],
   advice: [
     "J'éloigne les combustibles (bouteilles de gaz, etc.).",
@@ -572,11 +585,12 @@ export const MESSAGE_MAIRIE: Bulletin = {
 
 export const ALERTE_FEU: Bulletin = {
   id: 'feu-alerte',
+  kind: 'alerte',
   from: 'FR-Alert',
   title: 'Alerte : feu de forêt aux Brandes',
   paragraphs: [
-    "Jeudi, 15 h. Votre téléphone émet un signal sonore que vous ne lui connaissiez pas, alors qu'il était en mode silencieux : vous êtes dans une zone de danger. Le feu a franchi la crête ; il descend vers le hameau des Brandes.",
-    'Vous êtes chez Lucien. Les prochaines heures vont se jouer sur quelques décisions.',
+    "Jeudi, 15 h. Votre téléphone émet un signal sonore que vous ne lui connaissiez pas, alors qu'il était en mode silencieux : vous êtes dans une zone de danger. Le feu atteint le hameau des Brandes ; le chemin des Brandes est coupé.",
+    "Il n'est plus temps de partir : la consigne est de s'abriter. Vous êtes chez Lucien ; les prochaines heures vont se jouer sur quelques décisions.",
   ],
   advice: [
     "Je m'abrite dans un bâtiment en dur.",
@@ -624,9 +638,12 @@ export const STORY = {
   abri: {
     id: 'abri',
     when: 'Jeudi, 15 h',
-    title: 'Le feu franchit la crête',
-    paragraphs: ['Vous êtes chez Lucien, la porte refermée. Dehors, le ciel a viré à l’orange ; des cendres tombent sur la clairière.', 'Votre téléphone se met à sonner.'],
-    late: 'Le feu avance plus vite que prévu : vous courez jusque chez Lucien, et vous refermez la porte sur vous deux. Dehors, le ciel a viré à l’orange ; des cendres tombent sur la clairière.',
+    title: 'Le chemin est coupé',
+    paragraphs: [
+      'Vous descendez le sentier avec Lucien. Le vent a forci : le feu a dévalé la crête bien plus vite que prévu, et la fumée noie déjà le chemin des Brandes, la seule issue. Au bout du sentier, un gendarme vous fait signe de remonter : on ne passe plus. Vous regagnez la maison.',
+      'La porte à peine refermée, votre téléphone se met à sonner.',
+    ],
+    late: 'Il est trop tard pour partir. Le vent a forci : le feu a dévalé la crête bien plus vite que prévu, et la fumée noie déjà le chemin des Brandes, la seule issue. Vous courez jusque chez Lucien, et vous vous enfermez avec lui.',
     next: "Lire l'alerte",
     sound: 'alerte',
     sky: 'fumee',
@@ -653,8 +670,8 @@ export const ETE: ChapterContent = {
   questions: QUESTIONS,
   objectives: {
     preparation: "Aidez le hameau des Brandes à se préparer avant l'été.",
-    vigilance: 'Le feu approche des Brandes : aidez le hameau et Lucien à s’y préparer.',
-    crise: 'Le feu est là : faites les bons choix.',
+    vigilance: 'Le hameau des Brandes est évacué : aidez les habitants, puis partez avec Lucien.',
+    crise: 'Le chemin est coupé : abritez-vous, et faites les bons choix.',
     bilan: 'Le feu est fixé. Le bilan et vos badges sont dans votre téléphone.',
   },
   // La Météo des forêts n'est publiée que de juin à septembre : au printemps, l'indicateur le dit.
@@ -695,7 +712,7 @@ export const ETE: ChapterContent = {
   dusk: null,
   opening: STORY.debut,
   period: { preparation: 'la matinée', vigilance: "l'après-midi" },
-  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant 14 heures.', vigilance: 'Le feu approche : il vous reste {reste} pour vous mettre à l’abri.' },
+  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant 14 heures.', vigilance: 'Le feu approche : il vous reste {reste} pour partir avec Lucien.' },
   hazardApp: 'meteo',
   hazardInfo: {
     title: 'La Météo des forêts',
@@ -710,7 +727,7 @@ export const ETE: ChapterContent = {
     // On vise le seuil de la maison : au-dessus de la fenêtre du récit, on voit la clairière, et au nord la forêt d'où vient le feu.
     lookSouth: 0,
     vigilance: [{ tell: STORY.ete, hazard: FIRE.vigilance[0] }, { bulletin: MESSAGE_MAIRIE }],
-    ready: 'Danger de feu très élevé. Vous êtes chez vous : rejoignez le hameau des Brandes, puis la maison de Lucien.',
+    ready: 'Le hameau des Brandes est évacué. Vous êtes chez vous : rejoignez le hameau, puis allez chercher Lucien.',
     // Le ciel se couvre de fumée et le feu apparaît en lisière pendant que le joueur lit : il le voit avant que l'alerte ne sonne.
     onset: [{ tell: STORY.abri, hazard: FIRE.onset }, { bulletin: ALERTE_FEU }],
     situations: SITUATIONS,

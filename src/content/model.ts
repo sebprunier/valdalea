@@ -155,6 +155,11 @@ export interface StoryCard {
 
 export interface Bulletin {
   id: string;
+  /**
+   * Où le téléphone le range : un message (la mairie écrit au réserviste) va dans
+   * la messagerie ; une alerte (bulletin de vigilance, FR-Alert) dans l'application Alertes.
+   */
+  kind: 'message' | 'alerte';
   /** Émetteur affiché en tête du message. */
   from: string;
   title: string;
