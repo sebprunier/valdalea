@@ -244,7 +244,7 @@ export const SITUATIONS: Situation[] = [
       { id: 'deplacer', label: "Je vais la déplacer tant qu'il est temps", correct: false, outcome: "La voiture démarre, avance de quelques mètres, puis se met à flotter et dérive contre un mur. Vous en sortez par la fenêtre, trempé et choqué." },
     ],
     lesson: "Pendant toute la durée de l'inondation, on ne prend pas sa voiture : 30 cm d'eau suffisent à l'emporter.",
-    sources: ['georisques-inondation'],
+    sources: ['georisques-inondation', 'georisques-risque-inondation'],
   },
   {
     id: 'cave',

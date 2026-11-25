@@ -292,12 +292,6 @@ export function toll(ctx: BaseAudioContext, out: AudioNode, at: number, strokes:
   return (strokes - 1) * 1.5 + 2.6;
 }
 
-/** La sonnerie de l'école : un timbre électrique, frappé très vite. Renvoie sa durée. */
-export function schoolBell(ctx: BaseAudioContext, out: AudioNode, at: number, level: number): number {
-  const length = 1.6;
-  for (let t = 0; t < length; t += 1 / 15) strike(ctx, out, at + t, 1250, 0.07 * level, 0.12);
-  return length + 0.12;
-}
 
 /** Un choc métallique bref, de temps en temps, du côté de l'usine. */
 export function clank(ctx: BaseAudioContext, out: AudioNode, at: number, level: number): void {
@@ -377,12 +371,6 @@ export class Sound {
   toll(strokes: number, level: number): void {
     const live = this.live;
     if (live && level > 0.02) toll(live.ctx, live.out, live.ctx.currentTime + 0.05, strokes, level);
-  }
-
-  /** La sonnerie de l'école. */
-  ringSchool(level: number): void {
-    const live = this.live;
-    if (live && level > 0.02) schoolBell(live.ctx, live.out, live.ctx.currentTime + 0.05, level);
   }
 
   /** Démarre, reprend ou suspend le son selon le réglage, le premier geste et la visibilité de la page. */

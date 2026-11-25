@@ -3,7 +3,7 @@ import { isUnderway, type Phase } from '../core/chapter';
 import { h, icon } from './dom';
 
 /**
- * Le calendrier : l'année à Val-d'Aléa, chapitre par chapitre. C'est une
+ * Le calendrier : les chapitres du jeu, un par risque majeur. C'est une
  * application du téléphone : le joueur y choisit ce qu'il joue, dans l'ordre
  * qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé.
  */
@@ -47,9 +47,9 @@ export function createCalendarView(deps: CalendarDeps): CalendarView {
           : 'Pas encore joué';
 
     const parts: Array<Node | null> = [
-      h('p', { class: 'chapter__season' }, chapter.season, chapter.suggested && best === undefined && !current ? h('span', { class: 'tag tag--todo' }, 'conseillé pour commencer') : null),
+      // Le risque d'abord : c'est lui qui dit de quoi parle le chapitre.
+      h('p', { class: 'chapter__risk' }, chapter.risk, chapter.suggested && best === undefined && !current ? h('span', { class: 'tag tag--todo' }, 'conseillé pour commencer') : null),
       h('h3', null, chapter.title),
-      h('p', { class: 'chapter__risk' }, chapter.risk),
       h('p', null, chapter.summary),
       chapter.note ? h('p', { class: 'fine-print' }, chapter.note) : null,
       h('p', { class: 'chapter__state' }, current || best !== undefined ? icon(current ? 'horloge' : 'coche') : null, state),
@@ -84,7 +84,7 @@ export function createCalendarView(deps: CalendarDeps): CalendarView {
         { class: 'lead' },
         phase === 'accueil'
           ? "Les chapitres s'ouvriront après votre rencontre avec le maire et la lecture du DICRIM."
-          : "Une année à Val-d'Aléa, un risque par saison. Jouez les chapitres dans l'ordre que vous voulez.",
+          : 'Un chapitre par risque majeur. Jouez-les dans l’ordre que vous voulez.',
       ),
       h('ul', { class: 'chapters' }, ...CHAPTERS.map(card)),
       h('p', { class: 'fine-print' }, `D'autres chapitres suivront : ${LATER.join(', ').toLowerCase()}. Ces risques sont déjà décrits et cartographiés dans le DICRIM.`),

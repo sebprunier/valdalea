@@ -5,7 +5,8 @@ import type { ActionDef, AssetId, BadgeDef, ChapterContent, ChapterPhase, Chapte
 import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
 
 /**
- * Les chapitres du jeu : une année à Val-d'Aléa, un risque par saison.
+ * Les chapitres du jeu : un risque majeur chacun. (Chacun a sa saison, que son
+ * récit raconte ; ce n'est pas elle qui le désigne.)
  *
  * Après le prologue (la rencontre du maire, la lecture du DICRIM), le joueur
  * choisit ses chapitres dans l'ordre qu'il veut. Le calendrier en conseille un
@@ -13,8 +14,6 @@ import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
  */
 export interface ChapterInfo {
   id: string;
-  /** Saison où se joue le chapitre. */
-  season: string;
   title: string;
   /** Risque majeur traité. */
   risk: string;
@@ -31,16 +30,14 @@ export interface ChapterInfo {
 export const CHAPTERS: ChapterInfo[] = [
   {
     id: 'automne',
-    season: 'Automne',
     title: 'La crue de la Follette',
     risk: 'Inondation',
-    summary: "Les grosses pluies arrivent. Une journée pour préparer votre maison, vos voisins et la commune, puis la rivière monte.",
+    summary: "L'automne arrive, et avec lui les grosses pluies. Une journée pour préparer votre maison, vos voisins et la commune, puis la rivière monte.",
     playable: true,
     suggested: true,
   },
   {
     id: 'ete',
-    season: 'Printemps et été',
     title: 'Le feu des Brandes',
     risk: 'Feu de forêt',
     summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif.",

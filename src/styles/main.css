@@ -983,10 +983,6 @@ kbd {
     display: none;
   }
 
-  .hud__chapter-season {
-    display: none;
-  }
-
   /* Sur le dessin d'une question, des pastilles plus petites : elles se chevauchent moins. */
   .scene--question .pin {
     width: 1.6rem;
@@ -1850,7 +1846,7 @@ meter {
   color: var(--ink-soft);
 }
 
-.chapter__season {
+.chapter__risk {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1862,11 +1858,11 @@ meter {
   text-transform: uppercase;
 }
 
-.chapter--later .chapter__season {
+.chapter--later .chapter__risk {
   color: var(--ink-soft);
 }
 
-.chapter__season .tag {
+.chapter__risk .tag {
   letter-spacing: 0;
   text-transform: none;
 }
@@ -1874,10 +1870,6 @@ meter {
 .dialog__body .chapter h3 {
   margin: 0;
   font-size: 1.25rem;
-}
-
-.chapter__risk {
-  font-weight: 600;
 }
 
 .chapter__state {

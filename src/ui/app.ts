@@ -1,10 +1,9 @@
 import { ALL_BADGES, findChapter, ownedIn, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
-import { mixOf, nearness } from '../audio/mix';
+import { mixOf } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
 import {
   clockLabel,
-  clockMinutes,
   formatDuration,
   isTimed,
   isUnderway,
@@ -20,7 +19,7 @@ import {
   type Phase,
 } from '../core/chapter';
 import { DEFAULT_SETTINGS, markVisited, newGame, withAsset, withBadges, withChapter, withNews, withoutNews, withRecord, type GameState, type NewsId } from '../core/state';
-import { distance, distToPolygon, type Vec } from '../core/geometry';
+import { distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
 import type { Game } from '../game/game';
@@ -145,7 +144,6 @@ export function createUi(deps: UiDeps): Ui {
     }
 
     if (!isTimed(after.phase)) return;
-    ringSchool(before, after);
     const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
     if (threshold === null) return;
     const left = formatDuration(after.minutesLeft);
@@ -185,7 +183,6 @@ export function createUi(deps: UiDeps): Ui {
   // Ce que l'on entend dépend d'où l'on est : la forêt, l'usine, l'église, l'école.
   const forest = commune.grounds.find((ground) => ground.kind === 'foret')?.poly ?? null;
   const plant = commune.grounds.find((ground) => ground.kind === 'industrie')?.poly ?? null;
-  const school = findPlace(commune, 'ecole')?.pos ?? null;
 
   // Le feu de forêt : ce qui brûle dépend de ce qui a été débroussaillé. Les maisons, elles, ne font pas partie du combustible.
   const fireFields = new Map<boolean, FireField>();
@@ -231,17 +228,6 @@ export function createUi(deps: UiDeps): Ui {
     if (hazardKind() !== 'feu' || hazardNow <= 0) return 0;
     if (hazardNow > FIRE_SPENT) return Math.max(0, (FIRE_OUT - hazardNow) / (FIRE_OUT - FIRE_SPENT));
     return 0.35 + 0.65 * hazardNow;
-  }
-  /** L'école sonne à 8 h 30, le lundi : c'est le seul jour d'école du chapitre. */
-  const SCHOOL_BELL = 8 * 60 + 30;
-
-  /** Fait sonner l'école quand l'heure du jeu passe 8 h 30, le lundi de la crue, si le joueur est assez près pour l'entendre. */
-  function ringSchool(before: Chapter, after: Chapter): void {
-    if (playbook().content?.id !== 'automne' || after.phase !== 'vigilance' || !school) return;
-    const was = clockMinutes(before, playbook().timing);
-    const now = clockMinutes(after, playbook().timing);
-    if (was === null || now === null) return;
-    if (was < SCHOOL_BELL && now >= SCHOOL_BELL) sound.ringSchool(nearness(distance(game.position, school), 900));
   }
 
   /**
@@ -587,8 +573,7 @@ export function createUi(deps: UiDeps): Ui {
 
     // Le chapitre en cours : son nom, ou ce qui tient lieu de chapitre avant d'en avoir choisi un.
     const info = current.phase === 'accueil' || current.phase === 'libre' ? undefined : findChapter(state.chapterId);
-    // Sur petit écran, seul le titre du chapitre est affiché : la saison est dans le calendrier.
-    if (info) chapterText.replaceChildren(h('span', { class: 'hud__chapter-season' }, `${info.season} — `), info.title);
+    if (info) chapterText.textContent = info.title;
     else chapterText.textContent = current.phase === 'accueil' ? 'Prologue' : 'Aucun chapitre en cours';
 
     const situation = playbook().situation(current.phase);
