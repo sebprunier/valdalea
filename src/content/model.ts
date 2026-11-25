@@ -14,6 +14,8 @@ export interface Source {
   url: string;
   /** Date de la dernière relecture de la page, au format AAAA-MM-JJ. */
   consulte: string;
+  /** La page refuse les lectures automatiques : elle se relit à la main, dans un navigateur. */
+  manuel?: boolean;
 }
 
 export const SOURCES: Record<string, Source> = sourcesData;
@@ -97,6 +99,8 @@ export interface Question {
 
 /** Situation de crise : une question, et l'état du danger sur la carte à ce moment-là. */
 export interface Situation extends Question {
+  /** Lieu où la décision se prend, quand la crise fait se déplacer le joueur (une évacuation) ; sinon, le lieu de la crise. */
+  at?: string;
   /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière, ou avancée du feu, de 0 à 1. */
   hazard: number;
 }

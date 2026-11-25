@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ACTIONS as FIRE_ACTIONS, BADGES, ETE, FIRE, SITUATIONS, STAKES } from '../src/content/feu';
 import { PROLOGUE } from '../src/content/prologue';
 import { actionMinutes, actionStatus, answer, assess, clockLabel, gestures, MINUTES_PER_UNIT, newChapter, pendingAt, perform, startChapter, type Chapter } from '../src/core/chapter';
-import { distToRect, type Vec } from '../src/core/geometry';
+import { distToPolygon, distToRect, pointInPolygon, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
+import { buildElevation } from '../src/world/elevation';
 import { arrivalAt, buildFireField, burntShare, FIRE_OUT, isBurnt } from '../src/world/fire';
+import { isExposed } from '../src/world/hazards';
 import { buildRoadMask, buildWalkGrid } from '../src/world/grid';
 import { findPlace } from '../src/world/model';
 import { Pathfinder } from '../src/world/pathfinding';
@@ -108,6 +110,19 @@ describe('bilan du feu', () => {
     expect(levels(inCrisis('lucien-debroussailler'))['maison-lucien']).toBe(1);
     expect(levels(inCrisis('lucien-debroussailler', 'lucien-fermer'))['maison-lucien']).toBe(2);
     expect(levels(inCrisis())['maison-lucien']).toBe(0);
+  });
+
+  it('conduit le joueur de la clairière de Lucien au gymnase, hors du massif', () => {
+    const forest = commune.grounds.find((ground) => ground.kind === 'foret')!.poly;
+    const route = SITUATIONS.map((situation) => situation.at);
+    expect(route[0]).toBe('lucien');
+    expect(route[route.length - 1]).toBe('gymnase');
+    // Le centre d'accueil n'est ni dans le massif, ni dans la bande où le feu menace.
+    expect(isExposed(commune, buildElevation(commune), 'feu-foret', at('gymnase'))).toBe(false);
+    expect(pointInPolygon(at('gymnase'), forest)).toBe(false);
+    // On ne revient pas vers la forêt en cours de route : chaque étape en est au moins aussi loin que la précédente.
+    const away = route.map((id) => distToPolygon(at(id!), forest));
+    for (let i = 1; i < away.length; i++) expect(away[i], `${route[i]}`).toBeGreaterThanOrEqual(away[i - 1]);
   });
 
   it('juge chaque enjeu séparément', () => {

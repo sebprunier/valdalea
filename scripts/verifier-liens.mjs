@@ -25,12 +25,17 @@ async function check(url) {
 }
 
 let broken = 0;
+let manual = 0;
 for (const [id, source] of Object.entries(sources)) {
   const status = await check(source.url);
+  // Certaines pages refusent les lectures automatiques (403) : elles sont marquées « manuel » et se relisent dans un navigateur.
+  const byHand = source.manuel === true && status === 403;
   const ok = status === 200;
-  if (!ok) broken++;
-  console.log(`${ok ? 'OK  ' : 'KO  '} ${String(status).padEnd(5)} ${id}\n      ${source.url}`);
+  if (byHand) manual++;
+  else if (!ok) broken++;
+  console.log(`${ok ? 'OK  ' : byHand ? 'MAIN' : 'KO  '} ${String(status).padEnd(5)} ${id}\n      ${source.url}`);
 }
 
-console.log(broken === 0 ? '\nToutes les sources répondent.' : `\n${broken} source(s) à vérifier à la main.`);
+if (manual > 0) console.log(`\n${manual} source(s) à relire à la main : la page refuse les lectures automatiques.`);
+console.log(broken === 0 ? '\nToutes les autres sources répondent.' : `\n${broken} source(s) à vérifier à la main.`);
 process.exitCode = broken === 0 ? 0 : 1;

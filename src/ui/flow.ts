@@ -234,6 +234,11 @@ export function createFlow(deps: FlowDeps): Flow {
       const situation = currentSituation(deps.getChapter(), situations);
       if (!situation) break;
       const index = situations.indexOf(situation);
+      // Une évacuation fait changer de lieu d'une décision à l'autre : le joueur et la caméra suivent.
+      if (situation.at) {
+        deps.goTo(situation.at);
+        deps.setFocus(situation.at, crisis.lookSouth);
+      }
       deps.setHazard(situation.hazard);
       crisisDialog.setTitle(`${crisis.name} — décision ${index + 1} sur ${situations.length}`);
       await new Promise<void>((resolve) => {
@@ -263,7 +268,8 @@ export function createFlow(deps: FlowDeps): Flow {
     const fresh = earned.filter((id) => !deps.getBadges().includes(id));
     if (firstTime) deps.addBadges(earned);
     deps.setHazard(crisis.levels.after);
-    deps.setFocus(firstTime ? crisis.places.crise : null, crisis.lookSouth);
+    // Là où la crise s'est achevée : le lieu de la dernière décision, si elle a fait se déplacer le joueur.
+    deps.setFocus(firstTime ? (crisis.situations[crisis.situations.length - 1]?.at ?? crisis.places.crise) : null, crisis.lookSouth);
 
     const again = h('button', { type: 'button', class: 'button' }, 'Rejouer ce chapitre');
     const others = h('button', { type: 'button', class: 'button' }, 'Autres chapitres');

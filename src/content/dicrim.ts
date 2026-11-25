@@ -211,7 +211,7 @@ export const DICRIM = {
             "Donner l'alerte en appelant le 112, le 18 ou le 114 (personnes malentendantes).",
             'Éloigner les combustibles (bouteilles de gaz, etc.).',
             "Rentrer le mobilier de jardin et le tuyau d'arrosage.",
-            "S'abriter dans un bâtiment en dur.",
+            "Quitter le massif forestier immédiatement, ou s'abriter dans un bâtiment en dur.",
             'Fermer et arroser volets, portes et fenêtres ; occulter les aérations.',
             'Se couvrir le nez et la bouche avec un linge humide.',
             "Laisser son portail ouvert pour faciliter l'accès des pompiers.",
@@ -227,8 +227,15 @@ export const DICRIM = {
             'Ne pas prendre sa voiture.',
           ],
         },
+        {
+          heading: "Si l'évacuation est ordonnée",
+          items: [
+            'Suivre les consignes de la préfecture, de la mairie, des secours et de FR-Alert : point de rassemblement, itinéraire, centre d’accueil.',
+            'Ne jamais regagner son domicile avant une autorisation officielle.',
+          ],
+        },
       ],
-      sources: ['georisques-feu', 'georisques-old'],
+      sources: ['georisques-feu', 'securite-civile-feu', 'interieur-feu-foret', 'georisques-old'],
     },
     {
       id: 'industriel',

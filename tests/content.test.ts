@@ -133,6 +133,9 @@ describe('cohérence des contenus', () => {
       const shelter = playbookOf(id).content!.actions.find((a) => a.phase === 'vigilance' && a.endsPhase);
       expect(shelter?.place, `${id} : abri`).toBe(crisis.places.crise);
       if (crisis.firebreak) expect(actionIds.has(crisis.firebreak), `${id} : coupe-feu`).toBe(true);
+      // Une crise qui fait se déplacer le joueur (une évacuation) part du lieu de la crise, et ne passe que par des lieux qui existent.
+      for (const situation of crisis.situations) if (situation.at) expect(placeIds.has(situation.at), `${situation.id} : lieu`).toBe(true);
+      if (crisis.situations[0].at) expect(crisis.situations[0].at, id).toBe(crisis.places.crise);
       // Chaque récit commence par un moment raconté, et chaque message est précédé du moment qui l'annonce,
       // avec son signal, ou du message précédent quand deux arrivent coup sur coup.
       for (const beats of [crisis.vigilance, crisis.onset]) {
