@@ -109,7 +109,7 @@ Le jeu vise les critères du RGAA :
 - l'interface est en HTML sémantique, les fenêtres utilisent l'élément natif `<dialog>` ;
 - tout se fait au clavier, et le focus reste visible ;
 - la carte et les illustrations ne sont pas indispensables : la liste des lieux, le carnet de mission et la liste des gestes en sont l'alternative, et chaque carte de risque est décrite en toutes lettres ;
-- un « retour » involontaire du navigateur ne quitte pas le jeu sans confirmation ; fermer la page ne demande rien, la partie étant enregistrée ;
+- on ne quitte pas le jeu par mégarde : un « retour » du navigateur ouvre une confirmation du jeu ; fermer l'onglet, recharger la page ou partir vers un autre site déclenche celle du navigateur (sa fenêtre et son texte, qu'une page ne peut pas choisir) ;
 - rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;
 - la pluie et la lumière du soir sont un décor : le temps qu'il fait est aussi écrit dans la barre d'état ;
 - aucune information ne repose sur la couleur seule (niveaux de vigilance, zones des cartes, états des gestes, résultats du bilan) ;
