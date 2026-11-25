@@ -29,6 +29,8 @@ export interface WeatherNow {
   river: string;
   /** Prévisions du chapitre en cours ; vide hors chapitre. */
   forecast: ReadonlyArray<{ when: string; icon: IconName; text: string }>;
+  /** Indicateur de danger lié à la météo (la Météo des forêts) : son niveau du moment, et ce qu'il est d'après sa source. */
+  hazard: { title: string; text: string; sources: readonly string[]; level: VigilanceLevel; indicator: string } | null;
 }
 
 export interface PhoneDeps {
@@ -41,7 +43,8 @@ export interface PhoneDeps {
   getSectorName(): string;
   getState(): GameState;
   getBulletins(): Bulletin[];
-  getVigilance(): VigilanceLevel;
+  /** Niveau de la vigilance crues ; `null` quand le chapitre en cours ne la concerne pas. */
+  getVigilance(): VigilanceLevel | null;
   getWeather(): WeatherNow;
   getAssessment(): Assessment | null;
   /** Ce que la liste des lieux affiche de chacun. */
@@ -282,6 +285,9 @@ export function createPhone(deps: PhoneDeps): Phone {
     );
   }
 
+  /** Pastille d'un niveau de danger : sa couleur est doublée par sa forme, et par le texte qui la suit. */
+  const swatch = (level: VigilanceLevel): HTMLElement => h('span', { class: 'swatch', 'data-level': level, 'aria-hidden': 'true' });
+
   // ------------------------------------------------------------------ Météo
   const weatherView = h('div', { class: 'stack' });
 
@@ -294,18 +300,35 @@ export function createPhone(deps: PhoneDeps): Phone {
       weather.forecast.length === 0
         ? h('p', null, 'Rien à signaler pour les jours qui viennent.')
         : h('ul', { class: 'forecast' }, ...weather.forecast.map((day) => h('li', null, h('span', { class: 'forecast__icon' }, icon(day.icon)), h('span', null, h('strong', null, `${day.when}. `), day.text)))),
-      h('p', { class: 'fine-print' }, 'La vigilance et les messages des autorités sont dans l’application Alertes.'),
+      ...(weather.hazard
+        ? [
+            h('h3', null, weather.hazard.title),
+            h('p', { class: 'level-name' }, swatch(weather.hazard.level), weather.hazard.indicator),
+            h('p', null, weather.hazard.text),
+            sourceList(weather.hazard.sources),
+          ]
+        : []),
+      h('p', { class: 'fine-print' }, 'Les messages des autorités sont dans l’application Alertes.'),
     );
   }
 
   // ---------------------------------------------------------------- Alertes
   const alertsView = h('div', { class: 'stack' });
 
-  const swatch = (level: VigilanceLevel): HTMLElement => h('span', { class: 'swatch', 'data-level': level, 'aria-hidden': 'true' });
-
   function renderAlerts(): void {
     const vigilance = deps.getVigilance();
     const bulletins = deps.getBulletins();
+    if (vigilance === null) {
+      // Chapitre sans vigilance crues : l'application ne garde que les messages des autorités.
+      alertsView.replaceChildren(
+        h('h3', null, 'Messages reçus'),
+        ...(bulletins.length === 0
+          ? [h('p', null, 'Aucun message pour le moment.')]
+          : bulletins.map((bulletin) => h('article', { class: 'bulletin' }, h('h4', null, bulletin.title), bulletinContent(bulletin)))),
+        h('p', { class: 'fine-print' }, 'Le niveau de danger de feu de forêt est dans l’application Météo.'),
+      );
+      return;
+    }
     const current = VIGILANCE_SCALE.levels.find((level) => level.id === vigilance) ?? VIGILANCE_SCALE.levels[0];
     alertsView.replaceChildren(
       h('h3', null, 'En ce moment'),
@@ -374,7 +397,7 @@ export function createPhone(deps: PhoneDeps): Phone {
       });
       bilanView.replaceChildren(bilanContent(assessment, BADGES, earned, []), again);
     } else {
-      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan sera établi après la crue.'), h('h3', null, 'Badges'), badgeList(BADGES, earned));
+      bilanView.replaceChildren(h('p', { class: 'lead' }, 'Le bilan d’un chapitre est établi à la fin de celui-ci.'), h('h3', null, 'Badges'), badgeList(BADGES, earned));
     }
   }
 

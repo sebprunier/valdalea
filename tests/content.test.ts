@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
-import { ACTIONS, BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, QUESTIONS, SITUATION, SITUATIONS, STAKES, STORY, VIGILANCE_SCALE } from '../src/content/inondation';
+import { ALL_ACTIONS as ACTIONS, ALL_QUESTIONS as QUESTIONS, CHAPTERS, playbookOf } from '../src/content/chapitres';
+import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, SITUATION, SITUATIONS, STAKES, STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
 import { SOURCES } from '../src/content/model';
 import { PLACE_TEXTS } from '../src/content/places';
@@ -79,9 +80,37 @@ describe('cohérence des contenus', () => {
     for (const level of VIGILANCE_SCALE.levels) expect(level.meaning.length, level.id).toBeGreaterThan(20);
     const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
     for (const [phase, situation] of Object.entries(SITUATION)) {
-      expect(levels.has(situation.vigilance), phase).toBe(true);
+      expect(levels.has(situation.level), phase).toBe(true);
+      expect(situation.indicator.length, phase).toBeGreaterThan(5);
       expect(SKIES[situation.sky], phase).toBeDefined();
       expect(situation.river.length, phase).toBeGreaterThan(5);
+    }
+  });
+
+  it('décrit chaque chapitre jouable : gestes, horaires, récit d’ouverture, indicateur', () => {
+    for (const info of CHAPTERS.filter((chapter) => chapter.playable)) {
+      const { content, actions, timing } = playbookOf(info.id);
+      expect(content, info.id).not.toBeNull();
+      if (!content) continue;
+      // Le prologue vient en tête de ce qui se joue, quel que soit le chapitre.
+      expect(actions.slice(0, 2).map((a) => a.id), info.id).toEqual(['mairie-accueil', 'mairie-dicrim']);
+      // Chaque phase minutée a de quoi se terminer : un geste qui la clôt.
+      const phases = content.complete ? (['preparation', 'vigilance'] as const) : (['preparation'] as const);
+      for (const phase of phases) {
+        const inPhase = content.actions.filter((a) => a.phase === phase);
+        expect(inPhase.filter((a) => a.endsPhase).length, `${info.id} / ${phase} : geste de fin`).toBe(1);
+        // Tous les gestes tiennent dans le temps de la phase, même sans rien avoir préparé, avec une demi-heure au moins pour les trajets.
+        const needed = inPhase.reduce((sum, a) => sum + a.minutes, 0);
+        expect(timing[phase].minutes - needed, `${info.id} / ${phase} : marge`).toBeGreaterThanOrEqual(30);
+      }
+      expect(content.opening.paragraphs.length, info.id).toBeGreaterThan(0);
+      for (const level of ['verte', 'jaune', 'orange', 'rouge'] as const) expect(content.levels[level], `${info.id} / ${level}`).toBeTruthy();
+      for (const id of content.hazardInfo?.sources ?? []) expect(SOURCES[id], `${info.id} : source ${id}`).toBeDefined();
+      // Un chapitre dont la suite n'est pas écrite l'annonce au joueur, et le calendrier le dit.
+      if (!content.complete) {
+        expect(content.toBeContinued, info.id).toBeDefined();
+        expect(info.note, info.id).toBeTruthy();
+      }
     }
   });
 

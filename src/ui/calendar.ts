@@ -51,6 +51,7 @@ export function createCalendarView(deps: CalendarDeps): CalendarView {
       h('h3', null, chapter.title),
       h('p', { class: 'chapter__risk' }, chapter.risk),
       h('p', null, chapter.summary),
+      chapter.note ? h('p', { class: 'fine-print' }, chapter.note) : null,
       h('p', { class: 'chapter__state' }, current || best !== undefined ? icon(current ? 'horloge' : 'coche') : null, state),
     ];
 

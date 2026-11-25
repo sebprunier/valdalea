@@ -1,5 +1,5 @@
 import { BADGES, BULLETIN_JAUNE, BULLETIN_ORANGE, BULLETIN_ROUGE, FLOOD, SITUATIONS, STAKES, STORY } from '../content/inondation';
-import type { ActionDef, Bulletin, SkyId, StoryCard, VigilanceLevel } from '../content/model';
+import type { ActionDef, Bulletin, ChapterContent, SkyId, StoryCard, VigilanceLevel } from '../content/model';
 import { answer, assess, currentSituation, isTimeUp, nextPhase, type Assessment, type Chapter, type Phase } from '../core/chapter';
 import type { Vec } from '../core/geometry';
 import { createDialog, type DialogHandle } from './dialog';
@@ -26,6 +26,10 @@ export interface Scene {
 
 export interface FlowDeps {
   getChapter(): Chapter;
+  /** Le chapitre en cours : son récit d'ouverture, ses horaires, et s'il se joue jusqu'au bout. */
+  getContent(): ChapterContent | null;
+  /** Quitte le chapitre sans bilan, quand sa suite n'existe pas encore. */
+  leaveChapter(): void;
   setChapter(recipe: (chapter: Chapter) => Chapter): void;
   getBadges(): readonly string[];
   addBadges(ids: readonly string[]): void;
@@ -136,6 +140,8 @@ export function createFlow(deps: FlowDeps): Flow {
   // ------------------------------------------------------------ Séquences
 
   function floodLevel(): number {
+    // La crue est celle du chapitre de l'inondation : ailleurs, la rivière reste dans son lit.
+    if (deps.getContent()?.id !== 'automne') return 0;
     const chapter = deps.getChapter();
     if (chapter.phase === 'vigilance') return FLOOD.rising;
     if (chapter.phase !== 'crise') return 0;
@@ -154,10 +160,17 @@ export function createFlow(deps: FlowDeps): Flow {
     let then: AfterBilan = null;
     try {
       deps.closePlace();
+      const content = deps.getContent();
       if (phase === 'preparation') {
         // Le chapitre s'ouvre sur la mission que confie le maire.
-        await tell(STORY.debut);
+        await tell(content?.opening ?? STORY.debut);
         storyDialog.close();
+      } else if (content && !content.complete) {
+        // La suite du chapitre n'est pas encore écrite : on l'annonce, et l'on rend la main.
+        if (content.toBeContinued) await tell(content.toBeContinued);
+        storyDialog.close();
+        deps.leaveChapter();
+        then = 'calendrier';
       } else if (phase === 'vigilance') {
         // Samedi soir, la nuit de dimanche, lundi matin : trois moments, deux bulletins.
         deps.goHome();
@@ -226,7 +239,7 @@ export function createFlow(deps: FlowDeps): Flow {
     deps.setFlood(FLOOD.receding);
     await tell(STORY.decrue);
     storyDialog.close();
-    deps.setChapter(nextPhase);
+    deps.setChapter((chapter) => nextPhase(chapter, deps.getContent()?.timing));
     deps.stage(null);
     return showBilan(true);
   }
@@ -266,7 +279,7 @@ export function createFlow(deps: FlowDeps): Flow {
   function check(): boolean {
     const chapter = deps.getChapter();
     if (busy || !isTimeUp(chapter)) return false;
-    deps.setChapter(nextPhase);
+    deps.setChapter((chapter) => nextPhase(chapter, deps.getContent()?.timing));
     void enter(deps.getChapter().phase, true);
     return true;
   }
@@ -293,6 +306,8 @@ export function createFlow(deps: FlowDeps): Flow {
     },
 
     bulletins() {
+      // Les bulletins de vigilance crues sont ceux du chapitre de l'inondation.
+      if (deps.getContent()?.id !== 'automne') return [];
       const phase = deps.getChapter().phase;
       const received: Bulletin[] = [];
       if (phase === 'crise' || phase === 'bilan') received.push(BULLETIN_ROUGE);

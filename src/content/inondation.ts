@@ -1,7 +1,8 @@
-import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
+import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
 
 /**
- * Chapitre « L'automne » : le risque inondation.
+ * Chapitre « L'automne » : le risque inondation. (Le prologue, commun à tous les
+ * chapitres, est dans `prologue.ts`.)
  *
  * Les gestes et consignes reprennent les pages officielles citées dans `sources`,
  * au premier rang desquelles « Que faire en cas d'inondation ? » (Géorisques).
@@ -11,33 +12,6 @@ import type { ActionDef, BadgeDef, Bulletin, ChapterView, Question, Situation, S
 // ------------------------------------------------------------------ Actions
 
 export const ACTIONS: ActionDef[] = [
-  {
-    id: 'mairie-accueil',
-    place: 'mairie',
-    phase: 'accueil',
-    minutes: 0,
-    title: 'Vous présenter au maire',
-    why: "Le maire est responsable de la sécurité sur sa commune : il veille à l'information sur les risques et à l'organisation des secours en cas de crise.",
-    who: 'Vous. Le maire vous attend pour votre première mission de réserviste.',
-    done: "« Bienvenue dans la réserve ! Avant toute chose, lisez notre DICRIM : il vous dira où sont les risques de la commune, et ce que chacun peut faire pour s'y préparer. Ensuite, vous choisirez votre première mission. »",
-    sources: ['georisques-acteurs'],
-  },
-  {
-    id: 'mairie-dicrim',
-    lexicon: ['dicrim'],
-    place: 'mairie',
-    phase: 'accueil',
-    minutes: 0,
-    requires: 'mairie-accueil',
-    locked: "Présentez-vous d'abord au maire : c'est lui qui vous remettra le document.",
-    endsPhase: true,
-    title: 'Consulter le DICRIM',
-    go: 'Ouvrir le DICRIM',
-    why: "Le document d'information communal sur les risques majeurs présente les risques de la commune, les mesures prises pour s'en protéger et les consignes de sécurité. Se renseigner en mairie est la première des mesures de prévention.",
-    who: 'Le maire rédige le DICRIM et doit le faire connaître. À chacun de le lire.',
-    done: "Vous avez parcouru le DICRIM : vous savez maintenant où sont les risques de la commune. La zone inondable s'affiche sur la carte, en hachures violettes ; les autres cartes sont dans le téléphone, comme le document lui-même. Il vous reste à choisir votre première mission.",
-    sources: ['georisques-inondation', 'georisques-dicrim'],
-  },
   {
     id: 'maison-kit',
     lexicon: ['kit'],
@@ -556,8 +530,6 @@ export const FLOOD = {
 };
 
 export const OBJECTIVES = {
-  accueil: 'Présentez-vous à la mairie, puis lisez le DICRIM.',
-  libre: 'Choisissez un chapitre dans le calendrier.',
   preparation: 'Accomplissez tous les gestes de prévention avant la tombée de la nuit.',
   vigilance: "L'eau monte : installez ce qui a été préparé, puis rentrez vous mettre à l'abri.",
   crise: 'La Follette déborde : faites les bons choix.',
@@ -567,20 +539,18 @@ export const OBJECTIVES = {
 // ------------------------------------------------------- Situation et récit
 
 /** Ce que la barre d'état et la carte montrent à chaque phase : vigilance, temps qu'il fait, état de la rivière. */
-export const SITUATION: Record<keyof typeof OBJECTIVES, { vigilance: VigilanceLevel; sky: SkyId; river: string }> = {
-  accueil: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
-  libre: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
-  preparation: { vigilance: 'verte', sky: 'sec', river: 'à son niveau habituel' },
-  vigilance: { vigilance: 'orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
-  crise: { vigilance: 'rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
-  bilan: { vigilance: 'jaune', sky: 'eclaircie', river: 'en décrue' },
+export const SITUATION: ChapterContent['situation'] = {
+  preparation: { level: 'verte', indicator: 'Vigilance crues : verte', sky: 'sec', river: 'à son niveau habituel' },
+  vigilance: { level: 'orange', indicator: 'Vigilance crues : orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
+  crise: { level: 'rouge', indicator: 'Vigilance crues : rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
+  bilan: { level: 'jaune', indicator: 'Vigilance crues : jaune', sky: 'eclaircie', river: 'en décrue' },
 };
 
 /**
  * Prévisions de l'application Météo, phase par phase. Fiction : elles annoncent
  * le récit, comme un bulletin annonce la pluie.
  */
-export const FORECAST: Record<'preparation' | 'vigilance' | 'crise' | 'bilan', Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>> = {
+export const FORECAST: ChapterContent['forecast'] = {
   preparation: [
     { when: 'Cet après-midi', icon: 'soleil', text: 'Temps sec. Le ciel se couvre en fin de journée.' },
     { when: 'Dimanche', icon: 'nuage', text: 'Ciel couvert. La pluie arrive dans la soirée.' },
@@ -602,7 +572,7 @@ export const FORECAST: Record<'preparation' | 'vigilance' | 'crise' | 'bilan', A
 };
 
 /** Pendant la dernière heure de la journée de préparation, le jour baisse : c'est le signe que le temps presse. */
-export const DUSK = { minutesLeft: 60, sky: 'soir' as SkyId };
+export const DUSK: { minutesLeft: number; sky: SkyId } = { minutesLeft: 60, sky: 'soir' };
 
 /**
  * Les quatre niveaux de la vigilance crues, tels que Vigicrues les définit.
@@ -701,3 +671,25 @@ export const STORY = {
     vigilance: 'orange',
   },
 } satisfies Record<string, StoryCard>;
+
+/** Le chapitre, tel que le jeu le joue. Sa crue (bulletins, décisions, bilan) est mise en scène par `ui/flow`. */
+export const AUTOMNE: ChapterContent = {
+  id: 'automne',
+  actions: ACTIONS,
+  questions: QUESTIONS,
+  objectives: OBJECTIVES,
+  situation: SITUATION,
+  levels: { verte: 'Vigilance crues : verte', jaune: 'Vigilance crues : jaune', orange: 'Vigilance crues : orange', rouge: 'Vigilance crues : rouge' },
+  forecast: FORECAST,
+  timing: {
+    // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
+    preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
+    vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
+  },
+  dusk: DUSK,
+  opening: STORY.debut,
+  period: { preparation: 'la journée', vigilance: 'la matinée' },
+  alerts: { preparation: 'Le temps presse : il vous reste {reste} avant la nuit.', vigilance: "L'eau monte : il vous reste {reste} pour vous mettre à l'abri." },
+  hazardApp: 'alertes',
+  complete: true,
+};

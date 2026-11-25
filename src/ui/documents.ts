@@ -39,6 +39,12 @@ export interface QuestionOptions {
   /** Le joueur a lu le retour et passe à la suite. */
   onContinue(): void;
   continueLabel?: string;
+  /**
+   * Pour une question à cocher : un dessin qui montre l'effet des choix cochés,
+   * avec la position de chaque choix dans l'image (en pourcentage). Le dessin est
+   * un raccourci : on peut y désigner un choix, mais tout se fait aussi par les cases.
+   */
+  figure?(picked: ReadonlySet<string>): { svg: SVGSVGElement; spots: Map<string, { left: number; top: number }> };
 }
 
 /**
@@ -91,18 +97,51 @@ export function mountQuestion(host: HTMLElement, question: Question, options: Qu
   };
 
   if (question.multiple) {
-    const boxes = question.choices.map((choice) => {
+    const illustrated = options.figure !== undefined;
+    const boxes = question.choices.map((choice, index) => {
       const id = `choix-${question.id}-${choice.id}`;
       const input = h('input', { type: 'checkbox', id, value: choice.id });
-      return { input, row: h('div', { class: 'check' }, input, h('label', { for: id }, choice.label)) };
+      // Avec un dessin, chaque choix porte le numéro de sa pastille dans l'image.
+      const label = h('label', { for: id }, illustrated ? h('span', { class: 'check__number', 'aria-hidden': 'true' }, String(index + 1)) : null, choice.label);
+      return { input, row: h('div', { class: 'check' }, input, label) };
     });
+    const checked = (): string[] => boxes.filter(({ input }) => input.checked).map(({ input }) => input.value);
+    let locked = false;
+
+    const scene = illustrated ? h('div', { class: 'scene scene--question' }) : null;
+    const draw = (): void => {
+      if (!scene || !options.figure) return;
+      const picked = new Set(checked());
+      const { svg, spots } = options.figure(picked);
+      scene.replaceChildren(svg);
+      question.choices.forEach((choice, index) => {
+        const spot = spots.get(choice.id);
+        if (!spot) return;
+        // Raccourci pour la souris et le doigt : la case à cocher, juste en dessous, est le vrai contrôle.
+        const pin = h('button', { type: 'button', class: picked.has(choice.id) ? 'pin pin--picked' : 'pin', tabindex: '-1', 'aria-hidden': 'true', title: choice.label }, String(index + 1));
+        pin.style.left = `${spot.left}%`;
+        pin.style.top = `${spot.top}%`;
+        pin.disabled = locked;
+        pin.addEventListener('click', () => {
+          boxes[index].input.checked = !boxes[index].input.checked;
+          draw();
+        });
+        scene.append(pin);
+      });
+    };
+    for (const { input } of boxes) input.addEventListener('change', draw);
+    draw();
+
     const validate = h('button', { type: 'button', class: 'button button--primary' }, 'Valider');
     validate.addEventListener('click', () => {
       for (const { input } of boxes) input.disabled = true;
+      locked = true;
+      draw();
       validate.remove();
-      reveal(boxes.filter(({ input }) => input.checked).map(({ input }) => input.value));
+      reveal(checked());
     });
     host.append(
+      ...(scene ? [scene] : []),
       h('fieldset', { class: 'choices' }, h('legend', null, question.prompt), ...boxes.map(({ row }) => row)),
       h('div', { class: 'dialog__actions' }, validate),
     );

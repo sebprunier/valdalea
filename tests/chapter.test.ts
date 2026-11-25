@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIONS, BADGES, SITUATIONS, STAKES } from '../src/content/inondation';
+import { ACTIONS as FLOOD_ACTIONS, BADGES, SITUATIONS, STAKES } from '../src/content/inondation';
+import { PROLOGUE } from '../src/content/prologue';
 import {
   actionMinutes,
   actionsAt,
@@ -22,6 +23,9 @@ import {
   TIMED_PHASES,
   type Chapter,
 } from '../src/core/chapter';
+
+/** Ce qui se joue dans le chapitre de l'inondation : le prologue, puis ses gestes. */
+const ACTIONS = [...PROLOGUE, ...FLOOD_ACTIONS];
 
 const action = (id: string) => {
   const found = ACTIONS.find((a) => a.id === id);

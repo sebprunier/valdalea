@@ -1,5 +1,4 @@
-import { findChapter, type ChapterInfo } from '../content/chapitres';
-import { ACTIONS, DUSK, FORECAST, OBJECTIVES, SITUATION } from '../content/inondation';
+import { findChapter, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
 import { mixOf, nearness } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -10,13 +9,13 @@ import {
   hourStruck,
   isTimed,
   isUnderway,
+  leaveChapter,
   MINUTES_PER_UNIT,
   pendingAt,
   perform,
   spend,
   startChapter,
   timeAlert,
-  TIMED_PHASES,
   type Chapter,
   type Phase,
 } from '../core/chapter';
@@ -82,7 +81,7 @@ export function createUi(deps: UiDeps): Ui {
   const weatherIcon = requireElement<HTMLElement>('hud-weather-icon');
   const weatherText = requireElement<HTMLElement>('hud-weather-text');
   const vigilanceChip = requireElement<HTMLButtonElement>('hud-vigilance');
-  const vigilanceLevel = requireElement<HTMLElement>('hud-vigilance-level');
+  const vigilanceText = requireElement<HTMLElement>('hud-vigilance-text');
   const clock = requireElement<HTMLElement>('hud-clock');
   const clockText = requireElement<HTMLElement>('hud-clock-text');
   const clockBar = requireElement<HTMLElement>('hud-clock-bar');
@@ -108,6 +107,17 @@ export function createUi(deps: UiDeps): Ui {
   onModalChange((anyOpen) => game.setPaused(anyOpen));
 
   const chapter = (): Chapter => store.get().chapter;
+  /** Ce qui se joue en ce moment : le prologue, puis le chapitre choisi. */
+  let bookId: string | null | undefined;
+  let book: Playbook = playbookOf(null);
+  function playbook(): Playbook {
+    const id = store.get().chapterId;
+    if (id !== bookId) {
+      bookId = id;
+      book = playbookOf(id);
+    }
+    return book;
+  }
   const dicrimRead = (): boolean => chapter().done.includes('mairie-dicrim');
   const home = findPlace(commune, 'domicile')?.pos ?? commune.spawn;
 
@@ -136,7 +146,8 @@ export function createUi(deps: UiDeps): Ui {
     const threshold = timeAlert(before.minutesLeft, after.minutesLeft);
     if (threshold === null) return;
     const left = formatDuration(after.minutesLeft);
-    toast(after.phase === 'preparation' ? `Le temps presse : il vous reste ${left} avant la nuit.` : `L'eau monte : il vous reste ${left} pour vous mettre à l'abri.`);
+    const message = playbook().content?.alerts[after.phase];
+    if (message) toast(message.replace('{reste}', left));
   }
 
   /** Carte de risque réellement montrée sur le plan. Pendant la crue et les moments de récit, c'est le ciel et l'eau qui se voient : les zones théoriques s'effacent. */
@@ -161,8 +172,9 @@ export function createUi(deps: UiDeps): Ui {
   function sky(): SkyId {
     if (scene) return scene.sky;
     const current = chapter();
-    if (current.phase === 'preparation' && current.minutesLeft <= DUSK.minutesLeft) return DUSK.sky;
-    return SITUATION[current.phase].sky;
+    const { content, situation } = playbook();
+    if (current.phase === 'preparation' && content?.dusk && current.minutesLeft <= content.dusk.minutesLeft) return content.dusk.sky;
+    return situation(current.phase).sky;
   }
 
   // Ce que l'on entend dépend d'où l'on est : la forêt, l'usine, l'église, l'école.
@@ -175,8 +187,8 @@ export function createUi(deps: UiDeps): Ui {
 
   /** Fait sonner les cloches quand l'heure du jeu passe : l'église à chaque heure pleine, l'école à son heure. */
   function ring(before: Chapter, after: Chapter): void {
-    const was = clockMinutes(before);
-    const now = clockMinutes(after);
+    const was = clockMinutes(before, playbook().timing);
+    const now = clockMinutes(after, playbook().timing);
     if (was === null || now === null) return;
     const player = game.position;
     const hour = hourStruck(was, now);
@@ -217,6 +229,8 @@ export function createUi(deps: UiDeps): Ui {
   // ------------------------------------------------------------- Déroulé
   const flow = createFlow({
     getChapter: chapter,
+    getContent: () => playbook().content,
+    leaveChapter: () => store.update((state) => ({ ...withChapter(state, leaveChapter(state.chapter, playbook().actions)), news: state.news.filter((id) => id === 'dicrim') })),
     setChapter,
     getBadges: () => store.get().badges,
     addBadges: (ids) => store.update((state) => withBadges(state, ids)),
@@ -242,7 +256,8 @@ export function createUi(deps: UiDeps): Ui {
    * les lieux visités et les réglages sont conservés ; le récit ouvre le chapitre.
    */
   function begin(chapterId: string): void {
-    store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, ACTIONS)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
+    const next = playbookOf(chapterId);
+    store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
     game.setFlood(0, true);
     game.setFocus(null);
     flow.begin();
@@ -286,7 +301,9 @@ export function createUi(deps: UiDeps): Ui {
     getWater: (place) => ({ depth: elevation.depthAt(place.pos, flow.floodLevel()), flood: flow.floodLevel() }),
     getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
-    perform: (action) => setChapter((current) => perform(current, action)),
+    getActions: () => playbook().actions,
+    getQuestions: () => playbook().questions,
+    perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
     performed: (action) => {
       sound.play('fait');
       // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur
@@ -317,6 +334,7 @@ export function createUi(deps: UiDeps): Ui {
   const mission = createMission({
     commune,
     getChapter: chapter,
+    getPlaybook: playbook,
     getPlayer: () => game.position,
     goTo,
     openBilan: () => openPhone(map, 'bilan'),
@@ -370,14 +388,17 @@ export function createUi(deps: UiDeps): Ui {
     getSectorName: () => sectorName,
     getState: () => store.get(),
     getBulletins: () => flow.bulletins(),
-    getVigilance: () => SITUATION[chapter().phase].vigilance,
+    getVigilance: () => (playbook().content?.hazardApp === 'meteo' ? null : playbook().situation(chapter().phase).level),
     getWeather: () => {
       const { phase } = chapter();
       const now = SKIES[sky()];
-      return { label: now.label, icon: now.icon, river: SITUATION[phase].river, forecast: phase in FORECAST ? FORECAST[phase as keyof typeof FORECAST] : [] };
+      const { content, situation } = playbook();
+      const forecast = phase === 'accueil' || phase === 'libre' ? undefined : content?.forecast[phase];
+      const state = situation(phase);
+      return { label: now.label, icon: now.icon, river: state.river, forecast: forecast ?? [], hazard: content?.hazardInfo ? { ...content.hazardInfo, level: state.level, indicator: state.indicator } : null };
     },
     getPlaceInfo: (place) => ({
-      pending: pendingAt(ACTIONS, chapter(), place.id),
+      pending: pendingAt(playbook().actions, chapter(), place.id),
       exposed: dicrimRead() ? RISK_IDS.some((risk) => isExposed(commune, elevation, risk, place.pos)) : null,
     }),
     travel: goTo,
@@ -473,7 +494,7 @@ export function createUi(deps: UiDeps): Ui {
   );
   // Le temps qu'il fait et la vigilance ouvrent leur application, dans le téléphone.
   onPress(weatherChip, (trigger) => openPhone(trigger, 'meteo'));
-  onPress(vigilanceChip, (trigger) => openPhone(trigger, 'alertes'));
+  onPress(vigilanceChip, (trigger) => openPhone(trigger, playbook().content?.hazardApp ?? 'alertes'));
 
   promptButton.addEventListener('click', () => {
     if (near) openPlace(near);
@@ -508,11 +529,15 @@ export function createUi(deps: UiDeps): Ui {
 
     // Le chapitre en cours : son nom, ou ce qui tient lieu de chapitre avant d'en avoir choisi un.
     const info = current.phase === 'accueil' || current.phase === 'libre' ? undefined : findChapter(state.chapterId);
-    chapterText.textContent = info ? `${info.season} — ${info.title}` : current.phase === 'accueil' ? 'Prologue' : 'Aucun chapitre en cours';
+    // Sur petit écran, seul le titre du chapitre est affiché : la saison est dans le calendrier.
+    if (info) chapterText.replaceChildren(h('span', { class: 'hud__chapter-season' }, `${info.season} — `), info.title);
+    else chapterText.textContent = current.phase === 'accueil' ? 'Prologue' : 'Aucun chapitre en cours';
 
-    const level = scene?.vigilance ?? SITUATION[current.phase].vigilance;
+    const situation = playbook().situation(current.phase);
+    const level = scene?.vigilance ?? situation.level;
     vigilanceChip.dataset.level = level;
-    vigilanceLevel.textContent = level;
+    // Pendant un moment de récit, l'indicateur suit le récit ; sinon, il dit l'état de la phase.
+    vigilanceText.textContent = scene ? (playbook().content?.levels[scene.vigilance] ?? situation.indicator) : situation.indicator;
 
     const now = sky();
     if (now !== shownSky) {
@@ -543,11 +568,11 @@ export function createUi(deps: UiDeps): Ui {
     // Le bandeau de mission : pendant un moment de récit, il dit où l'on en est ;
     // le reste du temps, quoi faire ensuite, avec l'heure et l'avancement.
     objective.textContent = scene?.caption ?? mission.hint().text;
-    const time = scene ? null : clockLabel(current);
+    const time = scene ? null : clockLabel(current, playbook().timing);
     clock.hidden = time === null;
     if (time !== null && isTimed(current.phase)) {
       clockText.textContent = `${time} — reste ${formatDuration(current.minutesLeft)}`;
-      const share = current.minutesLeft / TIMED_PHASES[current.phase].minutes;
+      const share = current.minutesLeft / playbook().timing[current.phase].minutes;
       clockBar.style.width = `${Math.round(share * 100)}%`;
       // Le temps qui presse se lit dans le texte ; la couleur ne fait que le souligner.
       clock.dataset.urgent = String(current.minutesLeft <= 60);
@@ -562,7 +587,7 @@ export function createUi(deps: UiDeps): Ui {
     if (news > 0) phoneNews.replaceChildren(h('span', { 'aria-hidden': 'true' }, String(news)), h('span', { class: 'sr-only' }, news > 1 ? ` — ${news} nouveautés` : ' — 1 nouveauté'));
 
     if (shownPhase !== null && shownPhase !== current.phase) {
-      announce(OBJECTIVES[current.phase]);
+      announce(playbook().objective(current.phase));
       // Les messages de la phase précédente (« le temps presse ») n'ont plus lieu d'être.
       toasts.replaceChildren();
     }
@@ -589,7 +614,7 @@ export function createUi(deps: UiDeps): Ui {
       prompt.hidden = place === null;
       if (place) {
         promptName.textContent = place.name;
-        const pending = pendingAt(ACTIONS, chapter(), place.id);
+        const pending = pendingAt(playbook().actions, chapter(), place.id);
         announce(`${place.name}. ${pending > 0 ? `${pending > 1 ? `${pending} gestes possibles` : '1 geste possible'}. ` : ''}Appuyez sur Entrée pour ouvrir.`);
       }
     },
@@ -614,7 +639,7 @@ export function createUi(deps: UiDeps): Ui {
       flow.check();
     },
     // Pendant un moment de récit, la carte ne réclame rien : les gestes de la phase qui s'ouvre attendront.
-    pendingAt: (placeId) => (scene ? 0 : pendingAt(ACTIONS, chapter(), placeId)),
+    pendingAt: (placeId) => (scene ? 0 : pendingAt(playbook().actions, chapter(), placeId)),
     zoomChanged(level) {
       showZoom(level);
       store.update((state) => (state.settings.zoom === level ? state : { ...state, settings: { ...state.settings, zoom: level } }));

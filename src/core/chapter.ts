@@ -26,12 +26,15 @@ export interface Chapter {
   answers: Record<string, string>;
 }
 
-/** Durée des phases où le temps est compté, et heure à laquelle elles commencent. */
-export const TIMED_PHASES = {
+/** Durée des phases où le temps est compté, jour et heure où elles commencent. Chaque chapitre a les siennes. */
+export type Timing = Record<'preparation' | 'vigilance', { minutes: number; day: string; startsAt: number }>;
+
+/** Horaires du chapitre de l'inondation, et valeur par défaut des règles. */
+export const TIMED_PHASES: Timing = {
   // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
   preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
   vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
-} as const;
+};
 
 /** Seuils, en minutes restantes, où le joueur est prévenu que le temps presse. */
 export const TIME_ALERTS = [60, 30, 10] as const;
@@ -51,7 +54,7 @@ export function newChapter(): Chapter {
   return { phase: 'accueil', minutesLeft: 0, done: [], answers: {} };
 }
 
-export function isTimed(phase: Phase): phase is keyof typeof TIMED_PHASES {
+export function isTimed(phase: Phase): phase is keyof Timing {
   return phase === 'preparation' || phase === 'vigilance';
 }
 
@@ -65,17 +68,24 @@ export function isUnderway(phase: Phase): boolean {
  * temps. Seuls les acquis du prologue sont conservés. Sans effet tant que le
  * prologue n'est pas terminé.
  */
-export function startChapter(chapter: Chapter, actions: readonly ActionDef[]): Chapter {
+export function startChapter(chapter: Chapter, actions: readonly ActionDef[], timing: Timing = TIMED_PHASES): Chapter {
   if (chapter.phase === 'accueil') return chapter;
   const prologue = new Set(actions.filter((action) => action.phase === 'accueil').map((action) => action.id));
-  return { phase: 'preparation', minutesLeft: TIMED_PHASES.preparation.minutes, done: chapter.done.filter((id) => prologue.has(id)), answers: {} };
+  return { phase: 'preparation', minutesLeft: timing.preparation.minutes, done: chapter.done.filter((id) => prologue.has(id)), answers: {} };
+}
+
+/** Quitte le chapitre sans bilan (chapitre abandonné, ou dont la suite n'existe pas encore) : retour au choix. */
+export function leaveChapter(chapter: Chapter, actions: readonly ActionDef[]): Chapter {
+  if (chapter.phase === 'accueil') return chapter;
+  const prologue = new Set(actions.filter((action) => action.phase === 'accueil').map((action) => action.id));
+  return { phase: 'libre', minutesLeft: 0, done: chapter.done.filter((id) => prologue.has(id)), answers: {} };
 }
 
 /** Passe à la phase suivante et remet le budget de temps à zéro ou à plein. */
-export function nextPhase(chapter: Chapter): Chapter {
+export function nextPhase(chapter: Chapter, timing: Timing = TIMED_PHASES): Chapter {
   const next = PHASES[Math.min(PHASES.indexOf(chapter.phase) + 1, PHASES.length - 1)];
   if (next === chapter.phase) return chapter;
-  return { ...chapter, phase: next, minutesLeft: isTimed(next) ? TIMED_PHASES[next].minutes : 0 };
+  return { ...chapter, phase: next, minutesLeft: isTimed(next) ? timing[next].minutes : 0 };
 }
 
 /** Le temps de la phase est écoulé : il faut passer à la suite. */
@@ -143,7 +153,7 @@ export function pendingAt(actions: readonly ActionDef[], chapter: Chapter, place
 }
 
 /** Accomplit une action. Sans effet si elle n'est pas possible. */
-export function perform(chapter: Chapter, action: ActionDef): Chapter {
+export function perform(chapter: Chapter, action: ActionDef, timing: Timing = TIMED_PHASES): Chapter {
   const status = actionStatus(action, chapter);
   if (status.state !== 'possible') return chapter;
   const after: Chapter = {
@@ -151,7 +161,7 @@ export function perform(chapter: Chapter, action: ActionDef): Chapter {
     done: [...chapter.done, action.id],
     minutesLeft: isTimed(chapter.phase) ? chapter.minutesLeft - status.minutes : chapter.minutesLeft,
   };
-  return action.endsPhase ? nextPhase(after) : after;
+  return action.endsPhase ? nextPhase(after, timing) : after;
 }
 
 // -------------------------------------------------------------------- Crise
@@ -211,9 +221,9 @@ export function formatDuration(minutes: number): string {
 }
 
 /** Heure de la partie, en minutes depuis minuit. `null` hors des phases où le temps est compté. */
-export function clockMinutes(chapter: Chapter): number | null {
+export function clockMinutes(chapter: Chapter, timing: Timing = TIMED_PHASES): number | null {
   if (!isTimed(chapter.phase)) return null;
-  const phase = TIMED_PHASES[chapter.phase];
+  const phase = timing[chapter.phase];
   return phase.startsAt + Math.floor(phase.minutes - chapter.minutesLeft);
 }
 
@@ -227,10 +237,10 @@ export function hourStruck(before: number, after: number): number | null {
 }
 
 /** Jour et heure de la partie, par exemple « Samedi, 15 h 20 ». `null` hors des phases où le temps est compté. */
-export function clockLabel(chapter: Chapter): string | null {
-  const now = clockMinutes(chapter);
+export function clockLabel(chapter: Chapter, timing: Timing = TIMED_PHASES): string | null {
+  const now = clockMinutes(chapter, timing);
   if (now === null || !isTimed(chapter.phase)) return null;
-  const phase = TIMED_PHASES[chapter.phase];
+  const phase = timing[chapter.phase];
   const h = Math.floor(now / 60);
   const m = now % 60;
   return `${phase.day}, ${h} h${m === 0 ? '' : ` ${String(m).padStart(2, '0')}`}`;

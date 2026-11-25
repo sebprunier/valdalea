@@ -1,3 +1,9 @@
+import type { Phase } from '../core/chapter';
+import { ETE } from './feu';
+import { AUTOMNE } from './inondation';
+import type { ActionDef, ChapterContent, ChapterPhase, ChapterTiming, Question } from './model';
+import { CALM, PROLOGUE, PROLOGUE_OBJECTIVES } from './prologue';
+
 /**
  * Les chapitres du jeu : une année à Val-d'Aléa, un risque par saison.
  *
@@ -18,6 +24,8 @@ export interface ChapterInfo {
   playable: boolean;
   /** Conseillé pour commencer. */
   suggested?: boolean;
+  /** Précision sur l'état du chapitre, quand il n'est pas complet. */
+  note?: string;
 }
 
 export const CHAPTERS: ChapterInfo[] = [
@@ -36,7 +44,8 @@ export const CHAPTERS: ChapterInfo[] = [
     title: 'Le feu des Brandes',
     risk: 'Feu de forêt',
     summary: "Débroussailler au printemps autour des maisons du hameau, à la lisière de la forêt ; l'été venu, un départ de feu.",
-    playable: false,
+    playable: true,
+    note: "Première partie jouable : le printemps. L'été est en cours d'écriture.",
   },
 ];
 
@@ -45,4 +54,44 @@ export const LATER = ['Accident industriel', 'Retrait-gonflement des argiles', '
 
 export function findChapter(id: string | null): ChapterInfo | undefined {
   return CHAPTERS.find((chapter) => chapter.id === id);
+}
+
+// ------------------------------------------------------------------ Contenus
+
+const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE };
+
+/** Tous les gestes et toutes les questions du jeu, prologue compris : de quoi vérifier une sauvegarde. */
+export const ALL_ACTIONS: ActionDef[] = [...PROLOGUE, ...Object.values(CONTENTS).flatMap((content) => content.actions)];
+export const ALL_QUESTIONS: Question[] = Object.values(CONTENTS).flatMap((content) => content.questions);
+
+/**
+ * Ce qui se joue en ce moment : le prologue, puis le chapitre choisi. C'est par
+ * là que l'interface accède aux contenus, sans savoir de quel chapitre il s'agit.
+ */
+export interface Playbook {
+  /** Le chapitre choisi ; `null` tant qu'aucun ne l'a été. */
+  content: ChapterContent | null;
+  /** Gestes du prologue et du chapitre. */
+  actions: ActionDef[];
+  questions: Question[];
+  timing: ChapterTiming;
+  /** La mission du moment. */
+  objective(phase: Phase): string;
+  /** Ce que la barre d'état montre : niveau de danger, libellé, temps qu'il fait. */
+  situation(phase: Phase): ChapterContent['situation'][ChapterPhase];
+}
+
+const isChapterPhase = (phase: Phase): phase is ChapterPhase => phase !== 'accueil' && phase !== 'libre';
+
+export function playbookOf(chapterId: string | null): Playbook {
+  const content = (chapterId && CONTENTS[chapterId]) || null;
+  return {
+    content,
+    actions: content ? [...PROLOGUE, ...content.actions] : PROLOGUE,
+    questions: content?.questions ?? [],
+    // Hors chapitre, aucun temps n'est compté : ces horaires ne servent pas.
+    timing: content?.timing ?? AUTOMNE.timing,
+    objective: (phase) => (isChapterPhase(phase) ? (content?.objectives[phase] ?? PROLOGUE_OBJECTIVES.libre) : PROLOGUE_OBJECTIVES[phase]),
+    situation: (phase) => (content && isChapterPhase(phase) ? content.situation[phase] : CALM),
+  };
 }

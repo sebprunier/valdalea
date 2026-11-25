@@ -1,7 +1,8 @@
 import './styles/main.css';
 import { Sound } from './audio/sound';
-import { CHAPTERS } from './content/chapitres';
-import { ACTIONS, BADGES, SITUATIONS } from './content/inondation';
+import { ALL_ACTIONS, CHAPTERS } from './content/chapitres';
+import { BADGES, SITUATIONS } from './content/inondation';
+import { PROLOGUE } from './content/prologue';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
 import { Store } from './core/store';
@@ -24,9 +25,9 @@ const elevation = buildElevation(commune);
 const { storage, persistent } = browserStorage();
 const saved = loadGame(storage, {
   placeIds: new Set(commune.places.map((place) => place.id)),
-  actionIds: new Set(ACTIONS.map((action) => action.id)),
+  actionIds: new Set(ALL_ACTIONS.map((action) => action.id)),
   chapterIds: new Set(CHAPTERS.filter((chapter) => chapter.playable).map((chapter) => chapter.id)),
-  legacy: { chapterId: 'automne', prologue: ACTIONS.filter((action) => action.phase === 'accueil').map((action) => action.id) },
+  legacy: { chapterId: 'automne', prologue: PROLOGUE.map((action) => action.id) },
   situationChoices: new Map(SITUATIONS.map((situation) => [situation.id, new Set(situation.choices.map((choice) => choice.id))])),
   badgeIds: new Set(BADGES.map((badge) => badge.id)),
   riskIds: new Set(RISK_IDS),

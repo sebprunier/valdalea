@@ -12,9 +12,9 @@ Le jeu tourne entièrement dans le navigateur : pas de serveur, pas de compte, p
 
 ## État d'avancement
 
-La partie s'ouvre sur un **prologue** : rencontrer le maire, puis lire le DICRIM. Le joueur choisit ensuite ses **chapitres** dans le calendrier, un risque par saison, dans l'ordre qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est affiché en haut de l'écran.
+La partie s'ouvre sur un **prologue** : rencontrer le maire, puis lire le DICRIM. Le joueur choisit ensuite ses **chapitres** dans le téléphone, application Calendrier : un risque par saison, dans l'ordre qu'il veut ; un chapitre est conseillé pour commencer, aucun n'est imposé. Le chapitre en cours est rappelé en haut de l'écran.
 
-Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**. Le suivant, le feu de forêt (printemps et été), est en préparation.
+Un chapitre est jouable de bout en bout : **l'automne et le risque d'inondation**. Le suivant, **le feu des Brandes** (feu de forêt), se joue sur deux saisons : son printemps est jouable — expliquer l'obligation de débroussailler, débroussailler le terrain d'un voisin sur le dessin, rappeler les gestes qui évitent les départs de feu — et son été est en cours d'écriture.
 
 1. **Préparation.** Le maire confie sa mission au joueur : préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, convenir d'un abri avec une voisine isolée, lire le repère de crue, vérifier les consignes du camping, préparer le centre d'hébergement. La journée se termine quand le joueur le décide — une confirmation lui rappelle les gestes encore faisables — ou à la tombée de la nuit.
 2. **Vigilance orange.** Ce qui a été préparé peut être installé ; le reste, il est trop tard.
@@ -28,7 +28,7 @@ Autour de ce chapitre :
 - **Le DICRIM de Val-d'Aléa**, un vrai document : couverture, mot des élus, sommaire, un chapitre et une carte par risque (inondation, chutes de blocs, cavités, argiles, feu de forêt, risque industriel), l'alerte, une page mémo. Il est mis en pages comme une brochure, en feuilles A4 numérotées, et s'imprime ou s'enregistre en PDF tel quel ; chaque page rappelle qu'il s'agit d'un document fictif. Chaque carte peut s'afficher sur le plan du jeu.
 - **La légende de la carte** (bouton en bas à gauche, touche G) : ce que représentent les couleurs et les motifs du plan, et les repères posés dessus.
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
-- **Le téléphone**, tableau de bord du jeu : une pastille y signale ce qui vient d'arriver (une alerte, le DICRIM, le bilan). On y rejoue le chapitre ou on y recommence la partie, dans les réglages.
+- **Le téléphone**, télécommande du jeu : calendrier des chapitres, carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, alertes, DICRIM, lexique, bilan, réglages. Une pastille y signale ce qui vient d'arriver.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève) et les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) ; la cloche de l'église sonne les heures du jeu, l'école sa rentrée ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte, un geste accompli). Il se coupe d'un bouton.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
@@ -62,13 +62,17 @@ En développement, `window.jcrm` donne accès au jeu depuis la console du naviga
 Toute consigne de sécurité affichée dans le jeu reprend une page officielle, relue à la source, et la cite. Les personnages, les dates et le déroulé de la crue sont de la fiction.
 
 - `src/content/sources.json` : les pages officielles citées, avec la date de leur dernière relecture.
-- `src/content/chapitres.ts` : la liste des chapitres, telle que le calendrier la présente.
-- `src/content/inondation.ts` : le prologue et le chapitre de l'inondation — gestes, questions, situations de crise, bilan, bulletins. Chaque élément porte l'identifiant de ses sources.
+- `src/content/chapitres.ts` : la liste des chapitres, telle que le calendrier la présente, et l'accès au contenu de celui qui se joue.
+- `src/content/prologue.ts` : la rencontre du maire et la lecture du DICRIM.
+- `src/content/inondation.ts` : le chapitre de l'inondation — gestes, questions, situations de crise, bilan, bulletins. Chaque élément porte l'identifiant de ses sources.
+- `src/content/feu.ts` : le chapitre du feu de forêt (pour l'instant, sa préparation de printemps).
 - `src/content/dicrim.ts` : le DICRIM. Ce qui décrit la commune est inventé ; les phénomènes et les bons réflexes reprennent les pages officielles.
 - `src/content/lexique.ts` : les définitions du lexique.
 - `src/content/places.ts` : textes de présentation des lieux (aucune consigne).
 
-Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
+Un chapitre est un contenu, pas du code : ses gestes, ses horaires, son récit d'ouverture, son indicateur de danger (`ChapterContent`, dans `src/content/model.ts`). Les règles et l'interface sont les mêmes pour tous.
+
+Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques, dont celle du feu de forêt pour la Météo des forêts ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
 
 Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne. Le signal d'alerte que le jeu fait entendre est inventé : il ne reproduit pas le vrai signal de FR-Alert, pour ne pas pouvoir être pris pour lui hors du jeu.
 

@@ -41,8 +41,8 @@ export interface ActionDef {
   narrative?: boolean;
   /** Mots du lexique expliqués avec ce geste. */
   lexicon?: string[];
-  /** Illustration montrée quand le geste est accompli. */
-  figure?: 'repere';
+  /** Illustration du geste : le repère de crue, montré une fois lu ; le terrain à débroussailler, sur lequel on agit. */
+  figure?: 'repere' | 'debroussaillement';
   /** Libellé du bouton qui accomplit le geste, quand « Le faire » ne dit pas assez bien ce qui va se passer. */
   go?: string;
   title: string;
@@ -150,4 +150,47 @@ export interface Bulletin {
   /** Consignes à puces, reprises de la source. */
   advice?: string[];
   sources: string[];
+}
+
+/** Horaires des phases où le temps est compté : durée, jour et heure de début. */
+export type ChapterTiming = Record<'preparation' | 'vigilance', { minutes: number; day: string; startsAt: number }>;
+
+/** Phases d'un chapitre, une fois le prologue passé. */
+export type ChapterPhase = 'preparation' | 'vigilance' | 'crise' | 'bilan';
+
+/**
+ * Ce qui fait un chapitre, vu du jeu : ses gestes, ses horaires, ce que la barre
+ * d'état et le téléphone en montrent. Les règles (`core/chapter`) et l'interface
+ * sont les mêmes pour tous ; seul ce contenu change.
+ */
+export interface ChapterContent {
+  id: string;
+  /** Gestes du chapitre, prologue non compris. */
+  actions: ActionDef[];
+  questions: Question[];
+  /** La mission de chaque phase, telle que le carnet la formule. */
+  objectives: Record<ChapterPhase, string>;
+  /** Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il fait. */
+  situation: Record<ChapterPhase, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
+  /** Libellé de l'indicateur de danger pour chaque niveau, tel que la barre d'état l'affiche pendant le récit. */
+  levels: Record<VigilanceLevel, string>;
+  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. */
+  forecast: Partial<Record<ChapterPhase, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
+  timing: ChapterTiming;
+  /** Baisse de la lumière en fin de préparation, quand la journée s'achève à la nuit. */
+  dusk: { minutesLeft: number; sky: SkyId } | null;
+  /** Le moment de récit qui ouvre le chapitre : la mission confiée par le maire. */
+  opening: StoryCard;
+  /** Comment le carnet nomme chaque phase minutée : « la journée », « la matinée »… */
+  period: Record<'preparation' | 'vigilance', string>;
+  /** Message « le temps presse » de chaque phase minutée ; `{reste}` y est remplacé par le temps restant. */
+  alerts: Record<'preparation' | 'vigilance', string>;
+  /** Application du téléphone qu'ouvre l'indicateur de danger. */
+  hazardApp: 'alertes' | 'meteo';
+  /** Ce qu'est cet indicateur, d'après sa source officielle : affiché dans l'application Météo. */
+  hazardInfo?: { title: string; text: string; sources: string[] };
+  /** Le chapitre se joue jusqu'au bilan. Sinon, seule sa préparation existe : la suite est en cours d'écriture. */
+  complete: boolean;
+  /** Pour un chapitre incomplet : le moment de récit qui annonce la suite. */
+  toBeContinued?: StoryCard;
 }
