@@ -62,7 +62,7 @@ describe('sauvegarde', () => {
     expect(state?.visited).toEqual(['mairie']);
     expect(state?.chapter.phase).toBe('accueil');
     expect(state?.badges).toEqual([]);
-    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null, zoom: null });
+    expect(state?.settings).toEqual({ reducedMotion: true, hazardLayer: null, zoom: null, sound: true });
   });
 
   it('nettoie un chapitre sauvegardé : actions, réponses et badges inconnus sont écartés', () => {
@@ -112,6 +112,17 @@ describe('sauvegarde', () => {
     expect(loadGame(storage, context)?.settings.zoom).toBeNull();
     write({ settings: { zoom: -1 } });
     expect(loadGame(storage, context)?.settings.zoom).toBeNull();
+  });
+
+  it('garde le son actif tant que le joueur ne l’a pas coupé', () => {
+    const storage = memoryStorage();
+    const write = (settings: object) => storage.setItem('jcrm:partie', JSON.stringify({ version: 2, player: { x: 5, y: 5 }, settings }));
+    write({});
+    expect(loadGame(storage, context)?.settings.sound).toBe(true);
+    write({ sound: false });
+    expect(loadGame(storage, context)?.settings.sound).toBe(false);
+    write({ sound: 'oui' });
+    expect(loadGame(storage, context)?.settings.sound).toBe(true);
   });
 
   it('efface la partie', () => {

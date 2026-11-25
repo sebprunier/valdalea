@@ -28,6 +28,7 @@ Autour de ce chapitre :
 - **Le carnet de mission**, ouvert depuis le bandeau, qui liste les gestes de la journée, dit par où commencer et y conduit. Sur la carte, des flèches pointent vers les lieux où il reste quelque chose à faire.
 - **Le téléphone**, tableau de bord du jeu : une pastille y signale ce qui vient d'arriver (une alerte, le DICRIM, le bilan). On y rejoue le chapitre ou on y recommence la partie, dans les réglages.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
+- **Le son** : une ambiance (pluie, vent, rivière) qui suit le temps qu'il fait, la distance à la rivière et la crue, et quelques signaux (le téléphone qui vibre, l'alerte, un geste accompli). Il se coupe d'un bouton.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
 - **Les vues rapprochées** des lieux, en fausse 3D, qui reflètent les gestes accomplis et la hauteur de l'eau.
 
@@ -66,7 +67,7 @@ Toute consigne de sécurité affichée dans le jeu reprend une page officielle, 
 
 Sources : Géorisques (fiches « Que faire en cas de… » pour l'inondation, le feu de forêt et l'accident industriel ; fiches risques ; kit d'urgence 72 h ; DICRIM ; information préventive ; vigilance ; obligations de débroussaillement), ministère de la Transition écologique (campagne « Ayons les bons réflexes »), Vigicrues (définition des quatre niveaux de vigilance, conseils de comportement par niveau), FR-Alert, plateforme nationale des repères de crues.
 
-Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne.
+Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne. Le signal d'alerte que le jeu fait entendre est inventé : il ne reproduit pas le vrai signal de FR-Alert, pour ne pas pouvoir être pris pour lui hors du jeu.
 
 Pour modifier une consigne : relire la page officielle, corriger le texte, mettre à jour la date `consulte` de la source. Les tests refusent une consigne sans source.
 
@@ -79,6 +80,7 @@ Aucune dépendance à l'exécution : TypeScript, l'API Canvas 2D, SVG et le DOM.
 | `src/core` | Géométrie, état de la partie, sauvegarde, règles du chapitre (phases, temps, bilan). Sans DOM, testable seul. |
 | `src/world` | Plan de la commune (`valdalea.ts`), grille de franchissabilité, calcul d'itinéraire, relief et inondation, contour de la zone inondable, zones de risque. Sans DOM. |
 | `src/content` | Textes et contenus de prévention, séparés du code pour être relus facilement. |
+| `src/audio` | Son du jeu, synthétisé avec l'API Web Audio : aucun fichier sonore. Le mixage (`mix.ts`) est un calcul pur, testé ; `sound.ts` le fait entendre. |
 | `src/render` | Dessin du plan, mis en cache par tuiles, cartes de risques, nappes d'eau, temps qu'il fait (voile et pluie) et éléments animés. |
 | `src/game` | Boucle de jeu, entrées clavier et pointeur, caméra. |
 | `src/ui` | Interface en HTML : barre, fenêtres, téléphone, fiches de lieux, carnet de mission, DICRIM (mise en pages et impression), légende, schémas, déroulé du chapitre. |
@@ -100,7 +102,8 @@ Le jeu vise les critères du RGAA :
 - rien n'est chronométré, et le récit n'avance jamais seul : chaque étape attend le joueur ;
 - la pluie et la lumière du soir sont un décor : le temps qu'il fait est aussi écrit dans la barre d'état ;
 - aucune information ne repose sur la couleur seule (niveaux de vigilance, zones des cartes, états des gestes, résultats du bilan) ;
-- les animations se désactivent, et suivent par défaut le réglage du système : la pluie reste alors visible, mais immobile.
+- les animations se désactivent, et suivent par défaut le réglage du système : la pluie reste alors visible, mais immobile ;
+- le son est un décor : tout ce qu'il dit est aussi écrit à l'écran. Il ne démarre qu'après le premier geste du joueur, se choisit dès l'écran d'accueil et se coupe d'un bouton toujours visible.
 
 Aucun audit de conformité n'a encore été réalisé.
 

@@ -76,6 +76,11 @@
           </svg>
           <span class="hud-button__label">Aide</span> <kbd aria-hidden="true">H</kbd>
         </button>
+        <!-- Le son se coupe d'ici à tout moment ; l'état est porté par aria-pressed et par le pictogramme. -->
+        <button type="button" class="hud-button hud-button--icon" id="button-sound" aria-pressed="true">
+          <span id="sound-icon" aria-hidden="true"></span>
+          <span class="sr-only">Son</span>
+        </button>
       </nav>
     </header>
 

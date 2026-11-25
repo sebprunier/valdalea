@@ -388,6 +388,22 @@ kbd {
   color: #d8d2c4;
 }
 
+/* Bouton sans texte visible (le son) : même hauteur que les autres, en carré. */
+.hud-button--icon {
+  justify-content: center;
+  width: 2.75rem;
+  padding: 0;
+}
+
+.hud-button--icon span {
+  display: inline-flex;
+}
+
+.hud-button[aria-pressed='false'] {
+  color: #b9c0c7;
+  border-style: dashed;
+}
+
 /* Pastille de nouveauté, sur le téléphone et sur ses applications : un chiffre ou un point, doublé d'un texte lu à voix haute. */
 .news,
 .app__news {

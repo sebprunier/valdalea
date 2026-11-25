@@ -1,4 +1,6 @@
 import { ACTIONS, DUSK, OBJECTIVES, SITUATION } from '../content/inondation';
+import { mixOf } from '../audio/mix';
+import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
 import {
   clockLabel,
@@ -43,6 +45,8 @@ export interface UiDeps {
   game: Game;
   /** Le temps qu'il fait, dessiné par-dessus la carte. */
   weather: WeatherLayer;
+  /** Le son du jeu. */
+  sound: Sound;
   hasSave: boolean;
   persistent: boolean;
   isReducedMotion(): boolean;
@@ -66,7 +70,7 @@ export interface Ui {
 }
 
 export function createUi(deps: UiDeps): Ui {
-  const { commune, elevation, store, game, weather } = deps;
+  const { commune, elevation, store, game, weather, sound } = deps;
   const map = requireElement<HTMLElement>('map');
   const sectorLabel = requireElement<HTMLElement>('hud-sector');
   const weatherChip = requireElement<HTMLButtonElement>('hud-weather');
@@ -85,6 +89,8 @@ export function createUi(deps: UiDeps): Ui {
   const layerChip = requireElement<HTMLElement>('layer-chip');
   const layerName = requireElement<HTMLElement>('layer-name');
   const layerHide = requireElement<HTMLButtonElement>('layer-hide');
+  const soundButton = requireElement<HTMLButtonElement>('button-sound');
+  const soundIcon = requireElement<HTMLElement>('sound-icon');
   const prompt = requireElement<HTMLElement>('prompt');
   const promptButton = requireElement<HTMLButtonElement>('prompt-button');
   const promptName = requireElement<HTMLElement>('prompt-name');
@@ -144,6 +150,20 @@ export function createUi(deps: UiDeps): Ui {
     return SITUATION[current.phase].sky;
   }
 
+  /**
+   * Hauteur du joueur au-dessus de la rivière, pour le son. On regarde aussi de
+   * part et d'autre : sur le pont, dont le tablier est haut, c'est l'eau juste à
+   * côté que l'on entend.
+   */
+  function heightAboveWater(p: { x: number; y: number }): number {
+    return Math.min(elevation.at(p), elevation.at({ x: p.x - 70, y: p.y }), elevation.at({ x: p.x + 70, y: p.y }));
+  }
+
+  /** Active ou coupe le son. Le réglage est enregistré avec la partie. */
+  function setSound(on: boolean): void {
+    store.update((state) => (state.settings.sound === on ? state : { ...state, settings: { ...state.settings, sound: on } }));
+  }
+
   function setLayer(risk: RiskId | null): void {
     store.update((state) => (state.settings.hazardLayer === risk ? state : { ...state, settings: { ...state.settings, hazardLayer: risk } }));
   }
@@ -172,6 +192,7 @@ export function createUi(deps: UiDeps): Ui {
       scene = next;
       sync();
     },
+    play: (cue) => sound.play(cue),
     setFlood: (level, immediate) => game.setFlood(level, immediate),
     setFocus: (point) => game.setFocus(point),
     // La fenêtre du récit et des décisions occupe le bas de l'écran : on vise plus au sud, pour que le quai reste visible au-dessus.
@@ -201,6 +222,7 @@ export function createUi(deps: UiDeps): Ui {
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
     perform: (action) => setChapter((current) => perform(current, action)),
     performed: (action) => {
+      sound.play('fait');
       // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur
       // au moment même du geste, et la zone inondable apparaît sur le plan.
       if (action.id !== 'mairie-dicrim') return;
@@ -254,8 +276,8 @@ export function createUi(deps: UiDeps): Ui {
       confirmLabel: 'Tout recommencer',
     });
     if (confirmed) {
-      const { reducedMotion, zoom } = store.get().settings;
-      store.update(() => newGame(commune.spawn, { ...DEFAULT_SETTINGS, reducedMotion, zoom }));
+      const { reducedMotion, zoom, sound: soundOn } = store.get().settings;
+      store.update(() => newGame(commune.spawn, { ...DEFAULT_SETTINGS, reducedMotion, zoom, sound: soundOn }));
       game.setFlood(0, true);
       game.setFocus(null);
       game.moveTo(commune.spawn);
@@ -283,6 +305,8 @@ export function createUi(deps: UiDeps): Ui {
     setLayer,
     isReducedMotion: deps.isReducedMotion,
     setReducedMotion: deps.setReducedMotion,
+    isSoundOn: () => store.get().settings.sound,
+    setSound,
     replay,
     replayChapter,
     restart,
@@ -291,6 +315,7 @@ export function createUi(deps: UiDeps): Ui {
   const startDialog = createStartDialog({
     hasSave: deps.hasSave,
     persistent: deps.persistent,
+    sound: { isOn: () => store.get().settings.sound, set: setSound },
     onContinue: () => startDialog.close(),
     onNewGame: async () => {
       if (deps.hasSave && !(await restart())) return;
@@ -339,6 +364,17 @@ export function createUi(deps: UiDeps): Ui {
     map.focus({ preventScroll: true });
   });
 
+  soundButton.addEventListener('click', (event) => {
+    const on = !store.get().settings.sound;
+    setSound(on);
+    announce(on ? 'Son activé.' : 'Son coupé.');
+    if (event.detail !== 0) map.focus({ preventScroll: true });
+  });
+  // Les navigateurs ne laissent le son démarrer qu'après un premier geste du joueur.
+  const unlock = (): void => sound.unlock();
+  window.addEventListener('pointerup', unlock, { once: true, capture: true });
+  window.addEventListener('keydown', unlock, { once: true, capture: true });
+
   // Un « retour » du navigateur ne quitte pas le jeu sans prévenir.
   guardBack(() =>
     confirm({
@@ -379,6 +415,7 @@ export function createUi(deps: UiDeps): Ui {
   // ------------------------------------------------------- Barre d'état
   let shownPhase: Phase | null = null;
   let shownSky: SkyId | null = null;
+  let shownSound: boolean | null = null;
 
   /** Reporte l'état du jeu sur la barre et sur la carte. Appelé à chaque changement. */
   function sync(): void {
@@ -396,6 +433,16 @@ export function createUi(deps: UiDeps): Ui {
       weatherText.textContent = SKIES[now].label;
       weather.set(now);
     }
+
+    // Le son : son réglage, et une ambiance qui suit le ciel, la distance à la rivière et la crue.
+    const soundOn = state.settings.sound;
+    if (soundOn !== shownSound) {
+      shownSound = soundOn;
+      sound.setEnabled(soundOn);
+      soundButton.setAttribute('aria-pressed', String(soundOn));
+      soundIcon.replaceChildren(icon(soundOn ? 'son' : 'muet'));
+    }
+    sound.setMix(mixOf(SKIES[now], heightAboveWater(state.player), flow.floodLevel()));
 
     // Le bandeau de mission : pendant un moment de récit, il dit où l'on en est ;
     // le reste du temps, quoi faire ensuite, avec l'heure et l'avancement.

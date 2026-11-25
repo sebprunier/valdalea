@@ -134,6 +134,8 @@ export interface StoryCard {
   late?: string;
   /** Libellé du bouton qui fait avancer le récit. */
   next: string;
+  /** Signal sonore de ce moment : le téléphone qui vibre, ou l'alerte. */
+  sound?: 'message' | 'alerte';
   /** Ce que montrent la carte et la barre d'état pendant ce moment. */
   sky: SkyId;
   vigilance: VigilanceLevel;

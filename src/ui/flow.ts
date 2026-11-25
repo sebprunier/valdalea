@@ -39,6 +39,8 @@ export interface FlowDeps {
   setFocus(point: Vec | null): void;
   /** Met en scène un moment de récit ; `null` revient à l'état normal de la phase. */
   stage(scene: Scene | null): void;
+  /** Fait entendre le signal d'un moment de récit. */
+  play(cue: 'message' | 'alerte'): void;
   /** Point de la carte à montrer pendant la crue. */
   crisisFocus: Vec;
   /** Élément qui reprend le focus à la fin d'une séquence. */
@@ -112,6 +114,7 @@ export function createFlow(deps: FlowDeps): Flow {
     telling = true;
     if (storyDialog.isOpen) storyDialog.focusTitle();
     else storyDialog.open(deps.focusTarget);
+    if (card.sound) deps.play(card.sound);
     await new Promise<void>((resolve) => next.addEventListener('click', () => resolve(), { once: true }));
     telling = false;
   }

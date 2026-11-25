@@ -10,6 +10,8 @@ export interface Settings {
   hazardLayer: string | null;
   /** Niveau de zoom de la carte ; `null` : le niveau par défaut. */
   zoom: number | null;
+  /** Son du jeu : ambiance et signaux. */
+  sound: boolean;
 }
 
 /** Applications du téléphone qui peuvent signaler une nouveauté. */
@@ -31,7 +33,7 @@ export interface GameState {
   settings: Settings;
 }
 
-export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null };
+export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null, sound: true };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
   return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), badges, news: [], settings };

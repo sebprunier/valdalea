@@ -96,6 +96,8 @@ describe('cohérence des contenus', () => {
       expect(SKIES[card.sky], key).toBeDefined();
       expect(levels.has(card.vigilance), key).toBe(true);
     }
+    // Le signal sonore accompagne le texte qui l'annonce : le téléphone vibre avant un bulletin, sonne avant l'alerte.
+    expect([STORY.soir.sound, STORY.matin.sound, STORY.abri.sound]).toEqual(['message', 'message', 'alerte']);
     // Les deux phases qui peuvent s'achever faute de temps ont leur variante.
     expect(STORY.soir.late).toBeTruthy();
     expect(STORY.abri.late).toBeTruthy();

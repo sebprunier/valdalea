@@ -50,6 +50,8 @@ export interface PhoneDeps {
   setLayer(risk: RiskId | null): void;
   isReducedMotion(): boolean;
   setReducedMotion(reduced: boolean): void;
+  isSoundOn(): boolean;
+  setSound(on: boolean): void;
   /** Recommence le chapitre en gardant les badges. */
   replay(): void;
   /** Le joueur demande à rejouer le chapitre en cours ; renvoie vrai s'il a confirmé. */
@@ -327,6 +329,8 @@ export function createPhone(deps: PhoneDeps): Phone {
   // --------------------------------------------------------------- Réglages
   const motion = h('input', { type: 'checkbox', id: 'reglage-animations' });
   motion.addEventListener('change', () => deps.setReducedMotion(motion.checked));
+  const soundBox = h('input', { type: 'checkbox', id: 'reglage-son' });
+  soundBox.addEventListener('change', () => deps.setSound(soundBox.checked));
   const replayChapter = h('button', { type: 'button', class: 'button' }, 'Rejouer le chapitre');
   replayChapter.addEventListener('click', async () => {
     if (await deps.replayChapter()) dialog.close();
@@ -344,6 +348,13 @@ export function createPhone(deps: PhoneDeps): Phone {
       motion,
       h('label', { for: 'reglage-animations' }, 'Réduire les animations'),
       h('p', { class: 'fine-print' }, 'La caméra suit le personnage sans glissement, les repères ne clignotent plus et la crue change de niveau sans transition. Par défaut, le jeu reprend le réglage de votre système.'),
+    ),
+    h(
+      'div',
+      { class: 'field' },
+      soundBox,
+      h('label', { for: 'reglage-son' }, 'Son du jeu'),
+      h('p', { class: 'fine-print' }, "Ambiance (pluie, vent, rivière) et signaux du récit. Tout ce que dit le son est aussi écrit à l'écran. Le signal d'alerte est inventé : ce n'est pas le vrai signal de FR-Alert."),
     ),
     h('h3', null, 'Partie'),
     h('p', null, 'La partie est enregistrée automatiquement dans ce navigateur. Aucune limite de temps réel : le temps du jeu n’avance que lorsque vous agissez ou vous déplacez.'),
@@ -377,6 +388,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     bilan: renderBilan,
     reglages: () => {
       motion.checked = deps.isReducedMotion();
+      soundBox.checked = deps.isSoundOn();
     },
   };
   dialog.body.append(back, ...Object.values(views));

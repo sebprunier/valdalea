@@ -108,6 +108,8 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
             : null,
       // Le jeu ramène lui-même le niveau dans ses bornes.
       zoom: typeof settings.zoom === 'number' && Number.isInteger(settings.zoom) && settings.zoom >= 0 && settings.zoom < 16 ? settings.zoom : null,
+      // Le son est actif tant que le joueur ne l'a pas coupé.
+      sound: settings.sound !== false,
     },
   };
 }

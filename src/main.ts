@@ -1,4 +1,5 @@
 import './styles/main.css';
+import { Sound } from './audio/sound';
 import { ACTIONS, BADGES, SITUATIONS } from './content/inondation';
 import { browserStorage, loadGame, saveGame } from './core/save';
 import { movePlayer, newGame, type GameState } from './core/state';
@@ -73,6 +74,7 @@ const game = new Game({
 // Le zoom choisi lors d'une partie précédente est repris avant que l'interface n'existe : rien n'est annoncé.
 game.setZoom(store.get().settings.zoom ?? DEFAULT_ZOOM);
 const weather = new WeatherLayer(requireElement<HTMLCanvasElement>('weather'));
+const sound = new Sound(store.get().settings.sound);
 
 // ------------------------------------------------------- Animations réduites
 const systemMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -93,6 +95,7 @@ ui = createUi({
   store,
   game,
   weather,
+  sound,
   hasSave: saved !== null,
   persistent,
   isReducedMotion,
@@ -107,5 +110,7 @@ ui.showStart();
 
 // En développement uniquement : accès au jeu depuis la console du navigateur.
 if (import.meta.env.DEV) {
-  Object.assign(window, { jcrm: { game, store, commune, grid, elevation, weather } });
+  Object.assign(window, { jcrm: { game, store, commune, grid, elevation, weather, sound } });
+  // Banc de mesure du son, chargé à part : il n'entre pas dans le jeu publié.
+  void import('./audio/lab').then(({ soundLab }) => Object.assign((window as unknown as { jcrm: object }).jcrm, { soundLab }));
 }

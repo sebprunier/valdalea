@@ -49,6 +49,8 @@ export interface StartOptions {
   hasSave: boolean;
   /** Faux si le navigateur empêche d'enregistrer la partie. */
   persistent: boolean;
+  /** Réglage du son, proposé avant de commencer : rien ne se fait entendre sans que le joueur l'ait vu. */
+  sound: { isOn(): boolean; set(on: boolean): void };
   onContinue(): void;
   onNewGame(): void;
 }
@@ -69,6 +71,17 @@ export function createStartDialog(options: StartOptions): DialogHandle {
     actions.append(begin);
   }
 
+  const sound = h('input', { type: 'checkbox', id: 'accueil-son' });
+  sound.checked = options.sound.isOn();
+  sound.addEventListener('change', () => options.sound.set(sound.checked));
+  const soundField = h(
+    'div',
+    { class: 'field' },
+    sound,
+    h('label', { for: 'accueil-son' }, 'Jouer avec le son'),
+    h('p', { class: 'fine-print' }, "Une ambiance (pluie, vent, rivière) et quelques signaux. Le bouton en haut à droite de l'écran coupe le son à tout moment."),
+  );
+
   dialog.body.append(
     h('p', { class: 'dialog__kicker' }, 'Un jeu pour se préparer aux risques majeurs'),
     h(
@@ -82,6 +95,7 @@ export function createStartDialog(options: StartOptions): DialogHandle {
       "Vous venez de rejoindre sa réserve communale de sécurité civile. L'automne arrive, et avec lui les crues de la Follette : le maire vous attend pour votre première mission.",
     ),
     actions,
+    soundField,
     h('h3', null, 'Commandes'),
     controlsList(),
     h('p', null, WITHOUT_MAP),
@@ -131,6 +145,12 @@ export function createHelpDialog(): DialogHandle {
       'p',
       null,
       "Dans le téléphone, application Réglages : « Rejouer le chapitre » reprend l'automne au début en gardant vos badges, « Tout recommencer » efface la partie. À la fin de la crue, le bilan et le carnet de mission proposent aussi de rejouer.",
+    ),
+    h('h3', null, 'Le son'),
+    h(
+      'p',
+      null,
+      "Le jeu fait entendre une ambiance (pluie, vent, rivière) et quelques signaux : le téléphone qui vibre, l'alerte, un geste accompli. Tout ce que dit le son est aussi écrit à l'écran. Le bouton en haut à droite le coupe à tout moment ; le réglage se retrouve dans le téléphone. Le signal d'alerte du jeu est inventé : ce n'est pas le vrai signal de FR-Alert.",
     ),
     h('h3', null, 'Quitter le jeu'),
     h(
