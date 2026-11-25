@@ -30,12 +30,12 @@ function controlsList(): HTMLElement {
     return h(
       'dl',
       { class: 'controls' },
-      ...row('Se déplacer', 'poussez la manette, en bas à gauche de la carte, dans la direction voulue ; ou touchez un point de la carte, et le personnage s’y rend'),
+      ...row('Se déplacer', 'poussez la manette, en bas de la carte, dans la direction voulue ; ou touchez un point de la carte, et le personnage s’y rend'),
       ...row('Courir', 'poussez la manette à fond ; vers un point éloigné, le personnage court de lui-même'),
-      ...row('Ouvrir un lieu', 'touchez son repère sur la carte, ou le bouton à son nom qui apparaît en bas quand vous êtes devant'),
+      ...row('Ouvrir un lieu', 'touchez son repère sur la carte, ou le bouton à son nom qui apparaît au-dessus de la manette quand vous êtes devant'),
       ...row('Zoomer, dézoomer', 'écartez ou pincez deux doigts, ou utilisez les boutons en bas à droite de la carte'),
       ...row('Carnet de mission, téléphone, aide', 'les boutons en haut de l’écran'),
-      ...row('Légende de la carte', 'le bouton au-dessus de la manette'),
+      ...row('Légende de la carte', 'le bouton en bas à gauche de la carte'),
     );
   }
   return h(

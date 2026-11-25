@@ -646,8 +646,8 @@ export const AUTOMNE: ChapterContent = {
   forecast: FORECAST,
   timing: {
     // De quoi accomplir tous les gestes et faire le tour de la commune, avec une heure de marge.
-    preparation: { minutes: 360, day: 'Samedi', startsAt: 12 * 60 },
-    vigilance: { minutes: 120, day: 'Lundi', startsAt: 7 * 60 + 30 },
+    preparation: { minutes: 360, day: 'Samedi', month: 'octobre', startsAt: 12 * 60 },
+    vigilance: { minutes: 120, day: 'Lundi', month: 'octobre', startsAt: 7 * 60 + 30 },
   },
   dusk: DUSK,
   opening: STORY.debut,

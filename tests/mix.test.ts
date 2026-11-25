@@ -18,6 +18,9 @@ describe('ambiance sonore', () => {
 
   it('réserve le vent aux moments où il se lève', () => {
     expect(hear({ sky: SKIES.sec }).wind).toBe(0);
+    // La canicule dure tout un après-midi, et au-delà : pas de souffle continu. Le vent s'entend sous la fumée, pendant l'évacuation.
+    expect(hear({ sky: SKIES.canicule }).wind).toBe(0);
+    expect(hear({ sky: SKIES.fumee }).wind).toBeGreaterThan(0.3);
     expect(hear({ sky: SKIES.soir }).wind).toBeGreaterThan(0.3);
     expect(hear({ sky: SKIES['forte-pluie'] }).wind).toBeGreaterThan(hear({ sky: SKIES.pluie }).wind);
   });

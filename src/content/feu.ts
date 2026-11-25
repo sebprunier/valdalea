@@ -709,9 +709,9 @@ export const ETE: ChapterContent = {
   },
   timing: {
     // Une matinée de travail : de quoi tout faire, trajets compris, avec une heure de marge.
-    preparation: { minutes: 300, day: 'Samedi', startsAt: 9 * 60 },
+    preparation: { minutes: 300, day: 'Samedi', month: 'mai', startsAt: 9 * 60 },
     // Une après-midi courte : le trajet jusqu'aux Brandes et quatre gestes, sans temps à perdre.
-    vigilance: { minutes: 120, day: 'Jeudi', startsAt: 13 * 60 },
+    vigilance: { minutes: 120, day: 'Jeudi', month: 'août', startsAt: 13 * 60 },
   },
   dusk: null,
   opening: STORY.debut,
