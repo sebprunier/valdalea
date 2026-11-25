@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { distToPolyline, distToRect, inflate, pointInPolygon, rectsIntersect, type Vec } from '../src/core/geometry';
+import { distToPolyline, distToRect, inflate, pointInPolygon, rectContains, rectsIntersect, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
 import { buildWalkGrid, type WalkGrid } from '../src/world/grid';
 import { findPlace, sectorAt, type Commune } from '../src/world/model';
@@ -161,6 +161,48 @@ describe("plan de Val-d'Aléa", () => {
       const next = shops.filter((other) => other !== shop && other.rect.y === shop.rect.y && Math.abs(other.rect.x - (shop.rect.x + shop.rect.w)) < 1);
       expect(next, shop.sign).toEqual([]);
     }
+  });
+
+  it('pose chaque passage piéton en travers d’une voie, sur toute sa largeur', () => {
+    const crossings = commune.decors.filter((decor) => decor.kind === 'passage');
+    expect(crossings.length).toBeGreaterThanOrEqual(6);
+    for (const crossing of crossings) {
+      const where = `passage en ${crossing.x}, ${crossing.y}`;
+      // Il est sur l'axe d'une voie, dont il a la largeur…
+      const road = commune.roads.find((r) => distToPolyline(crossing, r.path) < 1 && r.width === crossing.span);
+      expect(road, where).toBeDefined();
+      // … il la coupe à angle droit…
+      const vertical = Math.abs(Math.sin(crossing.angle)) > 0.5;
+      const along = { x: crossing.x + (vertical ? 0 : 30), y: crossing.y + (vertical ? 30 : 0) };
+      expect(distToPolyline(along, road!.path), where).toBeLessThan(1);
+      // … et il débouche des deux côtés sur un trottoir, pas dans un mur. (Dans le bourg, les façades sont au ras de la chaussée.)
+      const kerb = crossing.span! / 2 + 3;
+      for (const side of [-1, 1]) {
+        const end = { x: crossing.x + (vertical ? side * kerb : 0), y: crossing.y + (vertical ? 0 : side * kerb) };
+        expect(commune.buildings.some((building) => rectContains(building.rect, end)), `${where}, côté ${side}`).toBe(false);
+      }
+    }
+    // Devant l'école, le passage mène du portail à la passerelle.
+    const school = findPlace(commune, 'ecole')!.pos;
+    const footbridge = commune.bridges.find((bridge) => bridge.kind === 'passerelle')!.rect;
+    const atSchool = crossings.find((crossing) => Math.abs(crossing.y - school.y) < 30 && Math.abs(crossing.x - school.x) < 60)!;
+    expect(atSchool).toBeDefined();
+    expect(atSchool.x).toBeGreaterThanOrEqual(footbridge.x);
+    expect(atSchool.x).toBeLessThanOrEqual(footbridge.x + footbridge.w);
+  });
+
+  it('range un petit parking au coin du square, sans arbre ni bâtiment dessus', () => {
+    const park = commune.grounds.find((ground) => ground.kind === 'parc' && ground.bounds.w >= 400)!.bounds;
+    const lots = commune.grounds.filter((ground) => ground.kind === 'parking' && rectsIntersect(ground.bounds, park));
+    expect(lots).toHaveLength(1);
+    const lot = lots[0].bounds;
+    expect(lot.x >= park.x && lot.y >= park.y && lot.x + lot.w <= park.x + park.w && lot.y + lot.h <= park.y + park.h).toBe(true);
+    for (const tree of commune.trees) expect(rectsIntersect(lot, { x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }), `arbre en ${tree.x}, ${tree.y}`).toBe(false);
+    for (const building of commune.buildings) expect(rectsIntersect(lot, building.rect)).toBe(false);
+    // Quelques voitures y sont garées, et le square garde ses arbres ailleurs.
+    const cars = commune.decors.filter((decor) => decor.kind === 'voiture' && decor.x > lot.x && decor.x < lot.x + lot.w && decor.y > lot.y && decor.y < lot.y + lot.h);
+    expect(cars.length).toBeGreaterThanOrEqual(3);
+    expect(commune.trees.filter((tree) => tree.x > park.x && tree.x < park.x + park.w && tree.y > park.y && tree.y < park.y + park.h).length).toBeGreaterThan(8);
   });
 
   it("ferme l'école derrière sa clôture : on s'arrête au portail", () => {

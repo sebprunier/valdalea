@@ -47,6 +47,7 @@ const GROUPS: Array<{ title: string; entries: Array<[LegendSample, string]> }> =
       ['parking', 'Parking'],
       ['route', 'Route principale'],
       ['rue', 'Rue'],
+      ['passage', 'Passage piéton'],
       ['chemin', 'Chemin'],
     ],
   },

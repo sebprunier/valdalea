@@ -70,6 +70,13 @@ const ROOFS = {
 
 const TREE_TONES = ['#7dab66', '#6f9f5c', '#8bb874', '#64955a'];
 const DECOR_TONES = ['#e9a23b', '#4f8fc0', '#d9604a', '#7a9e4d'];
+/** Voitures : la carrosserie, son contour, le toit. */
+const CAR_TONES = [
+  ['#3f6f9f', '#27496b', '#35618c'],
+  ['#a8483a', '#70291f', '#93392d'],
+  ['#6b7780', '#444e55', '#5c676f'],
+  ['#d9d2c2', '#8f8674', '#c4bca9'],
+] as const;
 
 export function paintMap(
   ctx: CanvasRenderingContext2D,
@@ -110,8 +117,8 @@ export function paintMap(
     if (seen({ x: tank.x - tank.r, y: tank.y - tank.r, w: tank.r * 2, h: tank.r * 2 }, 10)) paintTank(ctx, tank);
   }
   for (const decor of commune.decors) {
-    // Le terrain de jeux est plus grand que les autres éléments de décor.
-    const reach = decor.kind === 'terrain' ? 64 : 40;
+    // Le terrain de jeux et les passages piétons sont plus grands que les autres éléments de décor.
+    const reach = decor.kind === 'terrain' ? 64 : decor.kind === 'passage' ? 48 : 40;
     if (seen({ x: decor.x - reach, y: decor.y - reach, w: reach * 2, h: reach * 2 })) paintDecor(ctx, decor);
   }
   for (const tree of commune.trees) {
@@ -590,13 +597,28 @@ function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
   ctx.save();
   ctx.translate(decor.x, decor.y);
   ctx.rotate(decor.angle);
-  if (decor.kind === 'voiture') {
+  if (decor.kind === 'passage') {
+    // Passage piéton : des bandes blanches, parallèles à la voie, d'un trottoir à l'autre.
+    const span = decor.span ?? 40;
+    const bands = Math.max(3, Math.floor((span - 6) / 9));
+    const step = (span - 6) / bands;
+    // Un contour gris : sur une rue claire, des bandes blanches ne se verraient pas.
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(96, 88, 72, 0.7)';
+    ctx.lineWidth = 0.9;
+    for (let i = 0; i < bands; i++) {
+      const y = -span / 2 + 3 + i * step + step * 0.2;
+      ctx.fillRect(-9, y, 18, step * 0.6);
+      ctx.strokeRect(-9, y, 18, step * 0.6);
+    }
+  } else if (decor.kind === 'voiture') {
+    const [body, line, roof] = CAR_TONES[decor.tone % CAR_TONES.length];
     ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
     ctx.beginPath();
     ctx.roundRect(-15, -5, 36, 16, 5);
     ctx.fill();
-    ctx.fillStyle = '#3f6f9f';
-    ctx.strokeStyle = '#27496b';
+    ctx.fillStyle = body;
+    ctx.strokeStyle = line;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.roundRect(-18, -8, 36, 16, 5);
@@ -606,7 +628,7 @@ function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
     ctx.fillStyle = '#cfe1ee';
     ctx.fillRect(3, -6, 6, 12);
     ctx.fillRect(-11, -6, 4, 12);
-    ctx.fillStyle = '#35618c';
+    ctx.fillStyle = roof;
     ctx.fillRect(-7, -6.5, 10, 13);
   } else if (decor.kind === 'tente') {
     ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
@@ -769,6 +791,10 @@ function isLabelSpotFree(commune: Commune, road: Road, p: Vec, halfWidth: number
   }
   for (const place of commune.places) {
     if (Math.hypot(p.x - place.pos.x, p.y - place.pos.y) < halfWidth + 34) return false;
+  }
+  // Ni sur un passage piéton, dont les bandes rendraient le nom illisible.
+  for (const decor of commune.decors) {
+    if (decor.kind === 'passage' && Math.hypot(p.x - decor.x, p.y - decor.y) < halfWidth + 22) return false;
   }
   return true;
 }
@@ -936,6 +962,7 @@ export type LegendSample =
   | 'riviere'
   | 'route'
   | 'rue'
+  | 'passage'
   | 'chemin'
   | 'maison'
   | 'commerce'
@@ -1012,6 +1039,10 @@ export function paintLegendSample(ctx: CanvasRenderingContext2D, sample: LegendS
       break;
     case 'rue':
       road('rue', 34);
+      break;
+    case 'passage':
+      road('rue', 34);
+      paintDecor(ctx, { kind: 'passage', x: w / 2, y: h / 2, angle: 0, tone: 0, span: 34 });
       break;
     case 'chemin':
       road('chemin', 18);

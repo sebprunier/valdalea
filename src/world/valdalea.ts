@@ -1,4 +1,4 @@
-import { inflate, rect, rectToPolygon, smoothRing, vec } from '../core/geometry';
+import { inflate, rect, rectContains, rectToPolygon, smoothRing, vec } from '../core/geometry';
 import { doorPoint, WorldBuilder } from './builder';
 import type { Commune } from './model';
 import { widenEast } from './widen';
@@ -373,6 +373,7 @@ export function buildValDAlea(): Commune {
   widenEast(b.commune, CUT, WIDENING, ['feu-foret', 'industriel']);
   dressGap(b);
   dressSchoolyard(b);
+  dressBourg(b);
   return b.commune;
 }
 
@@ -416,4 +417,38 @@ function dressSchoolyard(b: WorldBuilder): void {
   ] as const) {
     b.tree(x, y, r);
   }
+}
+
+/**
+ * Le bourg, côté pratique : un petit parking au coin du square, d'où l'on va à pied aux commerces et au
+ * Vieux-Bourg, et des passages piétons là où l'on traverse. Posés en dernier, comme le reste du décor.
+ */
+function dressBourg(b: WorldBuilder): void {
+  // Le parking prend le coin sud-ouest du square, contre l'avenue : les arbres qui s'y trouvaient s'en vont.
+  const lot = rect(2168, 1424, 154, 90);
+  b.commune.trees = b.commune.trees.filter((tree) => !rectContains(inflate(lot, tree.r + 6), tree));
+  b.groundRect('parking', lot);
+  for (const [x, y] of [
+    [2190, 1448],
+    [2256, 1448],
+    [2300, 1448],
+    [2212, 1490],
+    [2278, 1490],
+  ] as const) {
+    b.decor('voiture', x, y, Math.PI / 2);
+  }
+
+  // Du parking vers le Vieux-Bourg : on traverse l'avenue en face de la rue Basse.
+  b.crossing(vec(2100, 1430), 'avenue', true);
+  // Le carrefour de l'avenue et de la Grande-Rue, et la Grande-Rue devant ses commerces.
+  b.crossing(vec(2100, 1712), 'avenue', true);
+  b.crossing(vec(2040, 1660), 'departementale', false);
+  b.crossing(vec(2190, 1660), 'departementale', false);
+  b.crossing(vec(2520, 1660), 'departementale', false);
+  // Au débouché de la rue de l'Église, vers le tabac-presse et la poste.
+  b.crossing(vec(1700, 1660), 'departementale', false);
+  // Devant l'école : du portail à la passerelle du camping.
+  b.crossing(vec(1650, 2100), 'rue', false);
+  // Devant la mairie.
+  b.crossing(vec(2400, 1000), 'rue', false);
 }

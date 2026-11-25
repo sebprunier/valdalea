@@ -167,6 +167,16 @@ export class WorldBuilder {
     return this;
   }
 
+  /**
+   * Passage piéton, en travers d'une voie.
+   * @param at point de l'axe de la voie où l'on traverse
+   * @param vertical la voie va du nord au sud : on la traverse d'est en ouest
+   */
+  crossing(at: Vec, kind: RoadKind, vertical: boolean): this {
+    this.commune.decors.push({ kind: 'passage', x: at.x, y: at.y, angle: vertical ? Math.PI / 2 : 0, tone: 0, span: ROAD_WIDTH[kind] });
+    return this;
+  }
+
   /** Zone d'aléa d'une carte de risque. */
   hazard(risk: HazardZone['risk'], level: HazardZone['level'], poly: Vec[]): this {
     this.commune.hazards.push({ risk, level, poly, bounds: boundsOf(poly) });

@@ -99,11 +99,13 @@ export interface Tree {
 }
 
 export interface Decor {
-  kind: 'tente' | 'caravane' | 'voiture' | 'terrain' | 'marelle' | 'banc' | 'preau';
+  kind: 'tente' | 'caravane' | 'voiture' | 'terrain' | 'marelle' | 'banc' | 'preau' | 'passage';
   x: number;
   y: number;
   angle: number;
   tone: number;
+  /** Pour un passage piéton : la largeur de la chaussée qu'il traverse. */
+  span?: number;
 }
 
 export interface MapLabel {
