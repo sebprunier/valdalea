@@ -1,4 +1,4 @@
-import { assessChapter, BADGE_GROUPS, badgesOf, findChapter, globalBadges, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
+import { assessChapter, BADGE_GROUPS, badgesOf, findChapter, finishedAt, globalBadges, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
 import { mixOf } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -358,6 +358,7 @@ export function createUi(deps: UiDeps): Ui {
     getReferenceDepth: (place) => elevation.depthAt(place.pos, commune.relief.referenceFlood),
     getExposures: (place) => (dicrimRead() ? exposuresAt(commune, elevation, place.pos).map((risk) => RISK_NAMES[risk]) : null),
     hasKit: (place) => (place.id === 'domicile' ? 'kit' in store.get().assets : null),
+    getFinishedChapters: (place) => finishedAt(place.id, Object.keys(store.get().results)).map((info) => info.title),
     getActions: () => playbook().actions,
     getQuestions: () => playbook().questions,
     perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
