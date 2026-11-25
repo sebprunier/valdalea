@@ -234,7 +234,7 @@ function school(state: SceneState): Scene {
   return renderIso({
     ground: { w: 24, d: 16 },
     water: state.water,
-    label: describe("L'école du Quai, à un étage, et sa cour.", state.water > 0 ? `L'eau a envahi la cour sur ${heightLabel(state.water)}. Les fenêtres de l'étage sont éclairées.` : ''),
+    label: describe("L'école du Quai, à un étage, et sa cour, derrière une grille dont le portail est fermé.", state.water > 0 ? `L'eau a envahi la cour sur ${heightLabel(state.water)}. Les fenêtres de l'étage sont éclairées.` : ''),
     draw(c) {
       c.ground(0, 0, 24, 13, PAVING);
       c.ground(0, 13, 24, 3, ROAD, 0, '#d8cfbe');
@@ -251,6 +251,12 @@ function school(state: SceneState): Scene {
       c.box(0.8, 9.6, 2.6, 4.4, 2.6, 0.2, faces('#b9684a', LINE));
       for (const [x, y] of [[0.9, 9.7], [5, 9.7], [0.9, 12], [5, 12]] as const) c.box(x, y, 0, 0.16, 0.16, 2.6, faces('#8a6a4a'));
       if (state.water <= 0) c.person(13.6, 9.8, '#a04d3c');
+      // La grille, le long du quai, et son portail fermé devant l'entrée.
+      const RAIL = faces('#5f666d', '#3d4349');
+      for (let x = 0.3; x < 24; x += 1.6) c.box(x, 12.7, 0, 0.12, 0.12, 1.25, RAIL);
+      c.box(0.3, 12.72, 1.1, 10.1, 0.08, 0.1, RAIL);
+      c.box(13.5, 12.72, 1.1, 10.3, 0.08, 0.1, RAIL);
+      c.box(10.4, 12.7, 0, 3.1, 0.14, 1.35, faces('#c2410c', '#8f2f08'));
       c.spot('ecole-plan', 13.6, 9.7, 1.9);
     },
   });

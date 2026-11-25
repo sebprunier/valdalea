@@ -97,7 +97,7 @@ export interface Tree {
 }
 
 export interface Decor {
-  kind: 'tente' | 'caravane' | 'voiture';
+  kind: 'tente' | 'caravane' | 'voiture' | 'terrain' | 'marelle' | 'banc';
   x: number;
   y: number;
   angle: number;

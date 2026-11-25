@@ -149,6 +149,10 @@ export function buildValDAlea(): Commune {
   b.townRow(rect(1530, 1700, 530, 75), 'N', 'commerce');
   b.groundRect('cour', rect(1540, 1810, 280, 130));
   const ecole = b.building('ecole', rect(1560, 1955, 240, 105), { id: 'ecole', roof: 'tuile', tone: 2, door: 'S' });
+  // L'école est close : une clôture entoure le bâtiment et sa cour, et le portail, côté quai, reste fermé.
+  // On ne va pas plus loin que le portail, devant lequel se trouve le lieu.
+  // (Le portail est large : il dépasse de part et d'autre du repère du lieu, posé juste devant.)
+  b.fence(rect(1530, 1800, 300, 270), { side: 'S', from: 1632, to: 1728 });
   b.houseRow(rect(1850, 1920, 210, 150), 'S');
   b.townRow(rect(2140, 1700, 450, 75), 'N', 'commerce');
   b.groundRect('jardin', rect(2143, 1923, 164, 144));
@@ -368,6 +372,7 @@ export function buildValDAlea(): Commune {
   // tout ce qui est à l'est de la ligne de coupe se retrouve, en jeu, décalé de `WIDENING` unités.
   widenEast(b.commune, CUT, WIDENING, ['feu-foret', 'industriel']);
   dressGap(b);
+  dressSchoolyard(b);
   return b.commune;
 }
 
@@ -391,5 +396,24 @@ function dressGap(b: WorldBuilder): void {
     [x + 120, 2800, 20],
   ] as const) {
     b.tree(tx, ty, r);
+  }
+}
+
+/**
+ * La cour de l'école : un terrain de jeux peint au sol, une marelle, des bancs,
+ * quelques arbres. Posés en dernier : le reste de la commune n'en est pas changé.
+ */
+function dressSchoolyard(b: WorldBuilder): void {
+  b.decor('terrain', 1602, 1875, 0);
+  b.decor('marelle', 1752, 1862, 0);
+  b.decor('banc', 1716, 1926, 0);
+  b.decor('banc', 1790, 1926, 0);
+  b.decor('banc', 1808, 1870, Math.PI / 2);
+  for (const [x, y, r] of [
+    [1690, 1826, 12],
+    [1796, 1826, 13],
+    [1753, 1924, 11],
+  ] as const) {
+    b.tree(x, y, r);
   }
 }

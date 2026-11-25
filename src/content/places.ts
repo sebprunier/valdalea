@@ -29,7 +29,7 @@ export const PLACE_TEXTS: Record<string, PlaceText> = {
   },
   ecole: {
     description:
-      "L'école élémentaire de la commune, construite le long du quai. Une centaine d'élèves y sont accueillis chaque jour.",
+      "L'école élémentaire de la commune, construite le long du quai. Une centaine d'élèves y sont accueillis chaque jour. Son portail reste fermé : on sonne, et la directrice vient ouvrir.",
   },
   pont: {
     description:

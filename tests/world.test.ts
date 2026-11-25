@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { distToPolyline, distToRect, inflate, pointInPolygon, rectsIntersect, type Vec } from '../src/core/geometry';
 import { PLAYER_RADIUS } from '../src/game/constants';
 import { buildWalkGrid, type WalkGrid } from '../src/world/grid';
-import { sectorAt, type Commune } from '../src/world/model';
+import { findPlace, sectorAt, type Commune } from '../src/world/model';
 import { buildValDAlea } from '../src/world/valdalea';
 
 const commune: Commune = buildValDAlea();
@@ -143,6 +143,25 @@ describe("plan de Val-d'Aléa", () => {
       expect(distToPolyline({ x: cx, y: bridge.rect.y }, commune.river.path)).toBeGreaterThan(commune.river.width / 2);
       expect(distToPolyline({ x: cx, y: bridge.rect.y + bridge.rect.h }, commune.river.path)).toBeGreaterThan(commune.river.width / 2);
     }
+  });
+
+  it("ferme l'école derrière sa clôture : on s'arrête au portail", () => {
+    const school = commune.buildings.find((building) => building.kind === 'ecole')!.rect;
+    const fence = commune.fences.find((f) => f.rect.x <= school.x && f.rect.x + f.rect.w >= school.x + school.w && f.rect.y <= school.y && f.rect.y + f.rect.h >= school.y + school.h)!;
+    expect(fence).toBeDefined();
+    // Le lieu est dehors, devant le portail, et l'on peut s'y tenir.
+    const door = findPlace(commune, 'ecole')!.pos;
+    expect(door.y).toBeGreaterThan(fence.rect.y + fence.rect.h);
+    expect(fence.gate?.side).toBe('S');
+    expect(door.x).toBeGreaterThan(fence.gate!.from);
+    expect(door.x).toBeLessThan(fence.gate!.to);
+    expect(grid.circleFree(door.x, door.y, PLAYER_RADIUS)).toBe(true);
+    // La cour, elle, n'est plus accessible.
+    const reachable = reachableFrom(commune.spawn);
+    const yard = { x: school.x + school.w / 2, y: school.y - 60 };
+    expect(grid.circleFree(yard.x, yard.y, PLAYER_RADIUS)).toBe(true);
+    expect(reachable.has(Math.floor(yard.y / grid.cell) * grid.cols + Math.floor(yard.x / grid.cell))).toBe(false);
+    expect(reachable.has(Math.floor(door.y / grid.cell) * grid.cols + Math.floor(door.x / grid.cell))).toBe(true);
   });
 
   it("ferme le site industriel au public", () => {

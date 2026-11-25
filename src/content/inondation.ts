@@ -84,7 +84,7 @@ export const ACTIONS: ActionDef[] = [
     title: "Demander comment l'école se met en sûreté",
     why: "Les établissements scolaires se préparent à un événement majeur avec un plan particulier de mise en sûreté (PPMS). En cas d'alerte, les enfants y sont pris en charge.",
     who: "La directrice et son équipe. Les parents, eux, ne viennent pas chercher leurs enfants : ils y sont en sécurité.",
-    done: "La directrice vous montre le plan : en cas d'inondation, les classes montent à l'étage et y restent jusqu'à la fin de l'alerte. « Surtout, dites bien aux parents de ne pas venir. »",
+    done: "Vous sonnez au portail ; la directrice vient vous ouvrir et vous montre le plan : en cas d'inondation, les classes montent à l'étage et y restent jusqu'à la fin de l'alerte. « Surtout, dites bien aux parents de ne pas venir. »",
     sources: ['georisques-acteurs', 'georisques-inondation'],
   },
   {

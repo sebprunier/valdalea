@@ -110,7 +110,9 @@ export function paintMap(
     if (seen({ x: tank.x - tank.r, y: tank.y - tank.r, w: tank.r * 2, h: tank.r * 2 }, 10)) paintTank(ctx, tank);
   }
   for (const decor of commune.decors) {
-    if (seen({ x: decor.x - 24, y: decor.y - 24, w: 48, h: 48 })) paintDecor(ctx, decor);
+    // Le terrain de jeux est plus grand que les autres éléments de décor.
+    const reach = decor.kind === 'terrain' ? 64 : 40;
+    if (seen({ x: decor.x - reach, y: decor.y - reach, w: reach * 2, h: reach * 2 })) paintDecor(ctx, decor);
   }
   for (const tree of commune.trees) {
     if (seen({ x: tree.x - tree.r, y: tree.y - tree.r, w: tree.r * 2, h: tree.r * 2 }, 8)) paintTree(ctx, tree, options);
@@ -576,6 +578,64 @@ function paintDecor(ctx: CanvasRenderingContext2D, decor: Decor): void {
     ctx.moveTo(-14, 0);
     ctx.lineTo(14, 0);
     ctx.stroke();
+  } else if (decor.kind === 'terrain') {
+    // Terrain de jeux peint au sol d'une cour d'école : un rectangle, sa ligne médiane, son rond central, deux buts.
+    const w = 104;
+    const h = 62;
+    ctx.fillStyle = 'rgba(96, 150, 112, 0.5)';
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+    ctx.beginPath();
+    ctx.moveTo(0, -h / 2);
+    ctx.lineTo(0, h / 2);
+    ctx.moveTo(9, 0);
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    for (const side of [-1, 1]) {
+      ctx.moveTo((side * w) / 2, -13);
+      ctx.arc((side * w) / 2, 0, 13, side === 1 ? Math.PI / 2 : -Math.PI / 2, side === 1 ? (Math.PI * 3) / 2 : Math.PI / 2, false);
+    }
+    ctx.stroke();
+  } else if (decor.kind === 'marelle') {
+    // Marelle : des cases de couleur, de la « terre » au « ciel ».
+    const size = 9;
+    const cells: Array<[number, number]> = [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [-0.5, 3],
+      [0.5, 3],
+      [0, 4],
+      [-0.5, 5],
+      [0.5, 5],
+    ];
+    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    cells.forEach(([col, row], index) => {
+      const x = col * size - size / 2;
+      const y = 24 - row * size - size;
+      ctx.fillStyle = DECOR_TONES[index % 4];
+      ctx.globalAlpha = 0.55;
+      ctx.fillRect(x, y, size, size);
+      ctx.globalAlpha = 1;
+      ctx.strokeRect(x, y, size, size);
+    });
+    // Le ciel, en demi-lune, au bout.
+    ctx.fillStyle = 'rgba(79, 143, 192, 0.45)';
+    ctx.beginPath();
+    ctx.arc(0, 24 - 6 * size, size, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (decor.kind === 'banc') {
+    ctx.fillStyle = 'rgba(52, 48, 36, 0.2)';
+    ctx.fillRect(-9, -1.5, 20, 6);
+    ctx.fillStyle = '#9a6b43';
+    ctx.strokeStyle = '#6f4a2c';
+    ctx.lineWidth = 1;
+    ctx.fillRect(-10, -3, 20, 6);
+    ctx.strokeRect(-9.5, -2.5, 19, 5);
   } else {
     ctx.fillStyle = 'rgba(52, 48, 36, 0.18)';
     ctx.fillRect(-16, -7, 38, 22);
