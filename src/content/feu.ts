@@ -683,8 +683,6 @@ export const ETE: ChapterContent = {
     preparation: { level: 'verte', indicator: 'Feux de forêt : hors saison', sky: 'sec', river: 'à son niveau de printemps' },
     vigilance: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'canicule', river: 'très basse' },
     crise: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'fumee', river: 'très basse' },
-    // Le feu est fixé, mais le temps n'a pas changé : le danger reste au plus haut.
-    bilan: { level: 'rouge', indicator: 'Danger de feu : très élevé', sky: 'canicule', river: 'très basse' },
   },
   levels: { verte: 'Danger de feu : faible', jaune: 'Danger de feu : modéré', orange: 'Danger de feu : élevé', rouge: 'Danger de feu : très élevé' },
   forecast: {
@@ -701,10 +699,6 @@ export const ETE: ChapterContent = {
     crise: [
       { when: 'Cet après-midi', icon: 'nuage', text: 'Fumée. Vent de nord-est, en rafales.' },
       { when: 'Ce soir', icon: 'soleil', text: 'Le vent faiblit à la tombée du jour.' },
-    ],
-    bilan: [
-      { when: 'Cette nuit', icon: 'nuage', text: 'Vent faible. Odeur de fumée.' },
-      { when: 'Vendredi', icon: 'soleil', text: 'Très chaud. Aucune pluie annoncée.' },
     ],
   },
   timing: {

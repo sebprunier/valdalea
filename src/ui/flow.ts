@@ -45,6 +45,8 @@ export interface FlowDeps {
   setHazard(level: number, immediate?: boolean): void;
   /** Braque la caméra sur un lieu pendant une séquence, décalée de `south` unités vers le sud ; `null` la rend au joueur. */
   setFocus(placeId: string | null, south?: number): void;
+  /** Braque la caméra sur l'origine du danger (la fuite d'où part le nuage), décalée de `south` unités vers le sud. */
+  focusOnSource(south: number): void;
   /** Met en scène un moment de récit ; `null` revient à l'état normal de la phase. */
   stage(scene: Scene | null): void;
   /**
@@ -53,7 +55,7 @@ export interface FlowDeps {
    */
   readBulletin(bulletin: Bulletin): Promise<void>;
   /** Fait entendre le signal d'un moment de récit. */
-  play(cue: 'message' | 'alerte'): void;
+  play(cue: NonNullable<StoryCard['sound']>): void;
   /** Élément qui reprend le focus à la fin d'une séquence. */
   focusTarget: HTMLElement;
   announce(message: string): void;
@@ -198,7 +200,8 @@ export function createFlow(deps: FlowDeps): Flow {
         then = 'chapitres';
       } else if (phase === 'vigilance') {
         deps.goTo(crisis.places.vigilance);
-        deps.setFocus(crisis.places.vigilance, crisis.lookSouth);
+        if (crisis.watchSource) deps.focusOnSource(crisis.lookSouth);
+        else deps.setFocus(crisis.places.vigilance, crisis.lookSouth);
         await play(crisis.vigilance, late);
         deps.stage(null);
         deps.setHazard(hazardLevel());

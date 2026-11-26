@@ -1,5 +1,6 @@
 import { paintPlaceMarker, paintPlayer } from '../render/actors';
 import { paintFireSample } from '../render/fire';
+import { paintPlumeSample } from '../render/plume';
 import { paintFloodSample } from '../render/flood';
 import { paintLegendSample, type LegendSample } from '../render/painter';
 import { legendOf, RISK_NAMES } from '../render/riskmap';
@@ -106,6 +107,7 @@ export function createMapLegend(deps: MapLegendDeps): MapLegend {
         row(overlay('maison', paintFloodSample), "Crue : l'eau qui a débordé"),
         row(overlay('foret', (ctx, w, hh) => paintFireSample(ctx, 'front', w, hh)), 'Feu de forêt : le front des flammes'),
         row(overlay('foret', (ctx, w, hh) => paintFireSample(ctx, 'brule', w, hh)), 'Feu de forêt : ce qui a brûlé'),
+        row(overlay('maison', paintPlumeSample), 'Accident industriel : le nuage toxique'),
       ),
       h('h3', null, 'Les repères'),
       h(

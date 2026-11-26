@@ -22,6 +22,7 @@ import type {
   HazardZone,
   MapLabel,
   PlaceKind,
+  Plume,
   RiskId,
   RoadKind,
   RoofKind,
@@ -228,6 +229,11 @@ export class WorldBuilder {
 
   wildfire(wildfire: Wildfire): this {
     this.commune.wildfire = wildfire;
+    return this;
+  }
+
+  plume(plume: Plume): this {
+    this.commune.plume = plume;
     return this;
   }
 

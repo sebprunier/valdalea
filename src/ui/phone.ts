@@ -46,6 +46,8 @@ export interface PhoneDeps {
   getBulletins(): Bulletin[];
   /** Niveau de la vigilance crues ; `null` quand le chapitre en cours ne la concerne pas. */
   getVigilance(): VigilanceLevel | null;
+  /** Pour un chapitre dont le danger s'annonce par une alerte, sans échelle de vigilance : où elle en est, et ce qu'est son signal. */
+  getAlert(): { title: string; text: string; sources: readonly string[]; level: VigilanceLevel; indicator: string } | null;
   getWeather(): WeatherNow;
   /** Le bilan d'un chapitre mené au bout ; `null` s'il ne l'a pas été. */
   getAssessmentOf(chapterId: string): Assessment | null;
@@ -378,6 +380,20 @@ export function createPhone(deps: PhoneDeps): Phone {
     const vigilance = deps.getVigilance();
     const bulletins = deps.getBulletins().filter((bulletin) => bulletin.kind === 'alerte');
     const received = [h('h3', null, 'Alertes reçues'), ...(bulletins.length === 0 ? [h('p', null, 'Aucune alerte pour le moment.')] : bulletins.map(bulletinCard))];
+    const alert = deps.getAlert();
+    if (alert) {
+      // Accident industriel : pas de niveaux de vigilance, mais une alerte, et un signal à reconnaître.
+      alertsView.replaceChildren(
+        h('h3', null, 'En ce moment'),
+        h('p', { class: 'level-name' }, swatch(alert.level), alert.indicator),
+        ...received,
+        h('h3', null, alert.title),
+        h('p', null, alert.text),
+        sourceList(alert.sources),
+        h('p', { class: 'fine-print' }, 'Les messages de la mairie sont dans l’application Messages.'),
+      );
+      return;
+    }
     if (vigilance === null) {
       // Chapitre sans vigilance crues : l'application ne garde que les alertes.
       alertsView.replaceChildren(...received, h('p', { class: 'fine-print' }, 'Le niveau de danger de feu de forêt est dans l’application Météo ; les messages de la mairie, dans l’application Messages.'));

@@ -1,4 +1,5 @@
 import { pointInPolygon, rectContains, type Rect, type Vec } from '../core/geometry';
+import { ripple } from '../core/noise';
 import type { Wildfire } from './model';
 
 /**
@@ -30,23 +31,6 @@ export interface FireField {
 export const FIRE_SPENT = 1;
 /** Niveau où il ne reste que la surface brûlée, sans flammes. */
 export const FIRE_OUT = 1.5;
-
-/** Bruit lisse, déterministe, entre -1 et 1 : il donne au front un tracé irrégulier. */
-function ripple(x: number, y: number): number {
-  const lattice = (i: number, j: number): number => {
-    const n = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
-    return (n - Math.floor(n)) * 2 - 1;
-  };
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  const top = lattice(x0, y0) * (1 - sx) + lattice(x0 + 1, y0) * sx;
-  const bottom = lattice(x0, y0 + 1) * (1 - sx) + lattice(x0 + 1, y0 + 1) * sx;
-  return top * (1 - sy) + bottom * sy;
-}
 
 /** Avancée nécessaire pour qu'un feu parti de `from` atteigne `p`, sans obstacle. */
 function spread(from: Vec, wind: Vec, reach: Wildfire['reach'], p: Vec): number {

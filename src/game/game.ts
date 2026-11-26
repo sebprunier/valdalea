@@ -1,12 +1,14 @@
 import { clamp, distance, type Vec } from '../core/geometry';
 import { MARKER_BADGE_OFFSET, paintPlaceMarker, paintPlayer, paintRoute, type PlayerPose } from '../render/actors';
 import { FireLayer } from '../render/fire';
+import { PlumeLayer } from '../render/plume';
 import { floodLayer, type WaterLayer } from '../render/flood';
 import { MAP_BACKGROUND, paintAboveWater, paintMap } from '../render/painter';
 import { paintRisk } from '../render/riskmap';
 import { TILE_SIZE, TileCache } from '../render/tiles';
 import type { Elevation } from '../world/elevation';
 import type { FireField } from '../world/fire';
+import type { Plume } from '../world/model';
 import type { WalkGrid } from '../world/grid';
 import { sectorAt, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import type { Pathfinder } from '../world/pathfinding';
@@ -28,6 +30,8 @@ const HURRY_BEYOND = 380;
 const FLOOD_SPEED = 0.11;
 /** Vitesse à laquelle le feu gagne du terrain à l'écran, en avancée par seconde. */
 const FIRE_SPEED = 0.05;
+/** Vitesse à laquelle le nuage toxique s'étend ou se dissipe à l'écran, en étendue par seconde. */
+const PLUME_SPEED = 0.06;
 
 /** Temps consacré, par image, à préparer les tuiles manquantes (en millisecondes). */
 const BAKE_BUDGET = 7;
@@ -83,7 +87,12 @@ export class Game {
   private readonly hooks: GameHooks;
   private readonly flood: WaterLayer;
   /** Le feu de forêt, créé quand un chapitre en a besoin. */
+  /** Taille de la carte d'après laquelle l'échelle est calée (voir `layout`). */
+  private fit = { windowWidth: 0, windowHeight: 0, width: 0, height: 0 };
+  /** La boucle de jeu tourne : la carte peut être redessinée à la demande. */
+  private running = false;
   private fire: FireLayer | null = null;
+  private plume: PlumeLayer | null = null;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly input: Input;
   private readonly tiles: TileCache;
@@ -113,6 +122,9 @@ export class Game {
   /** Avancée du feu à l'écran, qui rejoint progressivement `fireTarget`. */
   private fireLevel = 0;
   private fireTarget = 0;
+  /** Étendue du nuage toxique à l'écran, qui rejoint progressivement `plumeTarget`. */
+  private plumeLevel = 0;
+  private plumeTarget = 0;
   /** Point que la caméra regarde pendant une séquence (le joueur ne se déplace pas). */
   private focus: Vec | null = null;
 
@@ -159,6 +171,7 @@ export class Game {
   }
 
   start(): void {
+    this.running = true;
     this.observe();
     this.lastFrame = performance.now();
     requestAnimationFrame(this.frame);
@@ -239,7 +252,19 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Dessine la zone de risque, la crue et le feu sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
+  /**
+   * Étend le nuage toxique jusqu'au niveau indiqué (0 : pas de nuage ; 1 : il est arrivé au plus loin ;
+   * au-delà, il se dissipe).
+   */
+  setPlume(level: number, plume: Plume | null, immediate = false): void {
+    if (plume && !this.plume) this.plume = new PlumeLayer(plume);
+    this.plumeTarget = this.plume ? level : 0;
+    // Le nuage ne revient pas en arrière : s'il doit disparaître ou repartir de plus bas, c'est d'un coup.
+    if (immediate || this.reducedMotion || this.plumeTarget < this.plumeLevel) this.plumeLevel = this.plumeTarget;
+    this.dirty = true;
+  }
+
+  /** Dessine la zone de risque, la crue, le feu et le nuage sur un autre support, la mini-carte par exemple (contexte en coordonnées monde). */
   paintWater(ctx: CanvasRenderingContext2D): void {
     if (this.hazardRisk) paintRisk(ctx, this.commune, this.hazardRisk, 34, this.elevation);
     if (this.floodLevel > 0.02) {
@@ -247,6 +272,13 @@ export class Game {
       this.flood.draw(ctx);
     }
     this.paintFire(ctx);
+    this.paintPlume(ctx);
+  }
+
+  private paintPlume(ctx: CanvasRenderingContext2D): void {
+    if (!this.plume || this.plumeLevel <= 0) return;
+    this.plume.setLevel(this.plumeLevel);
+    this.plume.draw(ctx);
   }
 
   private paintFire(ctx: CanvasRenderingContext2D): void {
@@ -325,6 +357,12 @@ export class Game {
       const step = FIRE_SPEED * dt;
       const gap = this.fireTarget - this.fireLevel;
       this.fireLevel = gap <= step ? this.fireTarget : this.fireLevel + step;
+      this.dirty = true;
+    }
+    if (this.plumeLevel !== this.plumeTarget) {
+      const step = PLUME_SPEED * dt;
+      const gap = this.plumeTarget - this.plumeLevel;
+      this.plumeLevel = gap <= step ? this.plumeTarget : this.plumeLevel + step;
       this.dirty = true;
     }
     if (this.paused && this.focus) {
@@ -465,6 +503,12 @@ export class Game {
 
   private resize(): void {
     this.layout(true);
+    // Redimensionner un canvas le vide. On le redessine aussitôt, avant que le navigateur n'affiche
+    // l'image : sinon la carte disparaît le temps d'un éclair chaque fois que sa taille change.
+    if (this.running) {
+      this.dirty = false;
+      this.render();
+    }
   }
 
   /**
@@ -477,8 +521,15 @@ export class Game {
     const cssHeight = this.surface.clientHeight;
     if (cssWidth === 0 || cssHeight === 0) return;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    // Le bandeau de mission gagne ou perd une ligne ou deux selon son texte, et la carte quelques dizaines de
+    // pixels de hauteur : l'échelle n'en tient pas compte, sinon le plan changerait de taille en pleine promenade.
+    // Elle n'est recalée que si la fenêtre elle-même change, ou si la carte change vraiment de taille.
+    const { fit } = this;
+    if (window.innerWidth !== fit.windowWidth || window.innerHeight !== fit.windowHeight || cssWidth !== fit.width || Math.abs(cssHeight - fit.height) > fit.height * 0.15) {
+      this.fit = { windowWidth: window.innerWidth, windowHeight: window.innerHeight, width: cssWidth, height: cssHeight };
+    }
     // Vue normale : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
-    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
+    const zoom = clamp(Math.min(this.fit.width / 1350, this.fit.height / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
     // L'échelle est arrondie pour qu'une tuile fasse un nombre entier de pixels :
     // les tuiles sont alors recopiées sans rééchantillonnage ni raccord visible.
     const tilePx = Math.max(64, Math.round(TILE_SIZE * zoom * pixelRatio));
@@ -585,6 +636,7 @@ export class Game {
       paintAboveWater(ctx, this.commune, view, (p) => this.elevation.isFlooded(p, this.floodLevel));
     }
     this.paintFire(ctx);
+    this.paintPlume(ctx);
     if (this.route.length > 0) paintRoute(ctx, this.player, this.route, this.clock, this.reducedMotion);
     const reach = Math.hypot(width, height) / scale / 2 + 80;
     for (const place of this.commune.places) {

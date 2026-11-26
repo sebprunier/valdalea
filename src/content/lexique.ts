@@ -97,6 +97,13 @@ export const LEXICON: LexiconEntry[] = [
     sources: ['georisques-old'],
   },
   {
+    id: 'signal-alerte',
+    term: "Signal national d'alerte",
+    definition:
+      "Une sirène qui retentit trois fois pendant 1 minute et 41 secondes. Dès qu'on l'entend, on se met à l'abri dans un bâtiment en dur, portes et fenêtres fermées. La fin de l'alerte est donnée par un autre signal sonore, de 30 secondes.",
+    sources: ['georisques-industriel'],
+  },
+  {
     id: 'seveso',
     term: 'Site Seveso',
     definition:

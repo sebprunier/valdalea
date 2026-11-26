@@ -101,7 +101,7 @@ export interface Question {
 export interface Situation extends Question {
   /** Lieu où la décision se prend, quand la crise fait se déplacer le joueur (une évacuation) ; sinon, le lieu de la crise. */
   at?: string;
-  /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière, ou avancée du feu, de 0 à 1. */
+  /** Niveau du danger : hauteur de la crue, en mètres au-dessus du niveau normal de la rivière ; avancée du feu ou étendue du nuage, de 0 à 1 (au-delà, le feu est fixé, le nuage se dissipe). */
   hazard: number;
 }
 
@@ -138,7 +138,7 @@ export interface BadgeDef {
 export type VigilanceLevel = 'verte' | 'jaune' | 'orange' | 'rouge';
 
 /** Le temps qu'il fait, tel que la carte le montre. */
-export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie' | 'canicule' | 'fumee';
+export type SkyId = 'sec' | 'soir' | 'nuit-pluie' | 'pluie' | 'forte-pluie' | 'eclaircie' | 'canicule' | 'fumee' | 'froid';
 
 /**
  * Un moment de récit entre deux phases : il laisse au joueur le temps de voir
@@ -154,8 +154,8 @@ export interface StoryCard {
   late?: string;
   /** Libellé du bouton qui fait avancer le récit. */
   next: string;
-  /** Signal sonore de ce moment : le téléphone qui vibre, ou l'alerte. */
-  sound?: 'message' | 'alerte';
+  /** Signal sonore de ce moment : le téléphone qui vibre, l'alerte, ou la sirène. */
+  sound?: 'message' | 'alerte' | 'sirene';
   /** Ce que montrent la carte et la barre d'état pendant ce moment. */
   sky: SkyId;
   vigilance: VigilanceLevel;
@@ -196,8 +196,8 @@ export type Beat =
  * raconter, quoi montrer sur la carte et comment juger le résultat.
  */
 export interface CrisisScript {
-  /** Ce que la carte met en scène : la crue de la rivière, ou le feu de forêt. */
-  hazard: 'crue' | 'feu';
+  /** Ce que la carte met en scène : la crue de la rivière, le feu de forêt, ou le nuage toxique. */
+  hazard: 'crue' | 'feu' | 'nuage';
   /** Nom de la crise dans le titre des décisions : « La crue », « Le feu ». */
   name: string;
   /** Lieux où se trouve le joueur quand la vigilance commence, puis pendant la crise. */
@@ -208,6 +208,11 @@ export interface CrisisScript {
    * qui reste visible au-dessus d'elle (le quai et la rivière, ou la forêt).
    */
   lookSouth: number;
+  /**
+   * Pendant le récit qui ouvre la vigilance, la caméra vise le lieu où se trouve le joueur. Quand le danger naît
+   * ailleurs (la fuite, à l'usine), elle vise plutôt son origine : c'est ce que demande ce réglage.
+   */
+  watchSource?: boolean;
   /** Récit d'entrée en vigilance. */
   vigilance: Beat[];
   /** Ce qui est annoncé quand le joueur reprend la main, au début de la vigilance. */
@@ -244,12 +249,15 @@ export interface ChapterContent {
   questions: Question[];
   /** La mission de chaque phase, telle que le carnet la formule. */
   objectives: Record<ChapterPhase, string>;
-  /** Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il fait. */
-  situation: Record<ChapterPhase, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
+  /**
+   * Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il
+   * fait. Une fois le bilan établi, tout revient à la normale : la barre affiche la même chose que hors chapitre.
+   */
+  situation: Record<Exclude<ChapterPhase, 'bilan'>, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
   /** Libellé de l'indicateur de danger pour chaque niveau, tel que la barre d'état l'affiche pendant le récit. */
   levels: Record<VigilanceLevel, string>;
-  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. */
-  forecast: Partial<Record<ChapterPhase, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
+  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. Après le bilan, il n'y en a plus. */
+  forecast: Partial<Record<Exclude<ChapterPhase, 'bilan'>, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
   timing: ChapterTiming;
   /** Baisse de la lumière en fin de préparation, quand la journée s'achève à la nuit. */
   dusk: { minutesLeft: number; sky: SkyId } | null;
@@ -263,6 +271,11 @@ export interface ChapterContent {
   hazardApp: 'alertes' | 'meteo';
   /** Ce qu'est cet indicateur, d'après sa source officielle : affiché dans l'application Météo. */
   hazardInfo?: { title: string; text: string; sources: string[] };
+  /**
+   * Pour un risque sans échelle de vigilance (l'accident industriel) : ce qu'est son alerte, d'après sa source
+   * officielle. L'application Alertes l'affiche à la place des quatre niveaux de la vigilance crues.
+   */
+  alertInfo?: { title: string; text: string; sources: string[] };
   /** La vigilance, la crise et le bilan. Sans ce script, seule la préparation du chapitre existe : la suite est en cours d'écriture. */
   crisis?: CrisisScript;
   /** Pour un chapitre sans suite : le moment de récit qui l'annonce. */

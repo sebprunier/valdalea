@@ -15,7 +15,7 @@ import { SILENCE, type Mix } from './mix';
  */
 
 /** Signaux brefs du récit : le téléphone qui vibre, l'alerte. */
-export type Cue = 'message' | 'alerte';
+export type Cue = 'message' | 'alerte' | 'sirene';
 
 /** Volume général : une ambiance de fond, pas plus. */
 const MASTER = 0.9;
@@ -196,15 +196,48 @@ function note(ctx: BaseAudioContext, out: AudioNode, at: number, n: Note): void 
   oscillator.stop(begin + n.length + 0.02);
 }
 
-const SCORES: Record<Cue, Note[]> = {
+const SCORES: Record<Exclude<Cue, 'sirene'>, Note[]> = {
   // Le téléphone vibre : deux bourdonnements graves.
   message: [0, 0.34].map((start) => ({ type: 'square' as const, hertz: 150, start, length: 0.24, peak: 0.22, soften: 420 })),
   // L'alerte : un motif de trois notes, répété trois fois. Insistant, mais inventé pour le jeu.
   alerte: [0, 0.78, 1.56].flatMap((bar) => [740, 988, 740].map((hertz, i) => ({ type: 'square' as const, hertz, start: bar + i * 0.2, length: 0.17, peak: 0.16, soften: 2400 }))),
 };
 
+/** La sirène du jeu : trois longues enflées, chacune d'une seconde et demie. */
+const SWELLS = { count: 3, length: 1.5, gap: 0.35 };
+
+/**
+ * La sirène de l'usine, telle que le jeu la fait entendre : une corne grave, à hauteur fixe, qui enfle et retombe
+ * trois fois. Elle est inventée pour le jeu, et brève : elle n'imite pas le vrai signal national d'alerte (trois
+ * fois 1 minute 41), pour ne pas pouvoir être prise pour lui hors du jeu.
+ */
+function siren(ctx: BaseAudioContext, out: AudioNode, at: number): number {
+  const { count, length, gap } = SWELLS;
+  for (let i = 0; i < count; i++) {
+    const begin = at + i * (length + gap);
+    const envelope = gain(ctx, 0);
+    envelope.gain.setValueAtTime(0, begin);
+    envelope.gain.linearRampToValueAtTime(0.13, begin + 0.55);
+    envelope.gain.setValueAtTime(0.13, begin + length - 0.6);
+    envelope.gain.linearRampToValueAtTime(0, begin + length);
+    const body = filter(ctx, 'lowpass', 900);
+    body.connect(envelope).connect(out);
+    // Deux notes tenues, à la quinte : un timbre de corne, sans glissement de hauteur.
+    for (const hertz of [233, 349]) {
+      const oscillator = ctx.createOscillator();
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.value = hertz;
+      oscillator.connect(body);
+      oscillator.start(begin);
+      oscillator.stop(begin + length + 0.02);
+    }
+  }
+  return count * length + (count - 1) * gap;
+}
+
 /** Joue un signal bref. Renvoie sa durée, en secondes. */
 export function playCue(ctx: BaseAudioContext, out: AudioNode, cue: Cue, at = ctx.currentTime): number {
+  if (cue === 'sirene') return siren(ctx, out, at);
   const score = SCORES[cue];
   for (const n of score) note(ctx, out, at, n);
   return Math.max(...score.map((n) => n.start + n.length));

@@ -506,7 +506,6 @@ export const SITUATION: ChapterContent['situation'] = {
   preparation: { level: 'verte', indicator: 'Vigilance crues : verte', sky: 'sec', river: 'à son niveau habituel' },
   vigilance: { level: 'orange', indicator: 'Vigilance crues : orange', sky: 'pluie', river: 'en forte hausse, au ras du quai' },
   crise: { level: 'rouge', indicator: 'Vigilance crues : rouge', sky: 'forte-pluie', river: 'en crue : elle déborde dans le Bas-Bourg' },
-  bilan: { level: 'jaune', indicator: 'Vigilance crues : jaune', sky: 'eclaircie', river: 'en décrue' },
 };
 
 /**
@@ -527,10 +526,6 @@ export const FORECAST: ChapterContent['forecast'] = {
   crise: [
     { when: "Aujourd'hui", icon: 'pluie', text: "Fortes pluies, qui faiblissent dans l'après-midi." },
     { when: 'Mardi', icon: 'eclaircie', text: 'Accalmie.' },
-  ],
-  bilan: [
-    { when: 'Ce soir', icon: 'eclaircie', text: 'La pluie a cessé.' },
-    { when: 'Demain', icon: 'soleil', text: 'Temps sec.' },
   ],
 };
 

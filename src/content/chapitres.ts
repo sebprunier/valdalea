@@ -1,6 +1,7 @@
 import { assess, type Assessment, type Phase } from '../core/chapter';
 import { GLOBAL_BADGES, type Progress } from './badges';
 import { ETE } from './feu';
+import { HIVER } from './industriel';
 import { AUTOMNE } from './inondation';
 import type { ActionDef, AssetId, BadgeDef, ChapterContent, ChapterPhase, ChapterTiming, Question, Situation } from './model';
 import { KIT_AT_HOME, KIT_QUESTIONS } from './kit';
@@ -45,10 +46,17 @@ export const CHAPTERS: ChapterInfo[] = [
     summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif, et le hameau doit partir.",
     playable: true,
   },
+  {
+    id: 'hiver',
+    title: 'Le nuage des Vannes',
+    risk: 'Accident industriel',
+    summary: "En hiver, une matinée pour faire connaître le signal d'alerte autour de l'usine d'engrais. Puis, un jeudi, la sirène retentit : cette fois, on ne part pas, on se met à l'abri.",
+    playable: true,
+  },
 ];
 
 /** Risques décrits dans le DICRIM dont le chapitre viendra plus tard. */
-export const LATER = ['Accident industriel', 'Retrait-gonflement des argiles', 'Cavités souterraines', 'Chutes de blocs'];
+export const LATER = ['Retrait-gonflement des argiles', 'Cavités souterraines', 'Chutes de blocs'];
 
 export function findChapter(id: string | null): ChapterInfo | undefined {
   return CHAPTERS.find((chapter) => chapter.id === id);
@@ -56,7 +64,7 @@ export function findChapter(id: string | null): ChapterInfo | undefined {
 
 // ------------------------------------------------------------------ Contenus
 
-const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE };
+const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE, hiver: HIVER };
 
 /** Tous les gestes et toutes les questions du jeu, prologue compris : de quoi vérifier une sauvegarde. */
 /** Gestes proposés hors chapitre, quand on veut : préparer son kit d'urgence, chez soi. */
@@ -130,8 +138,8 @@ export interface Playbook {
   timing: ChapterTiming;
   /** La mission du moment. */
   objective(phase: Phase): string;
-  /** Ce que la barre d'état montre : niveau de danger, libellé, temps qu'il fait. */
-  situation(phase: Phase): ChapterContent['situation'][ChapterPhase];
+  /** Ce que la barre d'état montre : niveau de danger, libellé, temps qu'il fait. Le calme, hors chapitre et une fois le bilan établi. */
+  situation(phase: Phase): ChapterContent['situation'][keyof ChapterContent['situation']];
 }
 
 const isChapterPhase = (phase: Phase): phase is ChapterPhase => phase !== 'accueil' && phase !== 'libre';
@@ -166,6 +174,7 @@ export function playbookOf(chapterId: string | null, assets: Readonly<Record<str
     // Hors chapitre, aucun temps n'est compté : ces horaires ne servent pas.
     timing: content?.timing ?? AUTOMNE.timing,
     objective: (phase) => (isChapterPhase(phase) ? (content?.objectives[phase] ?? PROLOGUE_OBJECTIVES.libre) : PROLOGUE_OBJECTIVES[phase]),
-    situation: (phase) => (content && isChapterPhase(phase) ? content.situation[phase] : CALM),
+    // Le bilan établi, la crise est passée : le temps et l'indicateur reviennent à la normale, comme hors chapitre.
+    situation: (phase) => (content && isChapterPhase(phase) && phase !== 'bilan' ? content.situation[phase] : CALM),
   };
 }

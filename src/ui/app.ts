@@ -218,23 +218,23 @@ export function createUi(deps: UiDeps): Ui {
     return field;
   }
 
-  /** Niveau du danger montré sur la carte en ce moment : hauteur de la crue, ou avancée du feu. */
+  /** Niveau du danger montré sur la carte en ce moment : hauteur de la crue, avancée du feu, ou étendue du nuage. */
   let hazardNow = 0;
-  const hazardKind = (): 'crue' | 'feu' | null => playbook().content?.crisis?.hazard ?? null;
+  const hazardKind = (): 'crue' | 'feu' | 'nuage' | null => playbook().content?.crisis?.hazard ?? null;
 
-  /** Montre le danger du chapitre sur la carte : la crue, ou le feu. */
+  /** Montre le danger du chapitre sur la carte : la crue, le feu, ou le nuage toxique. Les deux autres s'effacent. */
   function showHazard(level: number, immediate = false): void {
     const crisis = playbook().content?.crisis;
     hazardNow = level;
-    if (crisis?.hazard === 'feu') {
-      // Une clairière débroussaillée ne brûle pas : le feu la contourne.
-      const cleared = !crisis.firebreak || chapter().done.includes(crisis.firebreak);
-      game.setFlood(0, true);
-      game.setFire(level, fireField(cleared), immediate);
-    } else {
-      game.setFire(0, null, true);
-      game.setFlood(level, immediate);
-    }
+    const kind = crisis?.hazard ?? 'crue';
+    // Une clairière débroussaillée ne brûle pas : le feu la contourne.
+    const cleared = !crisis?.firebreak || chapter().done.includes(crisis.firebreak);
+    if (kind === 'crue') game.setFlood(level, immediate);
+    else game.setFlood(0, true);
+    if (kind === 'feu') game.setFire(level, fireField(cleared), immediate);
+    else game.setFire(0, null, true);
+    if (kind === 'nuage') game.setPlume(level, commune.plume ?? null, immediate);
+    else game.setPlume(0, null, true);
   }
 
   /** Hauteur de la crue en cours ; nulle dans les chapitres sans crue. */
@@ -299,6 +299,10 @@ export function createUi(deps: UiDeps): Ui {
     readBulletin: (bulletin) => phone.read(bulletin, map),
     play: (cue) => sound.play(cue),
     setHazard: showHazard,
+    focusOnSource: (south) => {
+      const source = commune.plume?.source;
+      game.setFocus(source ? { x: source.x, y: source.y + south } : null);
+    },
     setFocus: (placeId, south = 0) => {
       const place = placeId ? findPlace(commune, placeId) : undefined;
       game.setFocus(place ? { x: place.pos.x, y: place.pos.y + south } : null);
@@ -450,14 +454,30 @@ export function createUi(deps: UiDeps): Ui {
     getSectorName: () => sectorName,
     getState: () => store.get(),
     getBulletins: () => flow.bulletins(),
-    getVigilance: () => (playbook().content?.hazardApp === 'meteo' ? null : playbook().situation(chapter().phase).level),
+    // La vigilance crues ne concerne que les chapitres dont l'indicateur est le sien.
+    getVigilance: () => {
+      const { content, situation } = playbook();
+      return content?.hazardApp === 'meteo' || content?.alertInfo ? null : situation(chapter().phase).level;
+    },
+    getAlert: () => {
+      const { content, situation } = playbook();
+      const state = situation(chapter().phase);
+      return content?.alertInfo ? { ...content.alertInfo, level: state.level, indicator: state.indicator } : null;
+    },
     getWeather: () => {
       const { phase } = chapter();
       const now = SKIES[sky()];
       const { content, situation } = playbook();
-      const forecast = phase === 'accueil' || phase === 'libre' ? undefined : content?.forecast[phase];
+      // Hors chapitre, et une fois le bilan établi : rien à signaler, ni prévisions ni indicateur de danger.
+      const calm = phase === 'accueil' || phase === 'libre' || phase === 'bilan';
       const state = situation(phase);
-      return { label: now.label, icon: now.icon, river: state.river, forecast: forecast ?? [], hazard: content?.hazardInfo ? { ...content.hazardInfo, level: state.level, indicator: state.indicator } : null };
+      return {
+        label: now.label,
+        icon: now.icon,
+        river: state.river,
+        forecast: (calm ? undefined : content?.forecast[phase]) ?? [],
+        hazard: content?.hazardInfo && !calm ? { ...content.hazardInfo, level: state.level, indicator: state.indicator } : null,
+      };
     },
     getPlaceInfo: (place) => ({
       pending: pendingAt(playbook().actions, chapter(), place.id),

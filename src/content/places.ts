@@ -59,6 +59,10 @@ export const PLACE_TEXTS: Record<string, PlaceText> = {
     description:
       "L'ancienne cité ouvrière, bâtie pour loger le personnel de l'usine. Ses maisons toutes semblables sont les plus proches voisines du site industriel.",
   },
+  ines: {
+    description:
+      "La maison de la cité la plus proche de l'usine. Inès y vit avec sa mère, Colette, et son fils Malo ; Karim, son mari, travaille chez Engrais du Val.",
+  },
   usine: {
     description:
       "Un site de fabrication et de stockage d'engrais, classé Seveso seuil haut. L'accès est réservé au personnel : vous restez devant le portail.",
