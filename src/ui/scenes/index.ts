@@ -412,7 +412,7 @@ function sportsHall(state: SceneState): Scene {
       c.ground(1, 11.4, 24, 6.6, '#d9d6cf', 0, '#c4c0b7');
       for (let x = 3; x < 25; x += 2.4) c.line([x, 14.4, 0], [x, 17.8, 0], '#ffffff', 1.5);
       c.box(5, 2.6, 0, 16, 8.6, 6.2, faces('#e3e7ea', '#7f8b95'));
-      for (let x = 6.2; x < 21; x += 2.4) c.panelLeft(x, 11.2, 3.6, 1.6, 1.4, GLASS, '#7f8b95');
+      for (let i = 0; i < 6; i++) c.panelLeft(6.2 + i * 2.4, 11.2, 3.6, 1.6, 1.4, GLASS, '#7f8b95');
       c.panelLeft(11.6, 11.2, 0, 2.8, 2.8, open ? '#3a3f45' : '#6f8394', '#4c5763');
       c.gable(4.7, 2.3, 6.2, 16.6, 9.2, 2.2, STEEL);
       if (open) c.signLeft(13, 11.22, 2.95, 'HÉBERGEMENT', 0.42, '#b93d0a');
