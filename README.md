@@ -35,6 +35,7 @@ Autour des chapitres :
 - **Le téléphone**, télécommande du jeu : chapitres (chacun garde son bilan et ses badges une fois mené au bout), carte, lieux (on s'y rend d'un geste, sans la carte), météo et prévisions, messages de la mairie, vigilance et alertes, DICRIM, lexique, badges (ceux des chapitres et ceux de toute la partie : kit prêt, tous les lieux visités, tous les chapitres achevés), réglages, et « À propos » (auteur, code source, licences, sources). Une pastille y signale ce qui vient d'arriver.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève) et les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte), et une cloche prévient quand le temps presse. Il se coupe d'un bouton.
+- **La radio du kit d'urgence** : une fois le kit prêt, sa radio à piles redit les consignes de vive voix, chez soi, quand la crise commence. Le joueur l'allume lui-même ; ce qu'elle dit est toujours écrit sous le poste, et la voix s'arrête d'un bouton. Sans kit, pas de radio.
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
 - **Les vues rapprochées** des lieux, en fausse 3D, qui reflètent les gestes accomplis et la hauteur de l'eau.
 
@@ -51,9 +52,10 @@ npm test           # tests unitaires
 npm run build      # vérification des types, puis site statique dans dist/
 npm run preview    # sert le contenu de dist/ pour le vérifier
 npm run liens      # vérifie que les pages officielles citées répondent toujours (celles qui refusent les lectures automatiques sont signalées : à relire à la main)
+npm run radio      # enregistre de nouveau les bulletins de radio dont le texte a changé (voir « La voix de la radio »)
 ```
 
-Le dossier `public/` contient l'image d'aperçu (`apercu.png`) que les réseaux sociaux affichent quand le lien du jeu est partagé ; elle sert aussi d'aperçu du dépôt.
+Le dossier `public/` contient l'image d'aperçu (`apercu.png`) que les réseaux sociaux affichent quand le lien du jeu est partagé ; elle sert aussi d'aperçu du dépôt. Il contient aussi les bulletins de radio enregistrés (`radio/`).
 
 Le dossier `dist/` se dépose tel quel sur n'importe quel hébergement statique. Les chemins sont relatifs : il fonctionne aussi dans un sous-dossier.
 
@@ -85,6 +87,15 @@ Sources : ministère de l'Intérieur (« Conseils face au risque de feu de forê
 Le temps qu'il fait, l'état de la rivière et les moments de récit entre les phases sont de la fiction : ils ne portent aucune consigne. Le signal d'alerte que le jeu fait entendre est inventé : il ne reproduit pas le vrai signal de FR-Alert, pour ne pas pouvoir être pris pour lui hors du jeu.
 
 Pour modifier une consigne : relire la page officielle, corriger le texte, mettre à jour la date `consulte` de la source. Les tests refusent une consigne sans source.
+
+### La voix de la radio
+
+Le jeu n'embarque aucun moteur de synthèse vocale. Les bulletins de Radio Val-d'Aléa, station fictive, sont écrits dans `src/content/radio.json` ; `npm run radio` les fait lire une fois pour toutes par [Piper](https://github.com/OHF-voice/piper1-gpl), et le jeu ne charge que les petits fichiers de `public/radio/` (MP3 mono, environ 4 Ko par seconde), au moment où le joueur allume le poste. L'effet « poste à piles » (bande étroite, grésillement) est ajouté par le jeu.
+
+- La commande demande [`uv`](https://docs.astral.sh/uv/) : il installe Piper et l'encodeur MP3 dans un environnement à part. À la première exécution, la voix (63 Mo) est téléchargée dans `node_modules/.cache/piper-voix/`.
+- `src/content/radio.clips.json` garde l'empreinte du texte lu : les tests échouent si un bulletin est modifié sans que sa voix soit enregistrée de nouveau. Le texte affiché et la voix disent donc toujours la même chose.
+- Les consignes données à l'antenne sont celles des messages et des alertes du même chapitre, avec les mêmes sources officielles.
+- La voix : `fr_FR-siwis-medium`, entraînée sur [« The SIWIS French Speech Synthesis Database »](https://doi.org/10.7488/ds/1705) (J. Yamagishi, P.-E. Honnet, P. Garner et A. Lazaridis, université d'Édimbourg, 2017), sous licence [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fr). Piper est sous licence GPL 3 : il sert à fabriquer les fichiers, et n'est pas distribué avec le jeu.
 
 ## Organisation du code
 
@@ -133,4 +144,4 @@ Aucun audit de conformité n'a encore été réalisé.
 ## Licence
 
 - Code : [MIT](LICENSE).
-- Contenus (textes du jeu, documentation) : [CC BY-SA 4.0](LICENSE-CONTENUS.md).
+- Contenus (textes du jeu, documentation, bulletins de radio enregistrés) : [CC BY-SA 4.0](LICENSE-CONTENUS.md). La voix de synthèse des bulletins vient de données sous licence CC BY 4.0 : voir « La voix de la radio ».
