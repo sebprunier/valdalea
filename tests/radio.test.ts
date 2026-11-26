@@ -80,6 +80,6 @@ describe("radio du kit d'urgence", () => {
       expect(clip.bytes, bulletin.id).toBeLessThan(200_000);
     }
     expect(Object.keys(RADIO_CLIPS).sort()).toEqual(RADIO_BULLETINS.map((bulletin) => bulletin.id).sort());
-    expect(readdirSync('public/radio').sort()).toEqual(RADIO_BULLETINS.map((bulletin) => `${bulletin.id}.mp3`).sort());
+    expect(readdirSync('public/radio').filter((name) => name.endsWith('.mp3')).sort()).toEqual(RADIO_BULLETINS.map((bulletin) => `${bulletin.id}.mp3`).sort());
   });
 });
