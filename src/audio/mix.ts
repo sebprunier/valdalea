@@ -22,6 +22,14 @@ export interface Mix {
 
 export const SILENCE: Mix = { rain: 0, wind: 0, water: 0, leaves: 0, birds: 0, industry: 0, fire: 0 };
 
+/** Ce qu'il reste de l'ambiance pendant que la radio parle : la voix doit se comprendre, même sous l'orage. */
+export const UNDER_VOICE = 0.35;
+
+/** La même ambiance, plus discrète : chaque nappe est ramenée à la part `share` de son niveau. */
+export function duck(mix: Mix, share: number): Mix {
+  return { rain: mix.rain * share, wind: mix.wind * share, water: mix.water * share, leaves: mix.leaves * share, birds: mix.birds * share, industry: mix.industry * share, fire: mix.fire * share };
+}
+
 /** Ce dont dépend l'ambiance. */
 export interface Listening {
   /** Pluie et vent du moment, de 0 à 1 ; lumière du jour, de 0 (nuit) à 1. */

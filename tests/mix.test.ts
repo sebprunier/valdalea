@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mixOf, nearness, type Listening } from '../src/audio/mix';
+import { duck, mixOf, nearness, UNDER_VOICE, type Listening } from '../src/audio/mix';
 import { SKIES } from '../src/render/weather';
 
 /** Sur les hauteurs, loin de tout : seul le temps qu'il fait s'entend. */
@@ -76,5 +76,16 @@ describe('ambiance sonore', () => {
     expect(nearness(0, 300)).toBe(1);
     expect(nearness(150, 300)).toBe(0.5);
     expect(nearness(900, 300)).toBe(0);
+  });
+
+  it("s'efface devant la voix de la radio, sans changer de nature", () => {
+    const storm = hear({ sky: SKIES['forte-pluie'], height: 0.5, flood: 1 });
+    const under = duck(storm, UNDER_VOICE);
+    expect(UNDER_VOICE).toBeGreaterThan(0.1);
+    expect(UNDER_VOICE).toBeLessThan(0.6);
+    for (const key of Object.keys(storm) as Array<keyof typeof storm>) expect(under[key]).toBeCloseTo(storm[key] * UNDER_VOICE);
+    // Ce qui ne s'entendait pas ne s'entend pas davantage.
+    expect(under.birds).toBe(0);
+    expect(duck(storm, 1)).toEqual(storm);
   });
 });

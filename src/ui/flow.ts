@@ -12,7 +12,8 @@ import { h } from './dom';
  *
  * Aucune alerte n'arrive sans prévenir : un moment de récit la précède, pendant
  * lequel le joueur voit le ciel changer, l'eau monter ou le feu avancer sur la
- * carte. Messages et alertes se lisent dans le téléphone, là où ils resteront.
+ * carte. Messages et alertes se lisent dans le téléphone, là où ils resteront ;
+ * la radio du kit d'urgence, si le joueur l'a préparé, redit les consignes de vive voix.
  * Rien n'avance tout seul : c'est le joueur qui passe à la suite.
  */
 
@@ -52,6 +53,10 @@ export interface FlowDeps {
    * pour l'un, l'application Alertes pour l'autre. Rendu quand il a refermé.
    */
   readBulletin(bulletin: Bulletin): Promise<void>;
+  /** Le joueur a-t-il sa radio à piles sous la main ? Elle est dans le kit d'urgence. */
+  hasRadio(): boolean;
+  /** Fait écouter un bulletin au joueur, sur la radio de son kit. Rendu quand il a refermé. */
+  listenRadio(bulletin: Bulletin): Promise<void>;
   /** Fait entendre le signal d'un moment de récit. */
   play(cue: 'message' | 'alerte'): void;
   /** Élément qui reprend le focus à la fin d'une séquence. */
@@ -75,7 +80,7 @@ export interface Flow {
   resume(): void;
   /** Niveau du danger à montrer sur la carte pour l'état actuel du chapitre : hauteur de la crue, ou avancée du feu. */
   hazardLevel(): number;
-  /** Bulletins reçus jusqu'ici, du plus récent au plus ancien. */
+  /** Messages et alertes reçus jusqu'ici sur le téléphone, du plus récent au plus ancien. */
   bulletins(): Bulletin[];
   /** Bilan du chapitre, s'il est terminé. */
   assessment(): Assessment | null;
@@ -165,6 +170,12 @@ export function createFlow(deps: FlowDeps): Flow {
         await tell(beat.tell, late && first);
         first = false;
         last = sceneOf(beat.tell);
+      } else if (beat.bulletin.kind === 'radio') {
+        // Sans kit d'urgence, pas de radio à piles : le bulletin passe sans que le joueur l'entende.
+        if (!deps.hasRadio()) continue;
+        storyDialog.close();
+        deps.stage(null);
+        await deps.listenRadio(beat.bulletin);
       } else {
         storyDialog.close();
         deps.stage(beat.vigilance && last ? { ...last, vigilance: beat.vigilance } : null);
@@ -325,7 +336,8 @@ export function createFlow(deps: FlowDeps): Flow {
       const crisis = script();
       if (!crisis) return [];
       const phase = deps.getChapter().phase;
-      const messages = (beats: readonly Beat[]): Bulletin[] => beats.flatMap((beat) => ('bulletin' in beat ? [beat.bulletin] : [])).reverse();
+      // Ceux du téléphone : un bulletin de radio s'écoute sur le poste, il n'y est pas rangé.
+      const messages = (beats: readonly Beat[]): Bulletin[] => beats.flatMap((beat) => ('bulletin' in beat && beat.bulletin.kind !== 'radio' ? [beat.bulletin] : [])).reverse();
       const received: Bulletin[] = [];
       if (phase === 'crise' || phase === 'bilan') received.push(...messages(crisis.onset));
       if (phase === 'vigilance' || phase === 'crise' || phase === 'bilan') received.push(...messages(crisis.vigilance));

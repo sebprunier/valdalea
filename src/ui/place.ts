@@ -65,7 +65,7 @@ function kitBox(): HTMLElement {
     'section',
     { class: 'kit-box' },
     h('h3', null, "Votre kit d'urgence"),
-    h('p', null, "Votre sac est prêt, à portée de main en haut de l'escalier. Il sert pour tous les risques."),
+    h('p', null, "Votre sac est prêt, à portée de main en haut de l'escalier. Il sert pour tous les risques. Si une crise survient, sa radio à piles vous donnera les consignes des autorités."),
     h('details', null, h('summary', null, "Voir ce qu'il contient"), h('ul', { class: 'bullets' }, ...KIT_CONTENTS.map((item) => h('li', null, item))), h('p', null, KIT_CARE), sourceList(KIT_SOURCES)),
   );
 }
