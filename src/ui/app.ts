@@ -468,9 +468,16 @@ export function createUi(deps: UiDeps): Ui {
       const { phase } = chapter();
       const now = SKIES[sky()];
       const { content, situation } = playbook();
-      const forecast = phase === 'accueil' || phase === 'libre' ? undefined : content?.forecast[phase];
+      // Hors chapitre, et une fois le bilan établi : rien à signaler, ni prévisions ni indicateur de danger.
+      const calm = phase === 'accueil' || phase === 'libre' || phase === 'bilan';
       const state = situation(phase);
-      return { label: now.label, icon: now.icon, river: state.river, forecast: forecast ?? [], hazard: content?.hazardInfo ? { ...content.hazardInfo, level: state.level, indicator: state.indicator } : null };
+      return {
+        label: now.label,
+        icon: now.icon,
+        river: state.river,
+        forecast: (calm ? undefined : content?.forecast[phase]) ?? [],
+        hazard: content?.hazardInfo && !calm ? { ...content.hazardInfo, level: state.level, indicator: state.indicator } : null,
+      };
     },
     getPlaceInfo: (place) => ({
       pending: pendingAt(playbook().actions, chapter(), place.id),

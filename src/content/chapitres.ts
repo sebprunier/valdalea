@@ -138,8 +138,8 @@ export interface Playbook {
   timing: ChapterTiming;
   /** La mission du moment. */
   objective(phase: Phase): string;
-  /** Ce que la barre d'état montre : niveau de danger, libellé, temps qu'il fait. */
-  situation(phase: Phase): ChapterContent['situation'][ChapterPhase];
+  /** Ce que la barre d'état montre : niveau de danger, libellé, temps qu'il fait. Le calme, hors chapitre et une fois le bilan établi. */
+  situation(phase: Phase): ChapterContent['situation'][keyof ChapterContent['situation']];
 }
 
 const isChapterPhase = (phase: Phase): phase is ChapterPhase => phase !== 'accueil' && phase !== 'libre';
@@ -174,6 +174,7 @@ export function playbookOf(chapterId: string | null, assets: Readonly<Record<str
     // Hors chapitre, aucun temps n'est compté : ces horaires ne servent pas.
     timing: content?.timing ?? AUTOMNE.timing,
     objective: (phase) => (isChapterPhase(phase) ? (content?.objectives[phase] ?? PROLOGUE_OBJECTIVES.libre) : PROLOGUE_OBJECTIVES[phase]),
-    situation: (phase) => (content && isChapterPhase(phase) ? content.situation[phase] : CALM),
+    // Le bilan établi, la crise est passée : le temps et l'indicateur reviennent à la normale, comme hors chapitre.
+    situation: (phase) => (content && isChapterPhase(phase) && phase !== 'bilan' ? content.situation[phase] : CALM),
   };
 }

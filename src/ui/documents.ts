@@ -2,6 +2,7 @@ import { findEntry, type LexiconEntry } from '../content/lexique';
 import type { BadgeInfo } from '../content/chapitres';
 import { SOURCES, type Bulletin, type Question } from '../content/model';
 import type { Assessment } from '../core/chapter';
+import { shuffled } from '../core/rng';
 import { h, icon } from './dom';
 import { lexiconFigure } from './figures';
 
@@ -54,12 +55,15 @@ export interface QuestionOptions {
  */
 export function mountQuestion(host: HTMLElement, question: Question, options: QuestionOptions): void {
   host.replaceChildren();
+  // Les réponses sont proposées dans un ordre tiré au sort : la bonne n'est pas toujours la première,
+  // ni les mauvaises toujours les dernières. L'ordre ne change plus tant que la question est affichée.
+  const choices = shuffled(question.choices);
   if (question.context) host.append(h('p', { class: 'lead' }, question.context));
   const feedback = h('div', { class: 'feedback', tabindex: '-1' });
 
   const reveal = (chosen: string[]): void => {
     const picked = new Set(chosen);
-    const mistakes = question.choices.filter((choice) => picked.has(choice.id) !== choice.correct);
+    const mistakes = choices.filter((choice) => picked.has(choice.id) !== choice.correct);
     const correct = mistakes.length === 0;
     options.onAnswer(chosen, correct);
 
@@ -81,10 +85,10 @@ export function mountQuestion(host: HTMLElement, question: Question, options: Qu
       );
       if (notes.length > 0) feedback.append(h('ul', { class: 'corrections' }, ...notes));
     } else {
-      const choice = question.choices.find((c) => picked.has(c.id));
+      const choice = choices.find((c) => picked.has(c.id));
       if (choice?.outcome) feedback.append(h('p', null, choice.outcome));
       if (!correct) {
-        const right = question.choices.find((c) => c.correct);
+        const right = choices.find((c) => c.correct);
         if (right) feedback.append(h('p', null, h('strong', null, 'Il fallait répondre : '), right.label, '.'));
       }
     }
@@ -99,7 +103,7 @@ export function mountQuestion(host: HTMLElement, question: Question, options: Qu
 
   if (question.multiple) {
     const illustrated = options.figure !== undefined;
-    const boxes = question.choices.map((choice, index) => {
+    const boxes = choices.map((choice, index) => {
       const id = `choix-${question.id}-${choice.id}`;
       const input = h('input', { type: 'checkbox', id, value: choice.id });
       // Avec un dessin, chaque choix porte le numéro de sa pastille dans l'image.
@@ -115,7 +119,7 @@ export function mountQuestion(host: HTMLElement, question: Question, options: Qu
       const picked = new Set(checked());
       const { svg, spots } = options.figure(picked);
       scene.replaceChildren(svg);
-      question.choices.forEach((choice, index) => {
+      choices.forEach((choice, index) => {
         const spot = spots.get(choice.id);
         if (!spot) return;
         // Raccourci pour la souris et le doigt : la case à cocher, juste en dessous, est le vrai contrôle.
@@ -147,7 +151,7 @@ export function mountQuestion(host: HTMLElement, question: Question, options: Qu
       h('div', { class: 'dialog__actions' }, validate),
     );
   } else {
-    const buttons = question.choices.map((choice) => {
+    const buttons = choices.map((choice) => {
       const button = h('button', { type: 'button', class: 'choice' }, choice.label);
       button.addEventListener('click', () => {
         for (const other of buttons) other.disabled = true;

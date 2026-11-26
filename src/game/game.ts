@@ -87,6 +87,10 @@ export class Game {
   private readonly hooks: GameHooks;
   private readonly flood: WaterLayer;
   /** Le feu de forêt, créé quand un chapitre en a besoin. */
+  /** Taille de la carte d'après laquelle l'échelle est calée (voir `layout`). */
+  private fit = { windowWidth: 0, windowHeight: 0, width: 0, height: 0 };
+  /** La boucle de jeu tourne : la carte peut être redessinée à la demande. */
+  private running = false;
   private fire: FireLayer | null = null;
   private plume: PlumeLayer | null = null;
   private readonly ctx: CanvasRenderingContext2D;
@@ -167,6 +171,7 @@ export class Game {
   }
 
   start(): void {
+    this.running = true;
     this.observe();
     this.lastFrame = performance.now();
     requestAnimationFrame(this.frame);
@@ -498,6 +503,12 @@ export class Game {
 
   private resize(): void {
     this.layout(true);
+    // Redimensionner un canvas le vide. On le redessine aussitôt, avant que le navigateur n'affiche
+    // l'image : sinon la carte disparaît le temps d'un éclair chaque fois que sa taille change.
+    if (this.running) {
+      this.dirty = false;
+      this.render();
+    }
   }
 
   /**
@@ -510,8 +521,15 @@ export class Game {
     const cssHeight = this.surface.clientHeight;
     if (cssWidth === 0 || cssHeight === 0) return;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    // Le bandeau de mission gagne ou perd une ligne ou deux selon son texte, et la carte quelques dizaines de
+    // pixels de hauteur : l'échelle n'en tient pas compte, sinon le plan changerait de taille en pleine promenade.
+    // Elle n'est recalée que si la fenêtre elle-même change, ou si la carte change vraiment de taille.
+    const { fit } = this;
+    if (window.innerWidth !== fit.windowWidth || window.innerHeight !== fit.windowHeight || cssWidth !== fit.width || Math.abs(cssHeight - fit.height) > fit.height * 0.15) {
+      this.fit = { windowWidth: window.innerWidth, windowHeight: window.innerHeight, width: cssWidth, height: cssHeight };
+    }
     // Vue normale : environ 1 350 unités monde visibles en largeur, sans jamais trop réduire le personnage.
-    const zoom = clamp(Math.min(cssWidth / 1350, cssHeight / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
+    const zoom = clamp(Math.min(this.fit.width / 1350, this.fit.height / 640), 0.7, 1.6) * ZOOM_LEVELS[this.zoomIndex];
     // L'échelle est arrondie pour qu'une tuile fasse un nombre entier de pixels :
     // les tuiles sont alors recopiées sans rééchantillonnage ni raccord visible.
     const tilePx = Math.max(64, Math.round(TILE_SIZE * zoom * pixelRatio));

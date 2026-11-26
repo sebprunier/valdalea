@@ -249,12 +249,15 @@ export interface ChapterContent {
   questions: Question[];
   /** La mission de chaque phase, telle que le carnet la formule. */
   objectives: Record<ChapterPhase, string>;
-  /** Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il fait. */
-  situation: Record<ChapterPhase, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
+  /**
+   * Ce que la barre d'état et la carte montrent à chaque phase : le niveau de danger, son libellé, le temps qu'il
+   * fait. Une fois le bilan établi, tout revient à la normale : la barre affiche la même chose que hors chapitre.
+   */
+  situation: Record<Exclude<ChapterPhase, 'bilan'>, { level: VigilanceLevel; indicator: string; sky: SkyId; river: string }>;
   /** Libellé de l'indicateur de danger pour chaque niveau, tel que la barre d'état l'affiche pendant le récit. */
   levels: Record<VigilanceLevel, string>;
-  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. */
-  forecast: Partial<Record<ChapterPhase, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
+  /** Prévisions de l'application Météo. Fiction : elles annoncent le récit. Après le bilan, il n'y en a plus. */
+  forecast: Partial<Record<Exclude<ChapterPhase, 'bilan'>, Array<{ when: string; icon: 'soleil' | 'nuage' | 'pluie' | 'eclaircie'; text: string }>>>;
   timing: ChapterTiming;
   /** Baisse de la lumière en fin de préparation, quand la journée s'achève à la nuit. */
   dusk: { minutesLeft: number; sky: SkyId } | null;

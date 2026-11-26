@@ -98,6 +98,19 @@ describe('cohérence des contenus', () => {
     }
   });
 
+  it('revient à la normale une fois le bilan établi : le temps et l’indicateur d’avant le chapitre', () => {
+    const calm = playbookOf(null).situation('libre');
+    expect(calm).toEqual({ level: 'verte', indicator: 'Aucune alerte', sky: 'sec', river: 'à son niveau habituel' });
+    for (const info of CHAPTERS.filter((chapter) => chapter.playable)) {
+      const { content, situation } = playbookOf(info.id);
+      expect(situation('bilan'), info.id).toEqual(calm);
+      // Pendant la crise, en revanche, la barre d'état dit le danger.
+      expect(situation('crise').level, info.id).toBe('rouge');
+      expect(Object.keys(content!.situation).sort(), info.id).toEqual(['crise', 'preparation', 'vigilance']);
+      expect(Object.keys(content!.forecast), info.id).not.toContain('bilan');
+    }
+  });
+
   it('décrit chaque chapitre jouable : gestes, horaires, récit d’ouverture, indicateur', () => {
     for (const info of CHAPTERS.filter((chapter) => chapter.playable)) {
       const { content, actions, timing } = playbookOf(info.id);

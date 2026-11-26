@@ -25,7 +25,7 @@ Le chapitre de l'inondation se déroule ainsi, et les deux autres sur le même m
 1. **Préparation.** Le maire confie sa mission au joueur : préparer le kit d'urgence 72 h, les protections de la maison, une zone refuge, demander un diagnostic de vulnérabilité, convenir d'un abri avec une voisine isolée, lire le repère de crue, demander comment l'école se met en sûreté, vérifier les consignes du camping, préparer le centre d'hébergement. La journée se termine quand le joueur le décide — une confirmation lui rappelle les gestes encore faisables — ou à la tombée de la nuit.
 2. **Vigilance orange.** Ce qui a été préparé peut être installé ; le reste, il est trop tard.
 3. **Crue.** Six décisions à prendre pendant que l'eau monte sur la carte.
-4. **Bilan.** Ce qui a tenu, ce qui a été touché, pourquoi, avec la source officielle de chaque consigne. Un indice de préparation et des badges.
+4. **Bilan.** Ce qui a tenu, ce qui a été touché, pourquoi, avec la source officielle de chaque consigne. Un indice de préparation et des badges. Le bilan établi, le temps qu'il fait et l'indicateur de danger reviennent à la normale, comme avant le chapitre ; seule reste sur la carte la trace de la crise (la forêt brûlée).
 
 Le **kit d'urgence 72 heures** sert pour tous les risques : le joueur le prépare dans le premier chapitre qu'il joue, quel qu'il soit, et le vérifie dans les suivants. Il peut aussi le préparer chez lui hors chapitre ; une fois prêt, sa fiche « Chez vous » en montre le contenu, d'après la liste officielle.
 
@@ -40,6 +40,7 @@ Autour des chapitres :
 - **Le déplacement** : au clavier (flèches ou ZQSD, Maj pour courir), en désignant un point de la carte, que le personnage rejoint par les rues, ou, sur un écran tactile, avec la manette en bas de l'écran. Vers un point éloigné, le personnage court de lui-même. L'aide (touche H) rappelle les commandes, celles du clavier ou celles du tactile selon l'appareil.
 - **Le zoom** de la carte, sur quatre niveaux : touches + et -, molette, pincement, ou boutons.
 - **Le son** : une ambiance qui suit le temps qu'il fait (pluie, vent quand il se lève), les lieux proches (la rivière, la forêt et ses oiseaux, l'usine) et le feu quand il approche ; quelques signaux ponctuent le récit (le téléphone qui vibre, l'alerte, la sirène de l'usine), et une cloche prévient quand le temps presse. Il se coupe d'un bouton.
+- **Les questions** : leurs réponses sont proposées dans un ordre tiré au sort à chaque affichage, pour que la bonne ne soit jamais « toujours la première ».
 - **Le lexique**, qui explique les mots de la prévention (batardeau, zone refuge, PCS…), schémas à l'appui.
 - **Les vues rapprochées** des lieux, en fausse 3D, qui reflètent les gestes accomplis et la hauteur de l'eau.
 

@@ -563,7 +563,7 @@ export const STORY = {
     title: "L'usine d'à côté",
     paragraphs: [
       "« Engrais du Val, c'est un site Seveso seuil haut à cinq cents mètres de la cité des Vannes », vous a dit le maire. « Il n'y a jamais eu d'accident grave. Mais si la sirène retentit un jour, il faudra que chacun sache quoi faire sans réfléchir : se mettre à l'abri, pas courir à l'école ni sauter dans sa voiture. »",
-      "Votre mission : faire connaître le signal d'alerte et la conduite à tenir. À la mairie d'abord, pour les brochures ; puis à l'usine, dans la cité des Vannes, chez Inès, et à l'école. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
+      "Votre mission : faire connaître le signal d'alerte et la conduite à tenir. À l'usine, chez Inès, à l'école, dans l'ordre que vous voulez ; et dans toute la cité des Vannes, une fois que vous aurez pris les brochures à la mairie. Vous avez jusqu'à 14 heures ; le carnet de mission vous dira ce qu'il reste à faire.",
     ],
     next: 'Commencer',
     sky: 'froid',
@@ -625,7 +625,6 @@ export const HIVER: ChapterContent = {
     preparation: { level: 'verte', indicator: 'Aucune alerte', sky: 'froid', river: "à son niveau d'hiver" },
     vigilance: { level: 'rouge', indicator: ALERT, sky: 'froid', river: "à son niveau d'hiver" },
     crise: { level: 'rouge', indicator: ALERT, sky: 'froid', river: "à son niveau d'hiver" },
-    bilan: { level: 'verte', indicator: "Fin de l'alerte", sky: 'froid', river: "à son niveau d'hiver" },
   },
   // Il n'y a pas d'échelle de vigilance pour un accident industriel : il y a une alerte, ou il n'y en a pas.
   levels: { verte: 'Aucune alerte', jaune: 'Aucune alerte', orange: ALERT, rouge: ALERT },
@@ -642,7 +641,6 @@ export const HIVER: ChapterContent = {
       { when: 'Ce matin', icon: 'nuage', text: "−2 °C. Vent d'est, très faible." },
       { when: 'Cet après-midi', icon: 'eclaircie', text: 'Le vent se lève.' },
     ],
-    bilan: [{ when: 'Ce soir', icon: 'eclaircie', text: 'Vent modéré. Gelée dans la nuit.' }],
   },
   timing: {
     // Une matinée de tournée : de quoi tout faire, trajets compris, avec une heure de marge.
