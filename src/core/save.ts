@@ -63,6 +63,8 @@ export interface LoadContext {
   badgeIds: ReadonlySet<string>;
   /** Ce que certains gestes laissent au joueur pour la suite de la partie : identifiant du geste, puis de l'acquis. */
   grants: ReadonlyMap<string, string>;
+  /** Documents existants, et ceux que vaut une partie d'après ce qui y a été fait (gestes, chapitres commencés, acquis). */
+  documents: { ids: ReadonlySet<string>; earnedIn(state: Pick<GameState, 'chapter' | 'chapterId' | 'results' | 'record' | 'assets'>): readonly string[] };
   /** Cartes de risque existantes. */
   riskIds: ReadonlySet<string>;
   /** Le joueur peut-il se tenir à cette position ? */
@@ -144,6 +146,10 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
   }
   if (chapterId !== null && chapter.phase === 'bilan' && !(chapterId in results)) results[chapterId] = { done: [...chapter.done], answers: { ...chapter.answers } };
 
+  // Les documents rangés dans le téléphone. Une partie d'avant eux retrouve ceux que ses gestes, ses chapitres
+  // et ses acquis lui avaient valus ; et rien de ce qui a été mérité ne peut manquer.
+  const documents = [...new Set([...knownIds(data.documents, context.documents.ids), ...context.documents.earnedIn({ chapter, chapterId, results, record, assets })])];
+
   return {
     version: SAVE_VERSION,
     player: context.isFree(pos) ? pos : { ...context.spawn },
@@ -154,7 +160,9 @@ export function loadGame(storage: KeyValueStore, context: LoadContext): GameStat
     results,
     badges: knownIds(data.badges, context.badgeIds),
     assets,
-    news: knownIds(data.news, new Set<string>(NEWS_IDS)) as NewsId[],
+    documents,
+    // L'application DICRIM est devenue l'application Documents.
+    news: knownIds(Array.isArray(data.news) ? data.news.map((id) => (id === 'dicrim' ? 'documents' : id)) : [], new Set<string>(NEWS_IDS)) as NewsId[],
     settings: {
       reducedMotion: typeof settings.reducedMotion === 'boolean' ? settings.reducedMotion : null,
       // Les premières sauvegardes ne connaissaient que la zone inondable, par oui ou par non.

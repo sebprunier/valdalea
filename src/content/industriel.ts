@@ -46,7 +46,7 @@ export const ACTIONS: ActionDef[] = [
     title: "Demander les brochures d'information",
     why: "Les personnes qui vivent dans une zone à risques industriels majeurs demandent à leur mairie les brochures d'information éditées par l'industriel, en lien avec la préfecture : elles informent sur les signaux d'alerte et indiquent la conduite à tenir.",
     who: "L'industriel et la préfecture les éditent ; la mairie les tient à disposition. La réserve communale aide à les faire connaître.",
-    done: "La secrétaire de mairie vous tend un carton : deux cents brochures, que personne n'était venu chercher depuis des mois. Sur la couverture, l'usine, et un titre : « Si la sirène retentit ».",
+    done: "La secrétaire de mairie vous tend un carton : deux cents brochures, que personne n'était venu chercher depuis des mois. Sur la couverture, l'usine, et un titre : « Si la sirène retentit ». Vous en gardez une : elle est dans votre téléphone, application Documents.",
     sources: ['georisques-industriel'],
   },
   {

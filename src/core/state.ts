@@ -15,7 +15,7 @@ export interface Settings {
 }
 
 /** Applications du téléphone qui peuvent signaler une nouveauté. */
-export const NEWS_IDS = ['messages', 'alertes', 'dicrim', 'chapitres', 'badges'] as const;
+export const NEWS_IDS = ['messages', 'alertes', 'documents', 'chapitres', 'badges'] as const;
 export type NewsId = (typeof NEWS_IDS)[number];
 
 /** Ce qu'il faut garder d'un chapitre mené au bout pour en redonner le bilan : les gestes accomplis et les décisions prises. */
@@ -42,6 +42,8 @@ export interface GameState {
   badges: string[];
   /** Ce que le joueur garde d'un chapitre à l'autre (son kit d'urgence), avec le chapitre où il l'a obtenu, ou `hors-chapitre`. */
   assets: Record<string, string>;
+  /** Documents rangés dans le téléphone : le DICRIM, la brochure de l'usine, les fiches officielles. Une fois obtenus, ils y restent. */
+  documents: string[];
   /** Applications du téléphone où quelque chose de nouveau attend d'être regardé. */
   news: NewsId[];
   settings: Settings;
@@ -50,7 +52,7 @@ export interface GameState {
 export const DEFAULT_SETTINGS: Settings = { reducedMotion: null, hazardLayer: null, zoom: null, sound: true };
 
 export function newGame(spawn: Vec, settings: Settings = DEFAULT_SETTINGS, badges: string[] = []): GameState {
-  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, results: {}, badges, assets: {}, news: [], settings };
+  return { version: SAVE_VERSION, player: { ...spawn }, visited: [], chapter: newChapter(), chapterId: null, record: {}, results: {}, badges, assets: {}, documents: [], news: [], settings };
 }
 
 /** Origine d'un acquis obtenu hors chapitre : il vaut alors pour tous les chapitres. */
@@ -70,6 +72,12 @@ export function withRecord(state: GameState, chapterId: string, score: number): 
 /** Garde la partie qui vient de s'achever : le bilan du chapitre se retrouvera dans le téléphone. */
 export function withResult(state: GameState, chapterId: string, chapter: Chapter): GameState {
   return { ...state, results: { ...state.results, [chapterId]: { done: [...chapter.done], answers: { ...chapter.answers } } } };
+}
+
+/** Range de nouveaux documents dans le téléphone. Ceux qui y sont déjà n'y entrent pas deux fois. */
+export function withDocuments(state: GameState, ids: readonly string[]): GameState {
+  const fresh = ids.filter((id) => !state.documents.includes(id));
+  return fresh.length === 0 ? state : { ...state, documents: [...state.documents, ...fresh] };
 }
 
 /** Signale une nouveauté dans une application du téléphone. */
