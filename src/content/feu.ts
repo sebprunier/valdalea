@@ -1,5 +1,6 @@
 import { kitAction, KIT_QUESTIONS } from './kit';
 import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, StakeDef, StoryCard } from './model';
+import { RADIO_FEU } from './radio';
 
 /**
  * Chapitre « Le feu des Brandes » : le risque de feu de forêt.
@@ -730,7 +731,8 @@ export const ETE: ChapterContent = {
     places: { vigilance: 'domicile', crise: 'lucien' },
     // On vise le lieu même : au-dessus de la fenêtre du récit, on voit la clairière, et au nord la forêt d'où vient le feu.
     lookSouth: 0,
-    vigilance: [{ tell: STORY.ete, hazard: FIRE.vigilance[0] }, { bulletin: MESSAGE_MAIRIE }],
+    // Après le message de la mairie, la radio du kit, s'il est prêt : on est encore chez soi, et l'on a deux heures devant soi.
+    vigilance: [{ tell: STORY.ete, hazard: FIRE.vigilance[0] }, { bulletin: MESSAGE_MAIRIE }, { bulletin: RADIO_FEU }],
     ready: 'Le hameau des Brandes est évacué. Vous êtes chez vous : rejoignez le hameau, puis allez chercher Lucien.',
     // Le ciel se couvre de fumée et le feu apparaît en lisière pendant que le joueur lit : il le voit avant que l'alerte ne sonne.
     onset: [{ tell: STORY.depart, hazard: FIRE.onset }, { bulletin: ALERTE_FEU }],

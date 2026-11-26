@@ -1,0 +1,14 @@
+{
+  "crue-radio": {
+    "voice": "fr_FR-siwis-medium",
+    "text": "a98a8a690f14d85927148cecd96a8dfa0200a88f166d5ec4f34c1885419433a5",
+    "seconds": 30.4,
+    "bytes": 122044
+  },
+  "feu-radio": {
+    "voice": "fr_FR-siwis-medium",
+    "text": "11567a05edc5265827c5fdbd893442e154b2328c061ca430cecb048bc0dfa23f",
+    "seconds": 34.1,
+    "bytes": 136673
+  }
+}

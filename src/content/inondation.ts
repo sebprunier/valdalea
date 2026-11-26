@@ -1,5 +1,6 @@
 import { kitAction, KIT_QUESTIONS } from './kit';
 import type { ActionDef, BadgeDef, Bulletin, ChapterContent, ChapterView, Question, Situation, SkyId, StakeDef, StoryCard, VigilanceLevel } from './model';
+import { RADIO_CRUE } from './radio';
 
 /**
  * Chapitre « L'automne » : le risque inondation. (Le prologue, commun à tous les
@@ -671,7 +672,8 @@ export const AUTOMNE: ChapterContent = {
     ],
     ready: 'Vigilance orange. Vous êtes chez vous.',
     // L'eau franchit le quai pendant que le joueur lit : il la voit avant que l'alerte ne sonne.
-    onset: [{ tell: STORY.abri, hazard: SITUATIONS[0].hazard }, { bulletin: BULLETIN_ROUGE }],
+    // Puis, si le kit d'urgence est prêt, sa radio à piles redit les consignes de vive voix.
+    onset: [{ tell: STORY.abri, hazard: SITUATIONS[0].hazard }, { bulletin: BULLETIN_ROUGE }, { bulletin: RADIO_CRUE }],
     situations: SITUATIONS,
     ending: STORY.decrue,
     levels: { vigilance: [FLOOD.rising, FLOOD.rising], ending: FLOOD.receding, after: 0 },

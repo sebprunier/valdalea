@@ -1,5 +1,5 @@
 import { mulberry32 } from '../core/rng';
-import { SILENCE, type Mix } from './mix';
+import { duck, SILENCE, UNDER_VOICE, type Mix } from './mix';
 
 /**
  * Le son du jeu, fabriqué de toutes pièces avec l'API Web Audio : aucun fichier
@@ -311,11 +311,75 @@ export function buildOutput(ctx: BaseAudioContext): { input: GainNode } {
 }
 
 /** Le son du jeu en cours de partie. */
+/** Un bulletin en cours de diffusion : on peut l'arrêter, et savoir quand il s'achève. */
+export interface RadioPlayback {
+  stop(): void;
+  ended: Promise<void>;
+}
+
+/**
+ * Fait passer une voix enregistrée par un petit poste à piles : une bande de
+ * fréquences étroite, un peu de saturation, et un grésillement qui s'installe
+ * avec un craquement au moment où l'on allume. Renvoie la durée de l'ensemble.
+ */
+export function playThroughRadio(ctx: BaseAudioContext, out: AudioNode, voice: AudioBuffer, at: number): { stop(): void; duration: number } {
+  const lead = 0.45;
+  const tail = 0.35;
+  const end = at + lead + voice.duration + tail;
+  // Le niveau du poste : la voix passe nettement au-dessus de l'ambiance, sans couvrir les signaux du jeu.
+  const master = gain(ctx, 1);
+  master.connect(gain(ctx, 0.6)).connect(out);
+
+  // La voix : le grave et l'aigu coupés, le médium en avant, un peu écrêtée.
+  const source = ctx.createBufferSource();
+  source.buffer = voice;
+  const presence = filter(ctx, 'peaking', 1700, 1);
+  presence.gain.value = 5;
+  const drive = ctx.createWaveShaper();
+  const curve = new Float32Array(257);
+  for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh(2.2 * (i / 128 - 1)) / Math.tanh(2.2);
+  drive.curve = curve;
+  source.connect(filter(ctx, 'highpass', 340)).connect(filter(ctx, 'lowpass', 3100)).connect(presence).connect(drive).connect(gain(ctx, 0.85)).connect(master);
+  source.start(at + lead);
+
+  // Le grésillement : fort au moment où l'on allume, puis en fond, qui ondule un peu.
+  const hiss = noise(ctx, 2);
+  const level = gain(ctx, 0);
+  level.gain.setValueAtTime(0.16, at);
+  level.gain.exponentialRampToValueAtTime(0.028, at + lead);
+  const flutter = sway(ctx, level.gain, 0.7, 0.008);
+  hiss.connect(filter(ctx, 'bandpass', 2400, 0.5)).connect(level).connect(master);
+  hiss.start(at);
+  hiss.stop(end);
+  flutter.stop(end);
+  master.gain.setValueAtTime(1, end - 0.12);
+  master.gain.linearRampToValueAtTime(0, end);
+
+  return {
+    duration: end - at,
+    stop() {
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(0, now + 0.06);
+      for (const node of [source, hiss, flutter]) {
+        try {
+          node.stop(now + 0.08);
+        } catch {
+          // Déjà arrêté.
+        }
+      }
+    },
+  };
+}
+
 export class Sound {
   private ctx: AudioContext | null = null;
   private output: GainNode | null = null;
   private ambience: Ambience | null = null;
   private mix: Mix = SILENCE;
+  /** Bulletins de radio en cours de diffusion : tant qu'il y en a, l'ambiance reste en retrait. */
+  private voices = 0;
   /** Le joueur a agi sur la page : le navigateur accepte désormais de produire du son. */
   private unlocked = false;
 
@@ -359,12 +423,64 @@ export class Sound {
   /** Règle l'ambiance ; le changement est progressif. */
   setMix(mix: Mix): void {
     this.mix = mix;
-    this.ambience?.set(mix);
+    this.ambience?.set(this.voices > 0 ? duck(mix, UNDER_VOICE) : mix);
+  }
+
+  /** Une voix commence (`+1`) ou s'achève (`-1`) : l'ambiance s'efface devant elle, puis revient. */
+  private voice(change: 1 | -1): void {
+    this.voices = Math.max(0, this.voices + change);
+    this.ambience?.set(this.voices > 0 ? duck(this.mix, UNDER_VOICE) : this.mix, change > 0 ? 0.5 : 1.2);
   }
 
   play(cue: Cue): void {
     const live = this.live;
     if (live) playCue(live.ctx, live.out, cue);
+  }
+
+  /**
+   * Diffuse un bulletin de radio enregistré. Rend `null` si le son est coupé, ou si
+   * l'enregistrement n'existe pas ou ne se lit pas : le texte, lui, reste affiché.
+   */
+  async playRadio(url: string): Promise<RadioPlayback | null> {
+    if (!this.enabled) return null;
+    let voice: AudioBuffer;
+    try {
+      // Le joueur vient d'allumer le poste : c'est un geste, le son peut démarrer s'il ne l'avait pas fait.
+      this.unlock();
+      if (this.ctx && this.ctx.state !== 'running' && document.visibilityState === 'visible') await this.ctx.resume();
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.arrayBuffer();
+      const live = this.live;
+      if (!live) return null;
+      voice = await live.ctx.decodeAudioData(data);
+    } catch {
+      return null;
+    }
+    const live = this.live;
+    if (!live) return null;
+    const playing = playThroughRadio(live.ctx, live.out, voice, live.ctx.currentTime + 0.05);
+    this.voice(1);
+    let over = false;
+    let resolve = (): void => undefined;
+    const ended = new Promise<void>((done) => {
+      resolve = done;
+    });
+    const finish = (): void => {
+      if (over) return;
+      over = true;
+      this.voice(-1);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, playing.duration * 1000);
+    return {
+      ended,
+      stop() {
+        window.clearTimeout(timer);
+        playing.stop();
+        finish();
+      },
+    };
   }
 
   /** La cloche qui prévient que le temps presse. `level` : de 0 à 1. */
