@@ -169,8 +169,8 @@ describe('cohérence des contenus', () => {
           const before = beats[index - 1];
           expect(before && ('bulletin' in before || before.tell.sound), `${id} : signal avant « ${beat.bulletin.title} »`).toBeTruthy();
           expect(beat.bulletin.paragraphs.length, beat.bulletin.id).toBeGreaterThan(0);
-          // Le téléphone sait où le ranger : la messagerie, ou les alertes. Un bulletin de radio, lui, s'écoute sur le poste du kit.
-          expect(['message', 'alerte', 'radio'], beat.bulletin.id).toContain(beat.bulletin.kind);
+          // Le téléphone sait où le ranger : la messagerie, ou les alertes.
+          expect(['message', 'alerte'], beat.bulletin.id).toContain(beat.bulletin.kind);
           // Une consigne a sa source ; un message de pur récit n'en donne pas.
           if (beat.bulletin.advice) expect(beat.bulletin.sources.length, beat.bulletin.id).toBeGreaterThan(0);
         });

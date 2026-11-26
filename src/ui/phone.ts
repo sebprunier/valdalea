@@ -541,18 +541,6 @@ export function createPhone(deps: PhoneDeps): Phone {
       "Val-d'Aléa est une commune fictive : ses habitants, son histoire et son DICRIM sont inventés. Les consignes de sécurité, elles, reprennent les pages officielles citées à côté de chaque geste : Géorisques, le ministère chargé de la Transition écologique, Vigicrues, Météo-France, FR-Alert.",
     ),
     h('p', null, "Projet indépendant, sans lien avec les services de l'État. En cas de doute, la source officielle fait foi."),
-    h('h3', null, 'La voix de la radio'),
-    h(
-      'p',
-      null,
-      "Radio Val-d'Aléa est une station fictive. Ses bulletins sont lus par une voix de synthèse, enregistrée à l'avance avec ",
-      external(CREDITS.voice.engine.name, CREDITS.voice.engine.url),
-      ` (voix ${CREDITS.voice.name}), entraînée sur `,
-      external(`« ${CREDITS.voice.dataset.name} »`, CREDITS.voice.dataset.url),
-      ` (${CREDITS.voice.dataset.authors}), sous `,
-      external(`licence ${CREDITS.voice.dataset.licence.name}`, CREDITS.voice.dataset.licence.url),
-      '.',
-    ),
     h('h3', null, 'Vos données'),
     h('p', null, "Le jeu ne collecte rien : pas de compte, pas de traceur, pas de serveur. La partie est enregistrée dans votre navigateur, et nulle part ailleurs."),
   );

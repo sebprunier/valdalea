@@ -1,6 +1,6 @@
 import type { Mix } from './mix';
 import { mulberry32 } from '../core/rng';
-import { birdsong, buildAmbience, buildOutput, playCue, playThroughRadio, SONGS, toll, type Cue } from './sound';
+import { birdsong, buildAmbience, buildOutput, playCue, SONGS, toll, type Cue } from './sound';
 
 /**
  * Banc de mesure, pour le développement uniquement : rend un son hors ligne et
@@ -39,10 +39,4 @@ export const soundLab = {
       SONGS.forEach((song, i) => void birdsong(ctx, out, 0.1 + i * 1.8, song, 1, random));
     }),
   bell: (strokes: number): Promise<Level> => measure(strokes * 1.5 + 2, (ctx, out) => void toll(ctx, out, 0.05, strokes, 1)),
-  /** Un bulletin de radio enregistré, passé par le poste à piles. */
-  radio: async (url: string): Promise<Level> => {
-    const data = await (await fetch(url)).arrayBuffer();
-    const voice = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(data);
-    return measure(voice.duration + 1, (ctx, out) => void playThroughRadio(ctx, out, voice, 0.05));
-  },
 };

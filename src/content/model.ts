@@ -164,11 +164,10 @@ export interface StoryCard {
 export interface Bulletin {
   id: string;
   /**
-   * Où il arrive : un message (la mairie écrit au réserviste) va dans la messagerie du
-   * téléphone ; une alerte (bulletin de vigilance, FR-Alert) dans son application Alertes ;
-   * un bulletin de radio s'écoute sur le poste du kit d'urgence, chez soi, si le kit est prêt.
+   * Où le téléphone le range : un message (la mairie écrit au réserviste) va dans
+   * la messagerie ; une alerte (bulletin de vigilance, FR-Alert) dans l'application Alertes.
    */
-  kind: 'message' | 'alerte' | 'radio';
+  kind: 'message' | 'alerte';
   /** Émetteur affiché en tête du message. */
   from: string;
   title: string;

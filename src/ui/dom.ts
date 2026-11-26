@@ -32,7 +32,6 @@ const ICONS = {
   reglages: 'M4 7h10m4 0h2M4 17h4m4 0h8M14 5v4M8 15v4',
   fermer: 'M6 6l12 12M18 6 6 18',
   retour: 'M15 5l-7 7 7 7',
-  radio: 'M4 9h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Zm3 0 10-5M8.5 17a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm6-4h3m-3 3h3',
   coche: 'M5 12.5l4.5 4.5L19 7.5',
   alerte: 'M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Zm4 4a2 2 0 0 0 4 0',
   document: 'M7 3h7l4 4v14H7V3Zm7 0v4h4M10 12h5m-5 4h5',

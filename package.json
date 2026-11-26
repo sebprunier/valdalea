@@ -14,8 +14,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "liens": "node scripts/verifier-liens.mjs",
-    "radio": "uv run --no-project --with piper-tts==1.8.0 --with lameenc==1.9.0 python -I scripts/generer-radio.py"
+    "liens": "node scripts/verifier-liens.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

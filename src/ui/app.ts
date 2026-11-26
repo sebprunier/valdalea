@@ -38,7 +38,6 @@ import { createMapLegend } from './legend';
 import { createMission } from './mission';
 import { createPhone, type PhoneView } from './phone';
 import { createPlaceUi } from './place';
-import { createRadio } from './radio';
 import { createHelpDialog, createStartDialog } from './screens';
 import { createToaster } from './toast';
 
@@ -131,9 +130,7 @@ export function createUi(deps: UiDeps): Ui {
     if (phase === 'bilan') return ['chapitres'];
     const crisis = playbook().content?.crisis;
     const beats = phase === 'vigilance' ? crisis?.vigilance : phase === 'crise' ? crisis?.onset : undefined;
-    // La radio, elle, ne passe pas par le téléphone.
-    const app = { alerte: ['alertes'], message: ['messages'], radio: [] } as const;
-    return (beats ?? []).flatMap((beat) => ('bulletin' in beat ? app[beat.bulletin.kind] : []));
+    return (beats ?? []).flatMap((beat) => ('bulletin' in beat ? [beat.bulletin.kind === 'alerte' ? ('alertes' as const) : ('messages' as const)] : []));
   }
 
   /**
@@ -280,7 +277,6 @@ export function createUi(deps: UiDeps): Ui {
   });
 
   // ------------------------------------------------------------- Déroulé
-  const radio = createRadio(sound);
   const flow = createFlow({
     getChapter: chapter,
     getContent: () => playbook().content,
@@ -301,8 +297,6 @@ export function createUi(deps: UiDeps): Ui {
       sync();
     },
     readBulletin: (bulletin) => phone.read(bulletin, map),
-    hasRadio: () => 'kit' in store.get().assets,
-    listenRadio: (bulletin) => radio.listen(bulletin, map),
     play: (cue) => sound.play(cue),
     setHazard: showHazard,
     setFocus: (placeId, south = 0) => {
