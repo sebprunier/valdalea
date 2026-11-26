@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { brochureSources } from '../src/content/brochure';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
+import { DOCUMENTS } from '../src/content/documents';
 import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, finishedAt, placesOf, playbookOf } from '../src/content/chapitres';
 import { STORY as FIRE_STORY } from '../src/content/feu';
 import { STORY as WINTER_STORY } from '../src/content/industriel';
@@ -50,6 +52,8 @@ describe('cohérence des contenus', () => {
       ...QUESTIONS.flatMap((q) => q.sources),
       ...SCRIPTS.flatMap(([, crisis]) => [...crisis.situations, ...crisis.stakes, ...bulletinsOf(crisis)].flatMap((item) => item.sources)),
       ...dicrimSources(),
+      ...brochureSources(),
+      ...DOCUMENTS.flatMap((document) => (document.source ? [document.source] : [])),
       ...LEXICON.flatMap((entry) => entry.sources),
       ...VIGILANCE_SCALE.sources,
     ];

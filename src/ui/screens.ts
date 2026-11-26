@@ -159,7 +159,7 @@ export function createHelpDialog(): DialogHandle {
     h(
       'p',
       null,
-      "Le téléphone est la télécommande du jeu : chapitres (avec le bilan de chacun), carte, lieux, météo, messages, alertes, DICRIM, lexique, badges, réglages. En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance ; ils ouvrent les applications Météo et Alertes. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : un message, une alerte, le DICRIM, un bilan, un badge.",
+      "Le téléphone est la télécommande du jeu : chapitres (avec le bilan de chacun), carte, lieux, météo, messages, alertes, documents (le DICRIM, puis ceux que vous recevrez), lexique, badges, réglages. En haut de l'écran, deux boutons donnent le temps qu'il fait et le niveau de vigilance ; ils ouvrent les applications Météo et Alertes. Une pastille orange sur le téléphone signale qu'une nouveauté vous y attend : un message, une alerte, un document, un bilan, un badge.",
     ),
     h('h3', null, 'Recommencer'),
     h(

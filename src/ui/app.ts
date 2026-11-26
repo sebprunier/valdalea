@@ -1,4 +1,5 @@
 import { assessChapter, BADGE_GROUPS, badgesOf, findChapter, finishedAt, globalBadges, playbookOf, type ChapterInfo, type Playbook } from '../content/chapitres';
+import { DOCUMENTS, earnedIn, shelf } from '../content/documents';
 import { mixOf } from '../audio/mix';
 import type { Sound } from '../audio/sound';
 import type { SkyId } from '../content/model';
@@ -18,7 +19,7 @@ import {
   type Chapter,
   type Phase,
 } from '../core/chapter';
-import { DEFAULT_SETTINGS, markVisited, newGame, OFF_CHAPTER, withAsset, withBadges, withChapter, withNews, withoutNews, withRecord, withResult, type GameState, type NewsId } from '../core/state';
+import { DEFAULT_SETTINGS, markVisited, newGame, OFF_CHAPTER, withAsset, withBadges, withChapter, withDocuments, withNews, withoutNews, withRecord, withResult, type GameState, type NewsId } from '../core/state';
 import { distToPolygon, type Vec } from '../core/geometry';
 import type { Store } from '../core/store';
 import { ZOOM_LEVELS } from '../game/constants';
@@ -30,6 +31,8 @@ import { buildFireField, FIRE_OUT, FIRE_SPENT, type FireField } from '../world/f
 import { exposuresAt, isExposed } from '../world/hazards';
 import { findPlace, RISK_IDS, type Commune, type Place, type RiskId, type Sector } from '../world/model';
 import { createConfirm, onModalChange, setFallbackFocus } from './dialog';
+import type { Booklet } from './booklet';
+import { createBrochureViewer } from './brochure';
 import { createDicrimViewer } from './dicrim';
 import { createAnnouncer, h, icon, requireElement } from './dom';
 import { createFlow, type Scene } from './flow';
@@ -142,7 +145,7 @@ export function createUi(deps: UiDeps): Ui {
     store.update((state) => withChapter(state, recipe(state.chapter)));
     const after = chapter();
 
-    if (after.done.includes('mairie-dicrim') && !before.done.includes('mairie-dicrim')) store.update((state) => withNews(state, 'dicrim'));
+    collectDocuments();
     if (after.phase !== before.phase) {
       for (const news of newsAt(after.phase)) store.update((state) => withNews(state, news));
       if (after.phase === 'bilan') keepRecord();
@@ -266,21 +269,30 @@ export function createUi(deps: UiDeps): Ui {
   }
 
   // ------------------------------------------------------------- Documents
-  const dicrim = createDicrimViewer({
+  const booklet = {
     commune,
     elevation,
     overview: game.overview,
-    showOnMap: (risk) => {
+    showOnMap: (risk: RiskId) => {
       setLayer(risk);
       toast(`Carte affichée sur le plan : ${RISK_NAMES[risk].toLowerCase()}. Vous pouvez la changer dans le téléphone, application Carte.`);
     },
-  });
+  };
+  /** Les livrets du jeu, par identifiant de document : ils s'ouvrent par-dessus tout le reste. */
+  const booklets: Record<string, Booklet> = { dicrim: createDicrimViewer(booklet), 'brochure-usine': createBrochureViewer(booklet) };
+
+  /** Range dans le téléphone les documents que la partie vient de valoir, et le signale sur l'application Documents. */
+  function collectDocuments(): void {
+    const state = store.get();
+    const earned = earnedIn(state);
+    if (earned.some((id) => !state.documents.includes(id))) store.update((current) => withNews(withDocuments(current, earned), 'documents'));
+  }
 
   // ------------------------------------------------------------- Déroulé
   const flow = createFlow({
     getChapter: chapter,
     getContent: () => playbook().content,
-    leaveChapter: () => store.update((state) => ({ ...withChapter(state, leaveChapter(state.chapter, playbook().actions)), news: state.news.filter((id) => id === 'dicrim') })),
+    leaveChapter: () => store.update((state) => ({ ...withChapter(state, leaveChapter(state.chapter, playbook().actions)), news: state.news.filter((id) => id === 'documents') })),
     setChapter,
     getBadges: () => store.get().badges,
     // Un badge de plus : l'application Badges le signale.
@@ -317,7 +329,9 @@ export function createUi(deps: UiDeps): Ui {
    */
   function begin(chapterId: string): void {
     const next = playbookOf(chapterId, store.get().assets);
-    store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'dicrim') }));
+    store.update((state) => ({ ...withChapter(state, startChapter(state.chapter, next.actions, next.timing)), chapterId, news: state.news.filter((id) => id === 'documents') }));
+    // Avec sa mission, le maire remet la fiche officielle du risque : elle rejoint les documents du téléphone.
+    collectDocuments();
     showHazard(0, true);
     game.setFocus(null);
     flow.begin();
@@ -367,13 +381,16 @@ export function createUi(deps: UiDeps): Ui {
     getQuestions: () => playbook().questions,
     perform: (action) => setChapter((current) => perform(current, action, playbook().timing)),
     performed: (action) => {
-      // Consulter le DICRIM, c'est l'ouvrir : le document vient sous les yeux du joueur au moment
-      // même du geste. Aucune carte de risque n'est posée d'office sur le plan : c'est lui qui choisit.
-      if (action.id === 'mairie-dicrim') dicrim.open(null);
+      // Consulter le DICRIM ou prendre la brochure de l'usine, c'est l'ouvrir : le document vient sous les yeux
+      // du joueur au moment même du geste. Aucune carte de risque n'est posée d'office sur le plan : c'est lui qui choisit.
+      const given = DOCUMENTS.find((document) => 'action' in document.earnedBy && document.earnedBy.action === action.id);
+      if (given) booklets[given.id]?.open(null);
       // Le kit d'urgence, une fois préparé, suit le joueur dans les autres chapitres ; préparé hors chapitre, il vaut pour tous.
       const { grants } = action;
       const origin = action.phase === 'libre' ? OFF_CHAPTER : store.get().chapterId;
       if (grants && origin) store.update((state) => withAsset(state, grants, origin));
+      // Avec le kit vient sa fiche officielle.
+      collectDocuments();
     },
     afterAction: (action) => {
       // Le prologue s'achève avec la lecture du DICRIM : il reste à choisir une mission.
@@ -493,7 +510,8 @@ export function createUi(deps: UiDeps): Ui {
     getBadgeGroups: () => BADGE_GROUPS,
     clearNews: (id) => store.update((state) => withoutNews(state, id)),
     isDicrimRead: dicrimRead,
-    openDicrim: () => dicrim.open(null),
+    getDocuments: () => ({ owned: shelf(store.get().documents), total: DOCUMENTS.length }),
+    openDocument: (id) => booklets[id]?.open(null),
     openLegend: () => legend.open(null),
     setLayer,
     isReducedMotion: deps.isReducedMotion,

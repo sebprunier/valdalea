@@ -1258,6 +1258,51 @@ kbd {
   background: transparent;
 }
 
+/* Les documents du téléphone : une carte par document, les livrets du jeu avec un liseré, les fiches officielles sans. */
+.document-cards {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document-card {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.document-card--livret {
+  border-left: 0.4rem solid var(--ink);
+}
+
+.document-card > h4 {
+  margin: 0 0 0.2rem;
+}
+
+.document-card > * + * {
+  margin-top: 0.45rem;
+}
+
+.document-card__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Le schéma du signal d'alerte, dans la brochure de l'usine. */
+.signal-figure {
+  margin: 0.75rem 0;
+}
+
+.signal-figure svg {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+}
+
 .dialog__kicker .tag {
   letter-spacing: 0;
   text-transform: none;
@@ -2460,6 +2505,19 @@ meter {
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
+}
+
+/* Un titre en toutes lettres (la brochure de l'usine) prend moins de place qu'un sigle. */
+.cover__title--long {
+  max-width: 30rem;
+  font-size: 2.75rem;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.cover__editor {
+  margin-top: 1.5rem;
+  font-size: 1rem;
 }
 
 .cover__subtitle {

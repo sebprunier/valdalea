@@ -2,7 +2,8 @@ import { findChapter, type BadgeInfo, type ChapterInfo } from '../content/chapit
 import { CREDITS } from '../content/credits';
 import { VIGILANCE_SCALE } from '../content/inondation';
 import { LEXICON } from '../content/lexique';
-import type { Bulletin, VigilanceLevel } from '../content/model';
+import type { DocumentInfo } from '../content/documents';
+import { SOURCES, type Bulletin, type VigilanceLevel } from '../content/model';
 import { PLACE_TEXTS } from '../content/places';
 import type { Assessment } from '../core/chapter';
 import { distance, type Vec } from '../core/geometry';
@@ -64,8 +65,10 @@ export interface PhoneDeps {
   /** Une nouveauté a été regardée : sa pastille disparaît. */
   clearNews(id: NewsId): void;
   isDicrimRead(): boolean;
-  /** Ouvre le DICRIM par-dessus le téléphone. */
-  openDicrim(): void;
+  /** Les documents obtenus, dans l'ordre où les montrer, et le nombre de documents que compte le jeu. */
+  getDocuments(): { owned: readonly DocumentInfo[]; total: number };
+  /** Ouvre un livret (le DICRIM, la brochure de l'usine) par-dessus le téléphone. */
+  openDocument(id: string): void;
   /** Ouvre la légende de la carte par-dessus le téléphone. */
   openLegend(): void;
   /** Affiche une carte de risque sur le plan du jeu, ou aucune. */
@@ -80,7 +83,7 @@ export interface PhoneDeps {
   restart(): Promise<boolean>;
 }
 
-export type PhoneView = 'accueil' | 'chapitres' | 'bilan' | 'carte' | 'carnet' | 'meteo' | 'messages' | 'alertes' | 'dicrim' | 'lexique' | 'badges' | 'reglages' | 'apropos';
+export type PhoneView = 'accueil' | 'chapitres' | 'bilan' | 'carte' | 'carnet' | 'meteo' | 'messages' | 'alertes' | 'documents' | 'lexique' | 'badges' | 'reglages' | 'apropos';
 
 export interface Phone {
   /** Ouvre le téléphone, sur l'écran des applications ou directement dans l'une d'elles. */
@@ -106,7 +109,7 @@ const APPS: Array<{ view: Exclude<View, 'accueil' | 'bilan'>; label: string; ico
   { view: 'meteo', label: 'Météo', icon: 'eclaircie' },
   { view: 'messages', label: 'Messages', icon: 'message' },
   { view: 'alertes', label: 'Alertes', icon: 'alerte' },
-  { view: 'dicrim', label: 'DICRIM', icon: 'document' },
+  { view: 'documents', label: 'Documents', icon: 'document' },
   { view: 'lexique', label: 'Lexique', icon: 'aide' },
   { view: 'badges', label: 'Badges', icon: 'medaille' },
   { view: 'reglages', label: 'Réglages', icon: 'reglages' },
@@ -121,7 +124,7 @@ const TITLES: Record<View, string> = {
   meteo: 'Météo',
   messages: 'Messages',
   alertes: 'Vigilance et alertes',
-  dicrim: 'DICRIM',
+  documents: 'Documents',
   lexique: 'Lexique',
   bilan: 'Bilan',
   badges: 'Badges',
@@ -427,24 +430,55 @@ export function createPhone(deps: PhoneDeps): Phone {
     );
   }
 
-  // ----------------------------------------------------------------- DICRIM
-  const dicrimView = h('div', { class: 'stack' });
+  // -------------------------------------------------------------- Documents
+  const documentsView = h('div', { class: 'stack' });
 
-  function renderDicrim(): void {
-    if (deps.isDicrimRead()) {
-      const open = h('button', { type: 'button', class: 'button button--primary' }, 'Ouvrir le DICRIM');
-      open.addEventListener('click', () => deps.openDicrim());
-      dicrimView.replaceChildren(
-        h('p', { class: 'lead' }, "Le document d'information communal sur les risques majeurs de Val-d'Aléa."),
-        h('p', null, "Six risques, une carte pour chacun, les bons réflexes et un mémo à conserver. Vous l'avez consulté à la mairie ; il reste disponible ici."),
-        open,
+  function renderDocuments(): void {
+    const { owned, total } = deps.getDocuments();
+    if (owned.length === 0) {
+      documentsView.replaceChildren(
+        h('p', { class: 'lead' }, "Vous n'avez encore aucun document."),
+        h('p', null, "Le premier vous attend à la mairie : le DICRIM, le document d'information communal sur les risques majeurs. Une fois consulté, il reste disponible ici."),
       );
-    } else {
-      dicrimView.replaceChildren(
-        h('p', { class: 'lead' }, "Vous n'avez pas encore consulté le DICRIM."),
-        h('p', null, "Le document d'information communal sur les risques majeurs se consulte à la mairie. Une fois lu, il reste disponible ici."),
-      );
+      return;
     }
+    const card = (info: DocumentInfo): HTMLElement => {
+      const source = info.source ? SOURCES[info.source] : undefined;
+      const open = h('button', { type: 'button', class: 'button button--primary button--small' }, 'Ouvrir');
+      open.addEventListener('click', () => deps.openDocument(info.id));
+      return h(
+        'li',
+        { class: `document-card document-card--${info.kind}` },
+        h('h4', null, info.title),
+        h('p', { class: 'dialog__kicker' }, info.from),
+        h('p', null, info.summary),
+        // Un livret s'ouvre dans le jeu ; une fiche officielle, sur sa page d'origine.
+        source ? h('p', null, h('a', { href: source.url, target: '_blank', rel: 'noopener noreferrer' }, 'Ouvrir la page officielle', h('span', { class: 'sr-only' }, ' (nouvelle fenêtre)'))) : h('div', { class: 'document-card__actions' }, open),
+      );
+    };
+    const booklets = owned.filter((info) => info.kind === 'livret');
+    const sheets = owned.filter((info) => info.kind === 'fiche');
+    const missing = total - owned.length;
+    documentsView.replaceChildren(
+      h('p', { class: 'lead' }, 'Les documents que vous avez reçus. Ils restent ici.'),
+      h('h3', null, "Livrets de Val-d'Aléa"),
+      h('p', { class: 'fine-print' }, 'Des documents du jeu, fictifs : ils se lisent, s’impriment et s’enregistrent en PDF.'),
+      h('ul', { class: 'document-cards' }, ...booklets.map(card)),
+      ...(sheets.length > 0
+        ? [
+            h('h3', null, 'Fiches officielles'),
+            h('p', { class: 'fine-print' }, 'Le jeu ne reproduit pas ces fiches : il renvoie à leur page officielle. Leurs consignes sont aussi dans le DICRIM.'),
+            h('ul', { class: 'document-cards' }, ...sheets.map(card)),
+          ]
+        : []),
+      h(
+        'p',
+        { class: 'fine-print' },
+        missing > 0
+          ? `${owned.length} document${owned.length > 1 ? 's' : ''} sur ${total}. Les autres s'obtiennent au fil des chapitres.`
+          : `Vous avez les ${total} documents du jeu.`,
+      ),
+    );
   }
 
   // ---------------------------------------------------------------- Lexique
@@ -570,7 +604,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     meteo: weatherView,
     messages: messagesView,
     alertes: alertsView,
-    dicrim: dicrimView,
+    documents: documentsView,
     lexique: lexiconView,
     bilan: bilanView,
     badges: badgesView,
@@ -585,7 +619,7 @@ export function createPhone(deps: PhoneDeps): Phone {
     meteo: renderWeather,
     messages: renderMessages,
     alertes: renderAlerts,
-    dicrim: renderDicrim,
+    documents: renderDocuments,
     bilan: renderBilan,
     badges: renderBadges,
     reglages: () => {

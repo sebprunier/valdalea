@@ -11,6 +11,8 @@ const context: LoadContext = {
   situationChoices: new Map([['enfants', new Set(['ecole', 'a-pied'])]]),
   badgeIds: new Set(['kit']),
   grants: new Map([['maison-kit', 'kit']]),
+  // Un seul document, pour ces tests : il s'obtient en lisant le DICRIM.
+  documents: { ids: new Set(['dicrim', 'fiche']), earnedIn: (state) => (state.chapter.done.includes('mairie-dicrim') ? ['dicrim'] : []) },
   riskIds: new Set(['inondation', 'cavites']),
   isFree: (pos) => pos.x >= 0,
   spawn: { x: 100, y: 100 },
@@ -213,12 +215,32 @@ describe('état', () => {
     expect(movePlayer(state, { x: 1, y: 1 })).toBe(state);
   });
 
+  it('garde les documents rangés dans le téléphone, et écarte ceux qui n’existent pas', () => {
+    const storage = memoryStorage();
+    saveGame(storage, { ...newGame({ x: 1, y: 1 }), documents: ['fiche', 'inconnu', 'fiche'] });
+    expect(loadGame(storage, context)?.documents).toEqual(['fiche']);
+  });
+
+  it('retrouve, dans une partie d’avant l’application Documents, ceux que ses gestes lui avaient valus', () => {
+    const storage = memoryStorage();
+    const old: Record<string, unknown> = { ...newGame({ x: 1, y: 1 }), chapter: { phase: 'libre', minutesLeft: 0, done: ['mairie-accueil', 'mairie-dicrim'], answers: {} }, news: ['dicrim', 'badges'] };
+    delete old.documents;
+    storage.setItem('jcrm:partie', JSON.stringify(old));
+    const loaded = loadGame(storage, context)!;
+    expect(loaded.documents).toEqual(['dicrim']);
+    // L'application DICRIM est devenue l'application Documents : sa pastille « nouveau » la suit.
+    expect(loaded.news).toEqual(['documents', 'badges']);
+    // Une partie toute neuve n'a encore rien.
+    saveGame(storage, newGame({ x: 1, y: 1 }));
+    expect(loadGame(storage, context)?.documents).toEqual([]);
+  });
+
   it('signale une nouveauté une seule fois, et la retire quand elle a été vue', () => {
     const state = withNews(newGame({ x: 1, y: 1 }), 'alertes');
     expect(withNews(state, 'alertes')).toBe(state);
     expect(withNews(state, 'badges').news).toEqual(['alertes', 'badges']);
     expect(withoutNews(state, 'alertes').news).toEqual([]);
-    expect(withoutNews(state, 'dicrim')).toBe(state);
+    expect(withoutNews(state, 'documents')).toBe(state);
   });
 
   it('retient le premier chapitre où un acquis a été obtenu', () => {
