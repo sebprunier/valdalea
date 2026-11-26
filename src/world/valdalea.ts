@@ -163,7 +163,8 @@ export function buildValDAlea(): Commune {
 
   // ------------------------------------------------------- Cité des Vannes
   b.houseRow(rect(2990, 1720, 110, 360), 'E', { lot: 120, uniform: true });
-  b.houseRow(rect(3140, 1720, 110, 360), 'W', { lot: 120, uniform: true });
+  // La rangée la plus proche de l'usine ; Inès habite la première maison, au nord.
+  const [ines] = b.houseRow(rect(3140, 1720, 110, 360), 'W', { lot: 120, uniform: true });
 
   // --------------------------------------- Zone industrielle : site Seveso
   const site = rect(3330, 1810, 760, 400);
@@ -288,6 +289,7 @@ export function buildValDAlea(): Commune {
   b.place('brandes', 'Hameau des Brandes', 'quartier', 'brandes', vec(3500, 1275));
   b.place('lucien', 'Chez Lucien', 'domicile', 'brandes', doorPoint(lucien));
   b.place('cite', 'Cité des Vannes', 'quartier', 'cite', vec(3120, 1900));
+  b.place('ines', 'Chez Inès', 'domicile', 'cite', doorPoint(ines));
   b.place('usine', 'Usine Engrais du Val', 'usine', 'zone-industrielle', vec(3400, 1772));
   b.place('camping', 'Camping des Berges', 'camping', 'camping', doorPoint(accueil));
 
@@ -349,9 +351,11 @@ export function buildValDAlea(): Commune {
     vec(2780, 270),
   ]);
 
-  // Risque industriel : le site Seveso et le périmètre de son plan particulier d'intervention.
+  // Risque industriel : le site Seveso et le périmètre de son plan particulier d'intervention,
+  // qui englobe toute la cité des Vannes et le sud du hameau des Brandes.
   const plant = vec(3710, 2010);
-  b.hazard('industriel', 'moyen', Array.from({ length: 48 }, (_, i) => vec(plant.x + 650 * Math.cos((i / 48) * Math.PI * 2), plant.y + 650 * Math.sin((i / 48) * Math.PI * 2))));
+  const ppi = 760;
+  b.hazard('industriel', 'moyen', Array.from({ length: 48 }, (_, i) => vec(plant.x + ppi * Math.cos((i / 48) * Math.PI * 2), plant.y + ppi * Math.sin((i / 48) * Math.PI * 2))));
   b.hazard('industriel', 'fort', rectToPolygon(site));
   b.hazardMark('industriel', plant, 'Engrais du Val');
 
@@ -364,6 +368,14 @@ export function buildValDAlea(): Commune {
     spot: { at: vec(3790, 790), from: 0.4, reach: { head: 420, flank: 260, back: 160 } },
     clearing,
   });
+
+  // Le nuage de l'hiver : une fuite sur une cuve de l'usine, qu'un vent faible pousse vers la cité des Vannes.
+  // Il s'étire jusqu'à la maison d'Inès et à la rangée d'en face, pas plus loin : il reste dans le périmètre du plan
+  // particulier d'intervention.
+  const leak = vec(3830, 2030);
+  const toInes = vec(doorPoint(ines).x - leak.x, doorPoint(ines).y - leak.y);
+  const drift = Math.hypot(toInes.x, toInes.y);
+  b.plume({ source: leak, wind: vec(toInes.x / drift, toInes.y / drift), reach: drift + 110, width: { source: 46, grow: 0.17 } });
 
   b.spawn(doorPoint(home));
 

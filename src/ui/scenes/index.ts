@@ -144,6 +144,62 @@ function neighbourHouse(state: SceneState): Scene {
   });
 }
 
+/** Couleur du gros ruban adhésif. */
+const TAPE = '#c9a227';
+
+/** Chez Inès, dans la cité des Vannes : le jour de l'alerte, la maison se ferme et se calfeutre. */
+function estateHouse(state: SceneState): Scene {
+  const ready = state.did('ines-ruban');
+  const closed = state.did('ines-fermer');
+  const stopped = state.did('ines-ventilation');
+  const sealed = state.did('ines-calfeutrer');
+  const sheltered = state.did('ines-abri');
+  return renderIso({
+    ground: { w: 16, d: 14 },
+    water: state.water,
+    label: describe(
+      "La maison d'Inès, dans la cité des Vannes : une maison à un étage, la plus proche de l'usine.",
+      closed ? 'Portes et fenêtres sont fermées.' : "Une fenêtre de l'étage est ouverte.",
+      stopped ? 'La ventilation est arrêtée.' : '',
+      sealed ? "Du ruban adhésif fait le tour de la porte et couvre la grille d'aération." : ready ? 'Deux rouleaux de ruban adhésif attendent sur le rebord de la fenêtre.' : '',
+      sheltered ? "Il n'y a plus personne dehors." : 'Inès se tient devant sa porte.',
+    ),
+    draw(c) {
+      c.ground(0, 0, 16, 11, GRASS);
+      c.ground(0, 11, 16, 3, ROAD, 0, '#d8cfbe');
+      c.ground(7.1, 9, 1.3, 2, PAVING);
+      c.tree(13.6, 2.6, 3.6);
+      c.box(4, 3.5, 0, 8, 5.5, 5, WALL);
+      windowsLeft(c, 9, 1, [5, 9.6]);
+      // À l'étage, la fenêtre de gauche reste ouverte tant que la maison n'est pas fermée.
+      c.panelLeft(5, 9, 3.4, 1.2, 1.2, closed ? GLASS : '#56636e', LINE);
+      c.panelLeft(9.6, 9, 3.4, 1.2, 1.2, GLASS, LINE);
+      c.panelRight(12, 5, 1, 1.4, 1.2, GLASS, LINE);
+      // Sur le pignon : la grille d'aération, et la bouche de la ventilation.
+      c.panelRight(12, 7.3, 0.5, 0.7, 0.45, sealed ? TAPE : '#6b7178', LINE);
+      c.panelRight(12, 7.2, 3.3, 0.9, 0.6, stopped ? '#9aa39a' : '#dfe6ea', LINE);
+      c.panelLeft(7.2, 9, 0, 1.1, 2.1, DOOR, LINE);
+      if (sealed) {
+        // Le tour de la porte, et la fente de la boîte aux lettres.
+        c.line([7.2, 9.02, 0], [7.2, 9.02, 2.1], TAPE, 3.5);
+        c.line([8.3, 9.02, 0], [8.3, 9.02, 2.1], TAPE, 3.5);
+        c.line([7.2, 9.02, 2.1], [8.3, 9.02, 2.1], TAPE, 3.5);
+        c.line([7.45, 9.02, 1.05], [8.05, 9.02, 1.05], TAPE, 3.5);
+      } else if (ready) {
+        c.box(5.25, 9.04, 1, 0.3, 0.16, 0.3, faces(TAPE, LINE));
+        c.box(5.7, 9.04, 1, 0.3, 0.16, 0.3, faces(TAPE, LINE));
+      }
+      c.gable(3.6, 3.1, 5, 8.8, 6.3, 2, SLATE);
+      if (!sheltered) c.person(7.75, 9.7, '#b0563c');
+      c.spot('ines-ruban', 5.6, 9.1, 1.7);
+      c.spot('ines-fermer', 5.6, 9, 4.1);
+      c.spot('ines-ventilation', 12, 7.65, 3.7);
+      c.spot('ines-calfeutrer', 7.75, 9.6, 1.9);
+      c.spot('ines-abri', 10.2, 9.1, 1.7);
+    },
+  });
+}
+
 // ------------------------------------------------------------------- Mairie
 
 function townHall(): Scene {
@@ -181,6 +237,7 @@ function townHall(): Scene {
       c.person(13.7, 11.6, '#35506b');
       c.spot('mairie-accueil', 13.7, 11.6, 1.9);
       c.spot('mairie-dicrim', 6.35, 12.2, 1.45);
+      c.spot('mairie-brochures', 13.7, 11.6, 1.9);
     },
   });
 }
@@ -260,6 +317,7 @@ function school(state: SceneState): Scene {
       c.box(13.5, 12.72, 1.1, 10.3, 0.08, 0.1, RAIL);
       c.box(10.4, 12.7, 0, 3.1, 0.14, 1.35, faces('#c2410c', '#8f2f08'));
       c.spot('ecole-plan', 13.6, 9.7, 1.9);
+      c.spot('ecole-abri', 13.6, 9.7, 1.9);
     },
   });
 }
@@ -528,6 +586,7 @@ const SCENES: Record<string, (state: SceneState) => Scene> = {
   lucien: edgeHouse,
   domicile: house,
   jeanne: neighbourHouse,
+  ines: estateHouse,
   mairie: townHall,
   pont: bridge,
   ecole: school,

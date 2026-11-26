@@ -1,6 +1,7 @@
 import { assess, type Assessment, type Phase } from '../core/chapter';
 import { GLOBAL_BADGES, type Progress } from './badges';
 import { ETE } from './feu';
+import { HIVER } from './industriel';
 import { AUTOMNE } from './inondation';
 import type { ActionDef, AssetId, BadgeDef, ChapterContent, ChapterPhase, ChapterTiming, Question, Situation } from './model';
 import { KIT_AT_HOME, KIT_QUESTIONS } from './kit';
@@ -45,10 +46,17 @@ export const CHAPTERS: ChapterInfo[] = [
     summary: "Au printemps, une matinée pour aider le hameau à débroussailler, à la lisière de la forêt. L'été venu, le feu arrive par le massif, et le hameau doit partir.",
     playable: true,
   },
+  {
+    id: 'hiver',
+    title: 'Le nuage des Vannes',
+    risk: 'Accident industriel',
+    summary: "En hiver, une matinée pour faire connaître le signal d'alerte autour de l'usine d'engrais. Puis, un jeudi, la sirène retentit : cette fois, on ne part pas, on se met à l'abri.",
+    playable: true,
+  },
 ];
 
 /** Risques décrits dans le DICRIM dont le chapitre viendra plus tard. */
-export const LATER = ['Accident industriel', 'Retrait-gonflement des argiles', 'Cavités souterraines', 'Chutes de blocs'];
+export const LATER = ['Retrait-gonflement des argiles', 'Cavités souterraines', 'Chutes de blocs'];
 
 export function findChapter(id: string | null): ChapterInfo | undefined {
   return CHAPTERS.find((chapter) => chapter.id === id);
@@ -56,7 +64,7 @@ export function findChapter(id: string | null): ChapterInfo | undefined {
 
 // ------------------------------------------------------------------ Contenus
 
-const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE };
+const CONTENTS: Record<string, ChapterContent> = { automne: AUTOMNE, ete: ETE, hiver: HIVER };
 
 /** Tous les gestes et toutes les questions du jeu, prologue compris : de quoi vérifier une sauvegarde. */
 /** Gestes proposés hors chapitre, quand on veut : préparer son kit d'urgence, chez soi. */

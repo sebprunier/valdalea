@@ -33,6 +33,8 @@ export const SKIES: Record<SkyId, Sky> = {
   // L'été du feu : une lumière jaune et dure, puis la fumée qui obscurcit le ciel.
   // Pas de souffle continu pendant la canicule : le vent ne s'entend que sous la fumée, le temps de l'évacuation.
   canicule: { label: 'Canicule, vent', icon: 'soleil', rain: 0, wind: 0, daylight: 1, veil: 'rgb(255 196 84 / 11%)' },
+  // L'hiver du nuage : un froid sec, presque sans vent. C'est ce qui laisse le nuage s'étirer lentement.
+  froid: { label: 'Froid sec, vent faible', icon: 'nuage', rain: 0, wind: 0, daylight: 0.85, veil: 'rgb(150 170 200 / 10%)' },
   fumee: { label: 'Fumée', icon: 'nuage', rain: 0, wind: 0.5, daylight: 0.1, veil: 'rgb(124 74 38 / 36%)' },
 };
 

@@ -30,7 +30,7 @@ async function measure(seconds: number, build: (ctx: OfflineAudioContext, out: A
 }
 
 export const soundLab = {
-  cue: (cue: Cue): Promise<Level> => measure(3, (ctx, out) => void playCue(ctx, out, cue, 0.05)),
+  cue: (cue: Cue): Promise<Level> => measure(cue === 'sirene' ? 6 : 3, (ctx, out) => void playCue(ctx, out, cue, 0.05)),
   ambience: (mix: Mix): Promise<Level> => measure(6, (ctx, out) => buildAmbience(ctx, out).set(mix, 0)),
   /** Les trois chants d'oiseaux, à la suite, au plus près de la forêt. */
   birds: (): Promise<Level> =>

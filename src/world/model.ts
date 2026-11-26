@@ -201,6 +201,21 @@ export interface Wildfire {
   clearing: Vec[];
 }
 
+/**
+ * Le nuage toxique que raconte le chapitre de l'accident industriel : d'où il
+ * s'échappe, où le vent le pousse. Sa forme est calculée par `plume`.
+ */
+export interface Plume {
+  /** Point de la fuite. */
+  source: Vec;
+  /** Direction vers laquelle souffle le vent (vecteur unitaire). */
+  wind: Vec;
+  /** Distance atteinte dans le vent quand l'étendue du nuage vaut 1. */
+  reach: number;
+  /** Demi-largeur du nuage à la fuite, et ce qu'elle gagne par unité de distance parcourue. */
+  width: { source: number; grow: number };
+}
+
 export interface Commune {
   name: string;
   width: number;
@@ -225,6 +240,8 @@ export interface Commune {
   spawn: Vec;
   /** Le feu de forêt du chapitre de l'été, si la commune en raconte un. */
   wildfire?: Wildfire;
+  /** Le nuage toxique du chapitre de l'accident industriel, si la commune en raconte un. */
+  plume?: Plume;
 }
 
 export function findPlace(commune: Commune, id: string): Place | undefined {

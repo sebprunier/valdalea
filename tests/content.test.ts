@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DICRIM, dicrimSources } from '../src/content/dicrim';
 import { ALL_ACTIONS as ACTIONS, ALL_BADGES, ALL_QUESTIONS as QUESTIONS, ALL_SITUATIONS, CHAPTERS, finishedAt, placesOf, playbookOf } from '../src/content/chapitres';
 import { STORY as FIRE_STORY } from '../src/content/feu';
+import { STORY as WINTER_STORY } from '../src/content/industriel';
 import { STORY, VIGILANCE_SCALE } from '../src/content/inondation';
 import { findEntry, LEXICON } from '../src/content/lexique';
 import { SOURCES, type Bulletin, type CrisisScript, type StoryCard } from '../src/content/model';
@@ -131,7 +132,10 @@ describe('cohérence des contenus', () => {
     const flood = placesOf('automne');
     for (const id of ['domicile', 'jeanne', 'pont', 'ecole', 'camping', 'gymnase']) expect(flood.has(id), id).toBe(true);
     for (const id of ['usine', 'lucien', 'brandes']) expect(flood.has(id), id).toBe(false);
-    for (const id of [...fire, ...flood]) expect(placeIds.has(id), id).toBe(true);
+    const cloud = placesOf('hiver');
+    for (const id of ['domicile', 'mairie', 'usine', 'cite', 'ines', 'ecole']) expect(cloud.has(id), id).toBe(true);
+    for (const id of ['lucien', 'brandes', 'camping', 'pont', 'gymnase']) expect(cloud.has(id), id).toBe(false);
+    for (const id of [...fire, ...flood, ...cloud]) expect(placeIds.has(id), id).toBe(true);
     expect(placesOf(null).size).toBe(0);
     expect(placesOf('inconnu').size).toBe(0);
   });
@@ -146,10 +150,14 @@ describe('cohérence des contenus', () => {
     expect(titles('ecole', ['ete', 'automne'])).toEqual(['automne']);
     expect(titles('lucien', ['ete', 'automne'])).toEqual(['ete']);
     expect(titles('usine', ['ete', 'automne'])).toEqual([]);
+    // L'école a compté pour la crue et pour le nuage ; la maison d'Inès, pour le nuage seulement.
+    expect(titles('ecole', ['hiver', 'ete', 'automne'])).toEqual(['automne', 'hiver']);
+    expect(titles('ines', ['hiver', 'ete', 'automne'])).toEqual(['hiver']);
+    expect(titles('usine', ['hiver'])).toEqual(['hiver']);
   });
 
   it('donne à chaque chapitre complet de quoi jouer sa crise : lieux, récit, messages, bilan', () => {
-    expect(SCRIPTS.map(([id]) => id)).toEqual(['automne', 'ete']);
+    expect(SCRIPTS.map(([id]) => id)).toEqual(['automne', 'ete', 'hiver']);
     for (const [id, crisis] of SCRIPTS) {
       expect(placeIds.has(crisis.places.vigilance), `${id} : lieu de la vigilance`).toBe(true);
       expect(placeIds.has(crisis.places.crise), `${id} : lieu de la crise`).toBe(true);
@@ -195,7 +203,8 @@ describe('cohérence des contenus', () => {
 
   it('fait précéder chaque alerte d’un moment de récit complet', () => {
     const levels = new Set(VIGILANCE_SCALE.levels.map((level) => level.id));
-    for (const story of [STORY, FIRE_STORY]) {
+    const stories: Record<string, Record<string, StoryCard>> = { automne: STORY, ete: FIRE_STORY, hiver: WINTER_STORY };
+    for (const story of Object.values(stories)) {
       for (const [key, card] of Object.entries<StoryCard>(story)) {
         expect(card.id, key).toBe(key);
         expect(card.when.length, key).toBeGreaterThan(3);
@@ -208,11 +217,12 @@ describe('cohérence des contenus', () => {
     }
     // Tous les moments écrits sont joués : aucun ne reste dans un tiroir.
     for (const [id, crisis] of SCRIPTS) {
-      const story = id === 'automne' ? STORY : FIRE_STORY;
-      expect([playbookOf(id).content!.opening, ...cardsOf(crisis)].map((card) => card.id).sort(), id).toEqual(Object.keys(story).sort());
+      expect([playbookOf(id).content!.opening, ...cardsOf(crisis)].map((card) => card.id).sort(), id).toEqual(Object.keys(stories[id]).sort());
     }
     // Le signal sonore accompagne le texte qui l'annonce : le téléphone vibre avant un bulletin, sonne avant l'alerte.
     expect([STORY.soir.sound, STORY.matin.sound, STORY.abri.sound]).toEqual(['message', 'message', 'alerte']);
+    // L'accident industriel, lui, s'annonce par la sirène ; le téléphone ne sonne qu'ensuite.
+    expect([WINTER_STORY.sirene.sound, WINTER_STORY.nuage.sound]).toEqual(['sirene', 'alerte']);
     // Les deux phases qui peuvent s'achever faute de temps ont leur variante.
     expect(STORY.soir.late).toBeTruthy();
     expect(STORY.abri.late).toBeTruthy();

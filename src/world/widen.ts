@@ -68,4 +68,5 @@ export function widenEast(commune: Commune, fromX: number, by: number, eastern: 
     const fire = commune.wildfire;
     commune.wildfire = { ...fire, ignition: point(fire.ignition), spot: { ...fire.spot, at: point(fire.spot.at) }, clearing: fire.clearing.map(point) };
   }
+  if (commune.plume) commune.plume = { ...commune.plume, source: point(commune.plume.source) };
 }
